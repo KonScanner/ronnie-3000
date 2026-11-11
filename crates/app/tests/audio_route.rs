@@ -1161,6 +1161,11 @@ fn a_job_that_never_returns_ends_with_a_message_and_a_later_choice_works() {
         "the user knows why"
     );
 
+    // The short limit only makes the stuck job end. A slow CI runner can need more than 50 ms
+    // for the healthy job, so the retry gets a generous limit.
+    backend
+        .set_device_work_limit(Duration::from_secs(10))
+        .expect("limit");
     backend
         .dispatch(UiAction::Device(DeviceAction::Restart))
         .expect("retry");
