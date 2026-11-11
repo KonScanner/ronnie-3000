@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "command": "cargo test -p ronie-app --test standalone_end_to_end -- --nocapture",
+  "scope": "Ten deterministic local standalone scenarios plus focused concurrency and queue tests. These results establish local behavior, not complete compatibility.",
+  "scenarios": [
+    {
+      "id": "preset-restart",
+      "test": "saved_preset_reloads_after_a_processor_restart",
+      "status": "verified-local",
+      "evidence": "A tone parameter survives file-backed preset save, processor reconstruction, and preset reload."
+    },
+    {
+      "id": "local-rig-offline",
+      "test": "local_rig_restores_offline_and_preserves_future_fields_on_update",
+      "status": "verified-local",
+      "evidence": "After deleting original inputs and stash, the production restore compiles embedded NAM/WAV bytes, publishes the chain through RtChain, renders finite nonzero dummy output, and retains root, snapshot, and block future fields."
+    },
+    {
+      "id": "session-close-reopen",
+      "test": "standalone_session_restores_parameters_midi_and_active_preset_after_close",
+      "status": "verified-local",
+      "evidence": "The final backend owner writes an atomic session document. Reopening restores the exact pre-close parameter, MIDI channel and mapping, and active preset."
+    },
+    {
+      "id": "session-parameter-scopes",
+      "test": "standalone_session_restores_every_session_scoped_parameter_exactly",
+      "status": "verified-local",
+      "evidence": "Every session-scoped parameter survives close and reopen exactly."
+    },
+    {
+      "id": "session-unknown-fields",
+      "test": "unknown_session_fields_survive_close_and_reopen",
+      "status": "verified-local",
+      "evidence": "Injected unknown session fields survive the production close/reopen cycle."
+    },
+    {
+      "id": "preset-parameter-scopes",
+      "test": "preset_updates_strip_known_non_preset_parameters_and_preserve_current_scopes",
+      "status": "verified-local",
+      "evidence": "Known machine/session-only parameters are stripped from presets while their current runtime values and unknown parameter nodes remain intact."
+    },
+    {
+      "id": "legacy-preset-migration",
+      "test": "legacy_preset_ids_keep_the_latest_edit_across_restarts",
+      "status": "verified-local",
+      "evidence": "Three edit/save/restart cycles preserve the latest pitchEnabled value, remove the legacy ID, and retain unknown fields."
+    },
+    {
+      "id": "invalid-preset-transaction",
+      "test": "invalid_embedded_model_fails_preset_restore_transactionally",
+      "status": "verified-local",
+      "evidence": "Invalid embedded model data is rejected before preset control state mutates."
+    },
+    {
+      "id": "invalid-session-transaction",
+      "test": "invalid_embedded_model_fails_session_restore_without_overwriting_it",
+      "status": "verified-local",
+      "evidence": "Invalid embedded model data prevents session restoration and leaves the source session byte-for-byte unchanged."
+    },
+    {
+      "id": "preset-move-no-op",
+      "test": "clamped_preset_move_is_a_revision_free_no_op",
+      "status": "verified-local",
+      "evidence": "A clamped preset move does not emit a false mutation or increment revisions."
+    }
+  ],
+  "additional_coverage": [
+    "standalone_backend.rs proves that a full bounded command queue leaves applied restores pending and continues after capacity is released.",
+    "standalone_backend.rs proves that a poisoned runtime lock does not discard the prepared restore candidate.",
+    "backend.rs proves that concurrent final clones cannot both skip the session save.",
+    "Dummy audio rendering and device settings are covered by standalone_smoke.rs, standalone_backend.rs, audio_devices.rs, and audio_settings.rs.",
+    "A release-mode native UI selftest passed launch, capture, close, and session-file creation in an isolated configuration root. Synthetic accessibility passed with zero unnamed focus stops; platform AT-SPI activation remains unverified.",
+    "The Default UI suite has 103/103 backend-effect scenarios and 101/103 tolerance-based visual comparisons passing. The two remaining content constraints are documented in README.md.",
+    "community.rs, auth_e2e.rs, oauth.rs, download.rs, and acquisition_end_to_end.rs cover the adversarial matrix: callback cancellation, device pending, slow-down, rate limit, and expiry, refresh rejection and cross-process adoption, query and model supersession, an editor close at each network stage, one 401, one transport retry, malformed and oversized JSON, empty and oversized models, non-HTTPS and unapproved origins, an image 404, and an offline launch. Each case also checks that the chain and the stored session did not change.",
+    "http.rs proves that a form body does not follow a redirect to a public origin, and that a model read with a bearer still follows 302 and 307 and loses the bearer at the origin change. The fixtures have no TLS, so the policy tests stop at the handshake.",
+    "image_memory.rs measures the peak of one image decode. A header over a 4096-pixel square is refused before any pixel allocation.",
+    "standalone_end_to_end.rs proves that a corrupt local stash file does not replace valid embedded bytes."
+  ],
+  "unresolved": [
+    {
+      "id": "factory-preset-content",
+      "reason": "Redistributable factory preset documents and their referenced model assets are not installed. Saved user presets are loaded from disk, but no factory content is claimed."
+    },
+    {
+      "id": "external-differentials",
+      "reason": "Official fixtures and operator-supplied compatibility vectors are required before the loading, persistence, and processing-chain manifests can be marked verified."
+    },
+    {
+      "id": "live-services",
+      "reason": "Production catalog, OAuth, update behavior, and catalog models requiring a retry source without embedded bytes require configured endpoints, credentials, and live verification. A manual run of the app exists, but it produced no formal evidence, so every row that needs a live recording stays unresolved."
+    },
+    {
+      "id": "physical-acceptance",
+      "reason": "Physical MIDI, unplug/reconnect, audible monitoring, CPAL callback publication under sustained backpressure, and platform AT-SPI activation require operator hardware or desktop access."
+    },
+    {
+      "id": "ronnie-flow",
+      "reason": "Flow requires separately approved design, implementation, and equivalence coverage."
+    },
+    {
+      "id": "plugins-and-other-platforms",
+      "reason": "Linux plugin formats and non-Linux platforms remain separate implementation plans."
+    }
+  ],
+  "community_command": "cargo test -p ronie-app --test community_end_to_end -- --nocapture",
+  "community_matrix_command": "cargo test -p ronie-core --test acquisition_end_to_end --test oauth --test download && cargo test -p ronie-ui --test community --test auth_e2e",
+  "community_scope": "Recorded answers with fake values, the real dummy backend, and real UI frames with no window. These results establish local behavior only. They say nothing about a live service or physical audio.",
+  "community_scenarios": [
+    {
+      "id": "community-offline-cached-user",
+      "test": "an_offline_launch_keeps_the_session_the_cached_user_and_the_chain",
+      "status": "verified-local",
+      "evidence": "A launch with a session and no network keeps the session and the chain. The account chip shows the name and the avatar of the cached public user, which it reads one time at construction. A fresh user replaces them, and a sign-out or a lost session removes them from the view."
+    },
+    {
+      "id": "community-journey",
+      "test": "the_complete_journey_reaches_audio_and_restores_with_no_network_and_no_secret",
+      "status": "verified-local",
+      "evidence": "Browser sign-in, search, tone and model metadata, one refresh, byte download, preparation, save, and restart reach the dummy audio chain in the exact public request order. The restart restores the same bytes and level with a transport that answers nothing. The serialized evidence and the saved files hold no fake key, token, code, verifier, or bearer value."
+    },
+    {
+      "id": "community-corrupt-model",
+      "test": "a_corrupt_nam_or_wav_keeps_the_running_chain_and_the_saved_session",
+      "status": "verified-local",
+      "evidence": "A corrupt NAM or WAV download leaves the running chain, its level, the session, and the saved model bytes as they were."
+    },
+    {
+      "id": "community-exit-save",
+      "test": "a_compile_that_holds_the_backend_does_not_lose_the_session_at_exit",
+      "status": "verified-local",
+      "evidence": "The exit save writes the session while a compile still holds the backend, and it does not wait for that compile. The call in the binary needs a window, so this test does not run that call."
+    }
+  ]
+}

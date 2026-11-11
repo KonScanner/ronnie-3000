@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Ronnie 3000
+Comment=Native guitar tone modeling and signal-chain workstation
+Exec=ronie
+TryExec=ronie
+Icon=ronnie-3000
+Terminal=false
+StartupWMClass=Ronnie
+Categories=AudioVideo;Audio;Music;
+Keywords=audio;guitar;amplifier;modeling;signal-chain;

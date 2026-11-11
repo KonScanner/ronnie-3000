@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work or sounds wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. Never paste an API key, a token, or a private file path here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Ronnie version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Linux (AppImage)
+        - Linux (tarball or install script)
+        - Linux (built from source)
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: audio
+    attributes:
+      label: Audio interface, driver, and buffer size
+      placeholder: Focusrite Scarlett 2i2, PipeWire, 128 samples
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostic log
+      description: Settings → Plugin Settings → Diagnostics → Copy Logs, then paste here.
+      render: text

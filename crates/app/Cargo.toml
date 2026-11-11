@@ -1,0 +1,36 @@
+[package]
+name = "ronie-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cpal.workspace = true
+eframe.workspace = true
+eyre.workspace = true
+image.workspace = true
+midir.workspace = true
+quick-xml.workspace = true
+raw-window-handle.workspace = true
+rfd.workspace = true
+ronie-core.workspace = true
+ronie-dsp.workspace = true
+ronie-plugin.workspace = true
+ronie-ui.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+url.workspace = true
+
+# The JACK and PulseAudio hosts of CPAL exist only on Linux.
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = { workspace = true, features = ["jack", "pulseaudio"] }
+
+[dev-dependencies]
+ronie-dsp = { workspace = true, features = ["fault-injection"] }
+ronie-oracle.workspace = true
+tempfile.workspace = true
+winit.workspace = true

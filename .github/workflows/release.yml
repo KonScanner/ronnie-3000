@@ -1,0 +1,211 @@
+name: Release
+
+# Push a tag such as v0.1.0 to build every platform and publish a GitHub release.
+# The version in Cargo.toml must match the tag, and CHANGELOG.md must have a section for it.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build again, for example v0.1.0
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  version:
+    name: Check the version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - id: version
+        name: Compare the tag with Cargo.toml and CHANGELOG.md
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::The tag $TAG does not match the version $version in Cargo.toml"
+            exit 1
+          fi
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest supported runner gives the widest glibc compatibility.
+          - arch: x86_64
+            os: ubuntu-22.04
+          - arch: aarch64
+            os: ubuntu-22.04-arm
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev pkg-config desktop-file-utils
+      - name: Install Rust from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Build the tarball
+        run: make package VERSION="$VERSION" DIST_DIR=dist
+      - name: Build the AppImage
+        run: make appimage VERSION="$VERSION" DIST_DIR=dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
+          if-no-files-found: error
+
+  macos:
+    name: macOS universal
+    needs: version
+    runs-on: macos-14
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Install Rust from rust-toolchain.toml
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build both architectures
+        run: |
+          cargo build --release --locked -p ronie-app --bin ronie --target aarch64-apple-darwin
+          cargo build --release --locked -p ronie-app --bin ronie --target x86_64-apple-darwin
+          mkdir -p target/universal
+          lipo -create -output target/universal/ronie \
+            target/aarch64-apple-darwin/release/ronie \
+            target/x86_64-apple-darwin/release/ronie
+      - name: Build the app bundle
+        run: BINARY=target/universal/ronie DIST_DIR=dist bash packaging/macos/bundle.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-universal
+          path: dist/*.zip
+          if-no-files-found: error
+
+  windows:
+    name: Windows x86_64
+    needs: version
+    runs-on: windows-2025
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Install Rust from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Build
+        run: cargo build --release --locked -p ronie-app --bin ronie
+      - name: Build the zip
+        shell: pwsh
+        run: |
+          $name = "ronnie-3000-$env:VERSION-windows-x86_64"
+          $folder = "dist/$name"
+          New-Item -ItemType Directory -Force -Path $folder | Out-Null
+          Copy-Item target/release/ronie.exe "$folder/Ronnie 3000.exe"
+          Copy-Item LICENSE "$folder/LICENSE.txt"
+          Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x86_64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: [version, linux, macos, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write the checksums
+        run: cd dist && sha256sum -- * >SHA256SUMS && cat SHA256SUMS
+      - name: Write the release notes
+        run: |
+          awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\]" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md >notes.md
+          cat >>notes.md <<EOF
+
+          ## Download
+
+          | System | File |
+          |---|---|
+          | Linux x86_64 | \`ronnie-3000-$VERSION-linux-x86_64.AppImage\` or \`.tar.gz\` |
+          | Linux ARM64 | \`ronnie-3000-$VERSION-linux-aarch64.AppImage\` or \`.tar.gz\` |
+          | macOS 11+ (Apple silicon and Intel), experimental | \`ronnie-3000-$VERSION-macos-universal.zip\` |
+          | Windows 10/11 x86_64, experimental | \`ronnie-3000-$VERSION-windows-x86_64.zip\` |
+
+          Linux one-line install: \`curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sh\`
+
+          Check a download with \`sha256sum --check --ignore-missing SHA256SUMS\`.
+          EOF
+      - name: Create the release
+        run: |
+          prerelease=
+          case "$TAG" in *-*) prerelease=--prerelease ;; esac
+          gh release create "$TAG" dist/* \
+            --repo "${{ github.repository }}" \
+            --verify-tag \
+            --title "Ronnie 3000 $TAG" \
+            --notes-file notes.md \
+            $prerelease
+      - name: Keep only the newest 10 releases
+        # The git tags stay, so old versions keep their code and their changelog links.
+        run: |
+          gh release list --repo "${{ github.repository }}" --limit 1000 \
+            --json tagName,createdAt,isDraft \
+            --jq 'map(select(.isDraft | not)) | sort_by(.createdAt) | reverse | .[10:] | .[].tagName' |
+            while IFS= read -r old; do
+              echo "Deleting the release $old"
+              gh release delete "$old" --repo "${{ github.repository }}" --yes
+            done

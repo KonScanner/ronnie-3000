@@ -1,0 +1,32 @@
+[package]
+name = "ronie-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64.workspace = true
+cap-std.workspace = true
+fs2.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+image.workspace = true
+percent-encoding.workspace = true
+quick-xml.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true

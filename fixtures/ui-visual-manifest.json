@@ -1,0 +1,913 @@
+{
+  "suite": "reference-default",
+  "required_capture_count": 103,
+  "scale": 2.0,
+  "channel_tolerance": 24,
+  "scenarios": [
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-mono",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-meters-hot",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-empty",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail-info",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail-info-signed-out",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail-eq-sliders",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail-eq-curve",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-detail-model-select",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-stereo",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-stereo-branched",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-idle",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-intune",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-flat",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-sharp",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-accidental",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "main-tuner-shifted",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-tile-loading",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-detail-loading",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-detail-failed",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-offline-modal",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-offline-cached",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-leaving",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-browser-failed",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-copied",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-device-requesting",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-device",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-device-expired",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-returning",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-oauth-error",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "load-update-notice",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-mic-denied",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-no-input",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-disconnected",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-no-output",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-input-muted",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-feedback-muted",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-feedback-risk",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-asio",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-buffer",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "banner-rate",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-search",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-sort-cleared",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-zoom-wide",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-zoom-three-up",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-zoom-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-gear",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-empty",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-footer",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-card",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-signing-in",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-signed-in",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-loading",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-signed-out-error",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-loading",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-empty",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-error",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-picking",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-scrolled",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-search-typed",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-gear",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-verified",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-profile-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-profile-recent",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-profile-search",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-profile-empty",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-filters-expanded",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-sort-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-format-ir",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-tags-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-tags-picked",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-sort-newest",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-calibrated-ir",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-format-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-creators-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-return",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "browser-filters-active-collapsed",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-plugin",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-advanced",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-midi-empty",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-midi-learning",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-midi-picker",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-presets",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system-mic-denied",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system-feedback-risk",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system-input-muted",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system-rate96",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "settings-system-key-saved",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-account-signed-out",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-account-signed-in",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-key-setup",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-key-setup-error",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-preset-save",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-preset-browse",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-toast-saved",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-spread-on",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-gate-deck",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-deck",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-tuning",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-tuning-bass5",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-optimize",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-optimize-off",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-optimize-delay",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-pitch-caption",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-spread-deck",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-align-deck",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-auto-balance",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-input-mode",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-dual-mono",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-tile-menu",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
+      "id": "chrome-hints-off",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    }
+  ],
+  "schema_version": 1
+}

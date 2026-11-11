@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "public_adapter": "PublicMathOracle",
+  "private_adapter": "BaselineOracle",
+  "streams": [
+    "silence",
+    "impulse",
+    "sines",
+    "noise",
+    "transients",
+    "nonfinite",
+    "denormals"
+  ],
+  "block_sizes": [1, 31, 64, 65, 256],
+  "long_stream_frames": 4096,
+  "finite_policy": {
+    "kind": "MaxAbs",
+    "maximum": 0.00005,
+    "reason": "independent loop nesting and code generation may reorder or contract f32 arithmetic"
+  },
+  "nonfinite_policy": {
+    "kind": "SameClass",
+    "nan": "any NaN matches any NaN",
+    "infinity": "signs must match",
+    "finite_pairs_only_for_max_abs_error": true
+  },
+  "public_command": "cargo test -p ronie-dsp --test differential -- --nocapture",
+  "private_command": "script/build-oracle.sh && cargo test -p ronie-dsp --test differential -- --include-ignored --nocapture",
+  "private_status": "35 local A2 example cases passed on fast and generic paths; exact official fixture verification requires operator assets",
+  "milestone": {
+    "commands": [
+      "script/check.sh",
+      "cargo test --workspace -- --include-ignored",
+      "cargo bench -p ronie-dsp --bench a2"
+    ],
+    "public_differential": "verified: 70 synthetic cases across both A2 tiers and all stream/block combinations, plus a 4096-frame stream",
+    "private_differential": "verified locally: 35 cases passed on fast and generic paths",
+    "parser_robustness": "verified: malformed/truncated JSON, exact depth 64, arbitrary weights, oversized input",
+    "allocation_safety": "verified: zero allocations/deallocations in prepared process, process_planar, and slimmable tier changes, including invalid calls"
+  },
+  "benchmark_evidence": {
+    "model_role": "synthetic-public-a2-standard",
+    "sample_rate": 48000,
+    "channels": 1,
+    "oversampling_factor": 1,
+    "voices": 1,
+    "block_size": 64,
+    "execution": "serial",
+    "warmup_seconds": 1,
+    "run_seconds": 1,
+    "measured_runs": 10,
+    "callback_count": 30632,
+    "raw_observations": "fixtures/primary-benchmark-evidence.json",
+    "median_of_run_medians_us": 321.40825,
+    "environment": {
+      "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+      "os": "Linux 7.0.0-38-generic x86_64",
+      "rustc": "1.98.0 (88d9e12ae 2026-08-18)",
+      "cargo": "1.98.0 (797e8a9bc 2026-08-05)",
+      "build": "release with thin LTO and codegen-units=1"
+    },
+    "performance_claim": "baseline evidence only; no final-project performance claim"
+  },
+  "unresolved_items": [
+    "exact official fixture verification requires operator assets",
+    "Miri is unavailable in the installed nightly toolchain",
+    "the 25 percent A2 Standard performance gate belongs to the later processing-graph plan"
+  ]
+}

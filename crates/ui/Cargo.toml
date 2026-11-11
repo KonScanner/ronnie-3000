@@ -1,0 +1,33 @@
+[package]
+name = "ronie-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+accesskit.workspace = true
+eframe.workspace = true
+image.workspace = true
+qrcode.workspace = true
+ronie-core.workspace = true
+ronie-dsp.workspace = true
+rfd.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
+winit.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+secrecy.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+name = "ui"
+harness = false
