@@ -9,6 +9,15 @@ use ronie_core::{LocalStash, StashError};
 use tempfile::TempDir;
 use url::Url;
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn set_mtime(path: &std::path::Path, time: SystemTime) {
     let file = fs::File::options()
         .write(true)
@@ -93,7 +102,7 @@ fn resolution_reroots_missing_urls_and_never_returns_an_outside_file() {
     ));
 
     let outside = stash
-        .resolve("file:///etc/passwd")
+        .resolve(&file_url("/etc/passwd"))
         .expect("outside is re-rooted");
     assert_eq!(outside, root.join("passwd"));
     assert_ne!(outside, std::path::PathBuf::from("/etc/passwd"));

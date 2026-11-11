@@ -44,6 +44,15 @@ use tokio::{
 };
 use url::Url;
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn settings(directory: &TempDir) -> SettingsStore {
     SettingsStore::standalone(directory.path(), UI_PREFERENCES_SETTINGS)
 }
@@ -3045,7 +3054,7 @@ fn a_local_tone_with_a_service_needs_no_network() {
         "title": "Local",
         "format": "nam",
         "local": true,
-        "models": [{"id": 3, "name": "Local", "model_url": "file:///stash/3.nam"}],
+        "models": [{"id": 3, "name": "Local", "model_url": file_url("/stash/3.nam")}],
     }))
     .expect("tone");
 
@@ -3880,8 +3889,8 @@ fn a_signed_out_local_switch_uses_the_stash_path_with_no_network() {
         "format": "nam",
         "local": true,
         "models": [
-            {"id": 3, "name": "One", "model_url": "file:///stash/3.nam"},
-            {"id": 4, "name": "Two", "model_url": "file:///stash/4.nam"},
+            {"id": 3, "name": "One", "model_url": file_url("/stash/3.nam")},
+            {"id": 4, "name": "Two", "model_url": file_url("/stash/4.nam")},
         ],
     }))
     .expect("tone");

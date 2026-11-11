@@ -70,7 +70,10 @@ fn load(
 }
 
 fn idle(cache: &ImageCache) {
-    for _ in 0..200 {
+    // A shared CI runner decodes the large test images slowly in a debug build, so the limit is
+    // generous. A passing test still returns as soon as the workers are idle.
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
         if cache.idle() {
             cache.poll();
             return;

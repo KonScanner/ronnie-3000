@@ -6,6 +6,15 @@ use ronie_core::{
 };
 use serde_json::json;
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn tree(
     identifier: &str,
     properties: Vec<(String, JuceValue)>,
@@ -24,14 +33,14 @@ fn string(value: &str) -> JuceValue {
 
 fn tone(local: bool, with_url: bool) -> Tone {
     let first_url = with_url.then_some(if local {
-        "file:///tmp/first.nam"
+        file_url("/tmp/first.nam")
     } else {
-        "https://fixtures.local/first.nam"
+        "https://fixtures.local/first.nam".to_owned()
     });
     let second_url = with_url.then_some(if local {
-        "file:///tmp/second.nam"
+        file_url("/tmp/second.nam")
     } else {
-        "https://fixtures.local/second.nam"
+        "https://fixtures.local/second.nam".to_owned()
     });
     Tone::from_value(json!({
         "id": 1,

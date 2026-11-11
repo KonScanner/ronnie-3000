@@ -168,10 +168,11 @@ fn header_cache_reparses_only_changed_or_new_headers() {
     store.list().expect("warm");
     assert_eq!(store.header_reads(), cold);
 
+    // `set_len` needs write access. An append-only handle is not enough on Windows.
     let file = std::fs::OpenOptions::new()
-        .append(true)
+        .write(true)
         .open(&path)
-        .expect("append");
+        .expect("open for write");
     file.set_len(file.metadata().expect("metadata").len() + 1)
         .expect("grow");
     drop(file);

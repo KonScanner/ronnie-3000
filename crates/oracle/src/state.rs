@@ -163,11 +163,13 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, OracleError> {
 mod tests {
     use std::{fs, path::PathBuf};
 
+    #[cfg(unix)]
     use tempfile::TempDir;
 
     use super::{StateCommand, StateOracle};
     use crate::{OracleError, fixtures::FixtureError};
 
+    #[cfg(unix)]
     fn fake_oracle(script: &str, max_output_bytes: usize) -> (TempDir, StateOracle) {
         let directory = tempfile::tempdir().expect("temporary directory should be created");
         let executable = directory.path().join("fake-reference-state");
@@ -191,6 +193,7 @@ mod tests {
     /// keeps that write handle until its own exec, so a run in that window fails with
     /// `ETXTBSY`. New forks cannot get the handle after the write, so one run that starts
     /// proves that later runs also start. The fake scripts have no effect with no arguments.
+    #[cfg(unix)]
     fn wait_until_executable(executable: &std::path::Path) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
@@ -241,6 +244,8 @@ mod tests {
         assert!(matches!(result, Err(OracleError::UnsupportedStateCommand)));
     }
 
+    // The fake program is a shell script.
+    #[cfg(unix)]
     #[test]
     fn state_oversized_output_is_rejected() {
         let (_directory, oracle) = fake_oracle("#!/bin/sh\nhead -c 33 /dev/zero > \"$3\"\n", 32);
@@ -253,6 +258,8 @@ mod tests {
         );
     }
 
+    // The fake program is a shell script.
+    #[cfg(unix)]
     #[test]
     fn state_failed_process_does_not_expose_stderr() {
         let (_directory, oracle) =
@@ -270,6 +277,8 @@ mod tests {
         assert!(!error.to_string().contains("private-input"));
     }
 
+    // The fake program is a shell script.
+    #[cfg(unix)]
     #[test]
     fn state_runner_returns_output_bytes() {
         let (_directory, oracle) = fake_oracle(

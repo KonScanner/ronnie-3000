@@ -18,6 +18,15 @@ use ronie_ui::{
     testbed::{UiScenario, load_scenarios},
 };
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn scenario(id: &str) -> UiScenario {
     load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenarios")
@@ -92,7 +101,7 @@ fn catalog_picker_is_disabled_signed_out_but_local_full_list_switches_signed_out
             .map(|id| serde_json::json!({
                 "id": id,
                 "name": format!("Local {id}"),
-                "model_url": format!("file:///tmp/local-{id}.nam")
+                "model_url": file_url(&format!("/tmp/local-{id}.nam"))
             }))
             .collect::<Vec<_>>()
     );
@@ -437,7 +446,7 @@ fn a_local_tone_on_an_attached_detail_asks_for_nothing_and_switches_at_once() {
             .map(|id| serde_json::json!({
                 "id": id,
                 "name": format!("Local {id}"),
-                "model_url": format!("file:///tmp/local-{id}.nam")
+                "model_url": file_url(&format!("/tmp/local-{id}.nam"))
             }))
             .collect::<Vec<_>>()
     );

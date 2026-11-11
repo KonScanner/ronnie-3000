@@ -8,6 +8,15 @@ use ronie_core::{
 };
 use serde_json::{Value, json};
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn catalog_tone() -> Tone {
     Tone::from_value(json!({
         "id": 101,
@@ -39,8 +48,8 @@ fn local_tone() -> Tone {
         "title": "Local pack",
         "format": "nam",
         "models": [
-            {"id": 11, "name": "One", "model_url": "file:///tmp/hash-1.nam"},
-            {"id": 12, "name": "Two", "model_url": "file:///tmp/hash%20two-2.nam"}
+            {"id": 11, "name": "One", "model_url": file_url("/tmp/hash-1.nam")},
+            {"id": 12, "name": "Two", "model_url": file_url("/tmp/hash%20two-2.nam")}
         ]
     }))
     .expect("local fixture should parse")
