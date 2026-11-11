@@ -216,8 +216,14 @@ fn local_load_returns_the_first_error_when_nothing_survives() {
 
 #[test]
 fn url_names_are_percent_decoded_for_file_and_remote_urls() {
+    // A file URL must name an absolute path of the system, so Windows needs a drive.
+    let file_url = if cfg!(windows) {
+        "file:///C:/tmp/Deluxe%20Reverb%202.nam"
+    } else {
+        "file:///tmp/Deluxe%20Reverb%202.nam"
+    };
     assert_eq!(
-        local_file_name_from_url("file:///tmp/Deluxe%20Reverb%202.nam").expect("file URL"),
+        local_file_name_from_url(file_url).expect("file URL"),
         "Deluxe Reverb 2.nam"
     );
     assert_eq!(

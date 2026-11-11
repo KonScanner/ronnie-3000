@@ -44,7 +44,7 @@ jobs:
       matrix:
         include:
           - name: macOS
-            os: macos-14
+            os: macos-latest
           - name: Windows
             os: windows-2025
     runs-on: ${{ matrix.os }}
@@ -58,4 +58,4 @@ jobs:
       - name: Build
         run: cargo build --locked -p ronie-app --bin ronie
       - name: Test
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked --no-fail-fast
