@@ -28,6 +28,11 @@ const SIGNAL_FLOOR_DB: f32 = -50.0;
 const REFRESH_SECONDS: f64 = 5.0;
 /// The heading of the section of the saved key.
 pub const KEY_SECTION: &str = "Community";
+/// The label of the switch for the daily release check.
+pub const UPDATE_CHECK_LABEL: &str = "Check for updates";
+/// The help line under the switch for the daily release check.
+const UPDATE_CHECK_HELP: &str =
+    "Ronnie asks GitHub once a day if a new version exists. It sends no account data.";
 
 /// One row of a device list. The identity selects, and the label only tells the user.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -364,7 +369,29 @@ impl SystemSettingsController {
             "Channels",
             "Hear Yourself",
             "MIDI Inputs",
+            UPDATE_CHECK_LABEL,
         ]
+    }
+
+    /// Whether the app may check for a new version. A missing preference means yes.
+    #[must_use]
+    pub fn update_checks_enabled(&self) -> bool {
+        crate::services::release_check::checks_enabled(
+            self.backend
+                .preference(crate::services::release_check::CHECK_PREFERENCE),
+        )
+    }
+
+    /// Turns the daily release check on or off.
+    ///
+    /// # Errors
+    /// Returns a preference persistence error.
+    pub fn set_update_checks(&self, enabled: bool) -> Result<(), UiError> {
+        self.backend.dispatch(UiAction::SetPreference {
+            key: crate::services::release_check::CHECK_PREFERENCE.to_owned(),
+            value: enabled,
+        })?;
+        Ok(())
     }
 
     /// Latest complete device snapshot.
@@ -634,15 +661,25 @@ impl SystemSettingsController {
         }
     }
 
-    /// Renders the complete standalone audio and MIDI page, and then the saved key.
+    /// Renders the complete standalone audio and MIDI page, the saved key, and the release check.
     pub fn show(&self, ui: &mut egui::Ui) {
-        let shown = self.show_audio(ui);
+        if !self.show_audio(ui) {
+            ui.add_space(forms::SECTION_GAP - 0.5);
+        }
         if self.key_saved.get() {
-            if !shown {
-                ui.add_space(forms::SECTION_GAP - 0.5);
-            }
             self.show_key(ui);
         }
+        self.show_update_check(ui);
+    }
+
+    /// The switch for the daily release check, with one help line.
+    fn show_update_check(&self, ui: &mut egui::Ui) {
+        let mut enabled = self.update_checks_enabled();
+        if forms::toggle_row(ui, UPDATE_CHECK_LABEL, UPDATE_CHECK_HELP, &mut enabled) {
+            // The page reads the preference again in the next frame, so a failure shows there.
+            let _ = self.set_update_checks(enabled);
+        }
+        ui.add_space(forms::SECTION_GAP - 0.5);
     }
 
     /// The community section with the saved key. It never shows the key or a part of it.

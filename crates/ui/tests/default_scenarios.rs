@@ -19,7 +19,7 @@ fn visual_manifest_covers_every_default_scenario_exactly_once() {
         serde_json::from_str(include_str!("../../../fixtures/ui-visual-manifest.json"))
             .expect("visual manifest");
     let rows = manifest["scenarios"].as_array().expect("manifest rows");
-    assert_eq!(scenarios.len(), 113);
+    assert_eq!(scenarios.len(), 114);
     assert_eq!(rows.len(), scenarios.len());
     for scenario in scenarios {
         let matching = rows.iter().filter(|row| row["id"] == scenario.id).count();
@@ -247,6 +247,9 @@ fn assert_named_state(scenario: &UiScenario, driver: &UiDriver) {
         id == "settings-system-key-saved",
         "{id}"
     );
+    if id == "settings-system-updates" {
+        shows(&["Check for updates"]);
+    }
 
     let signing_in = id == "browser-signed-out-signing-in"
         || (id.starts_with("load-oauth") && !id.ends_with("-returning"));
@@ -343,7 +346,7 @@ fn assert_named_state(scenario: &UiScenario, driver: &UiDriver) {
 fn every_scenario_reaches_its_named_state_with_no_window() {
     let scenarios = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenario fixtures");
-    assert_eq!(scenarios.len(), 113);
+    assert_eq!(scenarios.len(), 114);
     for scenario in scenarios {
         let driver = reach_scenario(&scenario).unwrap_or_else(|error| panic!("{error}"));
         assert_named_state(&scenario, &driver);

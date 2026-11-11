@@ -28530,6 +28530,373 @@
     {
       "drives": [
         {
+          "kind": "openSystemSettings"
+        },
+        {
+          "kind": "scrollSettings",
+          "target": "Check for updates"
+        }
+      ],
+      "id": "settings-system-updates",
+      "section": "settings",
+      "state": {
+        "auth": false,
+        "banner": false,
+        "chain": {
+          "activeSide": "left",
+          "canRedo": false,
+          "canUndo": true,
+          "chain": [
+            {
+              "activeModelId": 1104,
+              "blockId": "blk-1",
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 1,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 6,
+                "downloads_count": 4100,
+                "format": "nam",
+                "gear": "pedal",
+                "id": 104,
+                "images": [
+                  "https://fixtures.invalid/img/pedal-muff"
+                ],
+                "models": [
+                  {
+                    "id": 1104,
+                    "name": "D-12_00 T-12_00 + BD-2 Boost"
+                  }
+                ],
+                "models_count": 6,
+                "title": "Green Russian Big Muff + BD-2",
+                "url": "https://www.fixtures.invalid/tones/green-russian-big-muff-clone-boss-bd-2-pack-80291",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-kosmic",
+                  "username": "kosmicaudio"
+                }
+              }
+            },
+            {
+              "activeModelId": 1101,
+              "blockId": "blk-2",
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 1,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 6,
+                "downloads_count": 5246,
+                "format": "nam",
+                "gear": "amp",
+                "id": 101,
+                "images": [
+                  "https://fixtures.invalid/img/amp-vox"
+                ],
+                "models": [
+                  {
+                    "id": 1101,
+                    "name": "AC30-6 TB Brl 3"
+                  }
+                ],
+                "models_count": 6,
+                "title": "'02 Vox AC30/6 Top Boost",
+                "url": "https://www.fixtures.invalid/tones/02-vox-ac306-top-boost-70408",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-signaltheory",
+                  "display_name": "Signal Theory Audio",
+                  "is_verified": true,
+                  "username": "signaltheoryaudio"
+                }
+              }
+            },
+            {
+              "activeModelId": 1103,
+              "blockId": "blk-3",
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 1,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 0,
+                "downloads_count": 31000,
+                "format": "ir",
+                "gear": "cab",
+                "id": 103,
+                "images": [
+                  "https://fixtures.invalid/img/cab-412"
+                ],
+                "models": [
+                  {
+                    "id": 1103,
+                    "name": "M201 Cap Edge"
+                  }
+                ],
+                "models_count": 24,
+                "title": "UK Greenback - Marshall 1960TV 4x12 M201",
+                "url": "https://www.fixtures.invalid/tones/uk-greenback-marshall-1960tv-4x12-m201-75087",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-outmoded",
+                  "username": "outmodedelectronics"
+                }
+              }
+            },
+            {
+              "blockId": "ins-1",
+              "kind": "insert"
+            },
+            {
+              "blockId": "ins-2",
+              "kind": "insert"
+            }
+          ],
+          "inputMode": "stereo",
+          "multiCore": true,
+          "namFullSize": false,
+          "preset": {
+            "id": "factory-1",
+            "name": "Crunch Rhythm"
+          },
+          "revision": 1,
+          "sampleRate": 48000,
+          "standalone": true,
+          "stereoEnabled": false,
+          "stereoInput": false
+        },
+        "description": "The switch for the daily update check, on when the user never set it, and its one help line. The check asks GitHub once a day and sends no account data.",
+        "device": {
+          "activeOutputPair": -1,
+          "asioAvailable": false,
+          "btMidiAvailable": true,
+          "bufferSize": 128,
+          "bufferSizes": [
+            32,
+            64,
+            128,
+            256,
+            512,
+            1024
+          ],
+          "currentType": "CoreAudio",
+          "deviceOpen": true,
+          "deviceTypes": [
+            "CoreAudio"
+          ],
+          "feedbackRisk": false,
+          "hasControlPanel": false,
+          "hearYourself": true,
+          "inputChannels": [
+            {
+              "active": true,
+              "index": 0,
+              "name": "Input 1"
+            },
+            {
+              "active": false,
+              "index": 1,
+              "name": "Input 2"
+            }
+          ],
+          "inputDevice": "Scarlett 2i2 USB",
+          "inputDevices": [
+            "MacBook Pro Microphone",
+            "Scarlett 2i2 USB"
+          ],
+          "micPermission": "granted",
+          "midiInputs": [
+            {
+              "enabled": true,
+              "id": "midi-1",
+              "name": "KeyLab 61 MkII"
+            },
+            {
+              "enabled": false,
+              "id": "midi-2",
+              "name": "FCB1010 Foot Controller"
+            }
+          ],
+          "outputDevice": "Scarlett 2i2 USB",
+          "outputDevices": [
+            "MacBook Pro Speakers",
+            "Scarlett 2i2 USB",
+            "AirPods Pro"
+          ],
+          "outputPairs": [],
+          "sampleRate": 48000,
+          "sampleRates": [
+            44100,
+            48000,
+            88200,
+            96000
+          ],
+          "separateIO": true
+        },
+        "hasDrive": true,
+        "hints": true,
+        "id": "settings-system-updates",
+        "section": "settings",
+        "title": "System Settings - update check"
+      },
+      "viewport": {
+        "height": 578,
+        "scale": 2.0,
+        "width": 1024
+      }
+    },
+    {
+      "drives": [
+        {
           "kind": "click",
           "target": "Account:"
         },

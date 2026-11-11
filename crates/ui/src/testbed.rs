@@ -263,7 +263,12 @@ pub fn drive_scenario(
             UiDrive::ScrollSettings { heading } => {
                 if !matches!(
                     heading.as_str(),
-                    "Calibration" | "MIDI Mapping" | "Presets" | "MIDI Inputs" | "Community"
+                    "Calibration"
+                        | "MIDI Mapping"
+                        | "Presets"
+                        | "MIDI Inputs"
+                        | "Community"
+                        | "Check for updates"
                 ) {
                     return Err(UiError::UnknownTarget(heading.clone()));
                 }

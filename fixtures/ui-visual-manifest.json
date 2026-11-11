@@ -727,6 +727,14 @@
     {
       "backend_effect_required": true,
       "global_mismatch_max": 0.019,
+      "id": "settings-system-updates",
+      "status": "unverified",
+      "visual_sha256": null,
+      "worst_tile_64_max": 0.24
+    },
+    {
+      "backend_effect_required": true,
+      "global_mismatch_max": 0.019,
       "id": "chrome-account-signed-out",
       "status": "unverified",
       "visual_sha256": null,

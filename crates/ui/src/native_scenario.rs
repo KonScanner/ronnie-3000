@@ -1369,6 +1369,7 @@ mod tests {
             ("settings-midi-empty", "MIDI Mapping"),
             ("settings-presets", "Presets"),
             ("settings-system-rate96", "MIDI Inputs"),
+            ("settings-system-updates", "Check for updates"),
         ] {
             let (chrome, _script) = prepared(id);
             let target = chrome.settings().and_then(|page| page.scroll_target());
