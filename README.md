@@ -33,7 +33,7 @@ TONE3000 community, and keep the delay low enough to forget it is there.
 - **Your next tone is one search away.** Browse, filter, and download from the TONE3000 community
   library without leaving the app. Downloaded tones stay on your computer and work offline.
 - **It is free and open.** MIT licensed, with no subscription and no telemetry. Ronnie goes online
-  only when you use the community browser.
+  only for the community browser and for a daily check for a new version, which you can turn off.
 
 ## Features
 
@@ -186,6 +186,11 @@ Community**.
 ## FAQ
 
 **Is Ronnie free?** Yes. Ronnie is open source under the MIT License.
+
+**How do I update?** Ronnie checks GitHub once a day and tells you when a new version is out. On
+Linux, run the one-line install command again, or download the new AppImage. On macOS and
+Windows, download the new zip. Your presets and settings stay. Turn the check off in
+**Settings → System Settings → Check for updates**.
 
 **Do I need a TONE3000 account?** Only for the community browser. Local `.nam` and `.wav` files
 work without an account and without the internet.

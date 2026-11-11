@@ -6,6 +6,14 @@ All notable changes to Ronnie 3000 are in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-11
+
+### Added
+
+- Ronnie checks GitHub for a new release at start and once a day, and shows a notice with a
+  download link. Turn the check off in Settings → System Settings. The check sends no account
+  data and no key.
+
 ## [0.1.0] - 2026-11-11
 
 The first public release.
@@ -36,5 +44,6 @@ The first public release.
 - Install on Linux with an AppImage, a tarball, or a one-line script. Experimental builds for
   macOS and Windows.
 
-[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/KonScanner/ronnie-3000/releases/tag/v0.1.0
