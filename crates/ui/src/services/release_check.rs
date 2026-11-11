@@ -43,14 +43,6 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const BODY_DEADLINE: Duration = Duration::from_secs(15);
 /// The longest version text that a notice shows.
 const MAX_VERSION_LENGTH: usize = 32;
-/// The longest version for which the Linux notice also gives the update command. The notice has
-/// room for three rows, and a test measures the widest such version.
-#[cfg(target_os = "linux")]
-const COMMAND_MAX_VERSION_LENGTH: usize = 12;
-/// The command that updates an installation on Linux.
-#[cfg(target_os = "linux")]
-const LINUX_UPDATE_COMMAND: &str =
-    "curl -fsSL https://raw.githubusercontent.com/KonScanner/ronnie-3000/main/install.sh | sh";
 
 /// Whether the user lets the app check for updates. A missing preference means yes.
 #[must_use]
@@ -228,30 +220,13 @@ fn is_release_page(url: &str) -> bool {
     url.starts_with(RELEASE_PAGE_PREFIX) && url.len() > RELEASE_PAGE_PREFIX.len() && is_web_url(url)
 }
 
-/// The plain text of the notice for `version`.
+/// The plain text of the notice for `version`, the same on each system.
 ///
-/// On Linux, the text also gives the update command. The notice has room for three rows, so
-/// only a short version of digits and dots gets the command. Another version gets only the
-/// first sentence.
+/// The notice paints its text, so a user cannot copy a command from it. The release page that
+/// "Download update" opens gives the install command as text that the user can copy.
 #[must_use]
 pub fn release_message(version: &str) -> String {
-    let available = format!("Ronnie 3000 {version} is available.");
-    #[cfg(target_os = "linux")]
-    {
-        let short = version.len() <= COMMAND_MAX_VERSION_LENGTH
-            && version
-                .chars()
-                .all(|character| character.is_ascii_digit() || character == '.');
-        if short {
-            format!("{available} Run: {LINUX_UPDATE_COMMAND}")
-        } else {
-            available
-        }
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        available
-    }
+    format!("Ronnie 3000 {version} is available.")
 }
 
 /// The stored state of the check.
@@ -572,23 +547,9 @@ mod tests {
     #[test]
     fn the_message_is_short_plain_text() {
         let message = release_message("0.2.0");
+        assert_eq!(message, "Ronnie 3000 0.2.0 is available.");
         assert!(!message.contains(['<', '>', '&']), "{message}");
-        if cfg!(target_os = "linux") {
-            assert_eq!(
-                message,
-                "Ronnie 3000 0.2.0 is available. Run: curl -fsSL \
-                 https://raw.githubusercontent.com/KonScanner/ronnie-3000/main/install.sh | sh"
-            );
-            // A long or unusual version leaves no room for the command.
-            for version in ["1.0.0-rc1", "1234567890.123"] {
-                assert_eq!(
-                    release_message(version),
-                    format!("Ronnie 3000 {version} is available.")
-                );
-            }
-        } else {
-            assert_eq!(message, "Ronnie 3000 0.2.0 is available.");
-        }
+        assert!(!message.contains("curl"), "{message}");
     }
 
     #[test]

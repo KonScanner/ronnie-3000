@@ -207,14 +207,8 @@ mod tests {
         crate::fonts::Fonts::install(&context);
         let mut heights = Vec::new();
         let mut output = context.run_ui(egui::RawInput::default(), |ui| {
-            for version in [
-                "0.2.0",
-                "10.12.3",
-                "888888888888",
-                "8888888888888",
-                "1.0.0-rc1",
-                "8WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-            ] {
+            // The last version is the widest one that the release check accepts.
+            for version in ["0.2.0", "10.12.3-rc.1", "8WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"] {
                 let message = crate::services::release_check::release_message(version);
                 let job = egui::text::LayoutJob::simple(
                     super::message_text(&message),
