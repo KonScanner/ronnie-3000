@@ -172,6 +172,7 @@ jobs:
           awk -v version="$VERSION" '
             $0 ~ "^## \\[" version "\\]" { found = 1; next }
             found && /^## / { exit }
+            found && /^\[[^]]+\]: / { next }
             found { print }
           ' CHANGELOG.md >notes.md
           cat >>notes.md <<EOF
