@@ -195,6 +195,45 @@ fn message_text(html: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use eframe::egui;
+
+    /// The message starts 57 points below the top of the card, and the download button starts
+    /// 112 points below it.
+    const MESSAGE_ROOM: f32 = 112.0 - 57.0;
+
+    #[test]
+    fn a_release_message_ends_above_the_download_button() {
+        let context = egui::Context::default();
+        crate::fonts::Fonts::install(&context);
+        let mut heights = Vec::new();
+        let mut output = context.run_ui(egui::RawInput::default(), |ui| {
+            for version in [
+                "0.2.0",
+                "10.12.3",
+                "888888888888",
+                "8888888888888",
+                "1.0.0-rc1",
+                "8WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+            ] {
+                let message = crate::services::release_check::release_message(version);
+                let job = egui::text::LayoutJob::simple(
+                    super::message_text(&message),
+                    egui::FontId::proportional(13.0),
+                    egui::Color32::WHITE,
+                    340.0,
+                );
+                let galley = ui.ctx().fonts_mut(|fonts| fonts.layout_job(job));
+                heights.push((version, galley.rows.len(), galley.size().y));
+            }
+        });
+        output.textures_delta.clear();
+
+        for (version, rows, height) in heights {
+            assert!(rows <= 3, "{version}: {rows} rows");
+            assert!(height < MESSAGE_ROOM, "{version}: {height}");
+        }
+    }
+
     #[test]
     fn update_message_is_plain_readable_text() {
         assert_eq!(

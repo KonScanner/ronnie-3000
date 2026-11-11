@@ -66,6 +66,12 @@ impl UpdateCheck {
         self.notice = (now_ms >= self.snooze_until).then_some(info);
     }
 
+    /// Removes the offer and its notice, for example after the user turns the check off.
+    pub fn clear(&mut self) {
+        self.update = None;
+        self.notice = None;
+    }
+
     /// Dismisses the current notice for a whole number of days.
     ///
     /// # Errors
