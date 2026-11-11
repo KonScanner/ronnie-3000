@@ -284,6 +284,8 @@ pub struct NativeShellOptions {
     pub key_setup: Option<Box<dyn crate::services::key_setup::KeySetup>>,
     /// UI preferences used to restore update snoozes and dismissed banners.
     pub update_settings: Option<ronie_core::SettingsStore>,
+    /// The daily release check. Only the standalone app gives one, so other builds stay offline.
+    pub release_feed: Option<Arc<dyn crate::services::release_check::ReleaseFeed>>,
 }
 
 impl Default for NativeShellOptions {
@@ -303,6 +305,7 @@ impl Default for NativeShellOptions {
             community: None,
             key_setup: None,
             update_settings: None,
+            release_feed: None,
         }
     }
 }
@@ -558,6 +561,9 @@ pub(crate) fn build_chrome(
     chrome.set_standalone(options.standalone);
     if let Some(setup) = options.key_setup.take() {
         chrome.use_key_setup(setup);
+    }
+    if let Some(feed) = options.release_feed.take() {
+        chrome.use_release_feed(feed, options.update_settings.clone());
     }
     if let Some(settings) = options.update_settings.take() {
         chrome.use_settings(settings);
@@ -898,6 +904,7 @@ impl eframe::App for NativeShellApp {
         if let Some(chrome) = &mut self.chrome {
             chrome.poll_auth();
             chrome.poll_community();
+            chrome.poll_updates(crate::services::auth::now_ms());
             if let Some(backend) = &self.options.backend {
                 let now_ms = crate::services::auth::now_ms();
                 sync_device_banner(backend.as_ref(), chrome, &mut self.shown_device, now_ms);

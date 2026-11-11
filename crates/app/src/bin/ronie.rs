@@ -9,10 +9,14 @@ use eyre::{WrapErr, eyre};
 use ronie_app::{
     audio::{AudioBackendKind, AudioWorker, CpalBackend, DeviceConfig, DummyBackend},
     auth::configured_community,
+    diagnostics::DiagnosticLog,
     standalone_backend::{StandaloneBackend, standalone_processor},
 };
 use ronie_core::{PREFERENCES_SETTINGS, PresetStore, SettingsStore, UI_PREFERENCES_SETTINGS};
-use ronie_ui::shell::NativeShellOptions;
+use ronie_ui::{
+    services::{GithubReleaseFeed, ReleaseFeed},
+    shell::NativeShellOptions,
+};
 
 fn main() -> eyre::Result<()> {
     let options = Options::parse(std::env::args().skip(1))?;
@@ -57,6 +61,10 @@ fn run_ui(options: Options) -> eyre::Result<()> {
         StandaloneBackend::real(processor, &root.join(PREFERENCES_SETTINGS), options.backend)
     }
     .map_err(|error| eyre!(error.to_string()))?;
+    // A self-test or a capture must give the same result each time, so it stays offline.
+    let release_feed = (!options.selftest && options.capture.is_none())
+        .then(|| release_feed(backend.log_handle()))
+        .flatten();
     let shell = ronie_ui::shell::run_native(NativeShellOptions {
         selftest: options.selftest,
         capture: options.capture,
@@ -67,6 +75,7 @@ fn run_ui(options: Options) -> eyre::Result<()> {
         community,
         key_setup: Some(Box::new(ronie_app::auth::UserKeySetup::new(&root))),
         update_settings: Some(SettingsStore::standalone(&root, UI_PREFERENCES_SETTINGS)),
+        release_feed,
         ..NativeShellOptions::default()
     });
     // A compile can still hold the backend here, and the exit does not wait for it.
@@ -74,6 +83,20 @@ fn run_ui(options: Options) -> eyre::Result<()> {
         eprintln!("Ronnie could not save the standalone session: {error}");
     }
     shell.map_err(|error| eyre!(error.to_string()))
+}
+
+/// The daily release check of this app, which asks only the GitHub API. A failure writes one
+/// line to the diagnostic log. With no HTTP client, the app does not check.
+fn release_feed(log: DiagnosticLog) -> Option<Arc<dyn ReleaseFeed>> {
+    match GithubReleaseFeed::github() {
+        Ok(feed) => Some(Arc::new(
+            feed.with_log(Arc::new(move |line: &str| log.write(line))),
+        )),
+        Err(error) => {
+            log.write(&format!("The update check is not available: {error}."));
+            None
+        }
+    }
 }
 
 fn run_smoke(options: &Options) -> eyre::Result<()> {

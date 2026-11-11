@@ -188,6 +188,12 @@ impl StandaloneBackend {
         self
     }
 
+    /// A handle to the diagnostic log of this app, for work outside the backend.
+    #[must_use]
+    pub fn log_handle(&self) -> DiagnosticLog {
+        self.log.clone()
+    }
+
     /// Carries out a request that only the host can do. A click calls this, never a frame.
     fn carry_out(&self, request: &NavigationAction) -> Result<(), UiError> {
         let folder = match request {

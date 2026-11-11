@@ -134,6 +134,10 @@ pub struct ChromeController {
     remote_images: Option<RemoteImages<ChromeImage>>,
     connection: crate::services::connectivity::ConnectionGate,
     updates: crate::services::update::UpdateCheck,
+    /// The daily release check. Only the standalone app gives one.
+    update_schedule: Option<crate::services::release_check::UpdateSchedule>,
+    /// The setting of the release check at the last poll, or `None` before the first poll.
+    update_checks_on: Option<bool>,
     overlay_trigger: Option<Trigger>,
 }
 
@@ -212,6 +216,8 @@ impl ChromeController {
             remote_images: None,
             connection: crate::services::connectivity::ConnectionGate::new(true),
             updates: crate::services::update::UpdateCheck::new(env!("CARGO_PKG_VERSION")),
+            update_schedule: None,
+            update_checks_on: None,
             overlay_trigger: None,
             backend,
         }
@@ -1446,6 +1452,63 @@ impl ChromeController {
     /// Applies one best-effort update payload.
     pub fn apply_update_payload(&mut self, payload: serde_json::Value, now_ms: i64) {
         self.updates.apply_payload(payload, now_ms);
+    }
+
+    /// Starts the daily release check of the standalone app over `feed`.
+    ///
+    /// `settings` keeps the last check time and the last good answer. This reads that file, so
+    /// a frame must not call it. No request starts before [`Self::poll_updates`].
+    pub fn use_release_feed(
+        &mut self,
+        feed: Arc<dyn crate::services::release_check::ReleaseFeed>,
+        settings: Option<ronie_core::SettingsStore>,
+    ) {
+        self.update_schedule = Some(crate::services::release_check::UpdateSchedule::new(
+            feed, settings,
+        ));
+        self.update_checks_on = None;
+    }
+
+    /// Whether the user lets the app check for updates. A missing preference means yes.
+    #[must_use]
+    pub fn update_checks_enabled(&self) -> bool {
+        crate::services::release_check::checks_enabled(
+            self.backend
+                .preference(crate::services::release_check::CHECK_PREFERENCE),
+        )
+    }
+
+    /// Shows the stored release answer, takes a finished check, and starts a due check.
+    ///
+    /// This does not block and needs no UI. With the setting off, no check starts and no notice
+    /// from a check shows. Without a release feed, this does nothing.
+    pub fn poll_updates(&mut self, now_ms: i64) {
+        use crate::services::release_check::ReleaseAnswer;
+
+        if self.update_schedule.is_none() {
+            return;
+        }
+        let enabled = self.update_checks_enabled();
+        let Some(schedule) = &mut self.update_schedule else {
+            return;
+        };
+        if self.update_checks_on != Some(enabled) {
+            self.update_checks_on = Some(enabled);
+            if !enabled {
+                self.updates.clear();
+            } else if let Some(payload) = schedule.payload() {
+                // A restart shows the last good answer again with no request.
+                self.updates.apply_payload(payload.clone(), now_ms);
+            }
+        }
+        match schedule.poll(now_ms, enabled) {
+            Some(ReleaseAnswer::Newer(payload)) if enabled => {
+                self.updates.apply_payload(payload, now_ms);
+            }
+            Some(ReleaseAnswer::Current) => self.updates.clear(),
+            // A failure is quiet, and the last good answer stays.
+            _ => {}
+        }
     }
 
     /// Applies a download or snooze action from the update view.
