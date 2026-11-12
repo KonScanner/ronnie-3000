@@ -31,7 +31,7 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libasound2-dev pkg-config
+          sudo apt-get install -y --no-install-recommends libasound2-dev pkg-config xvfb
       - name: Install Rust from rust-toolchain.toml
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -51,6 +51,8 @@ jobs:
         run: |
           cargo build --locked -p ronie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
+      - name: Check the VST3 plugin with pluginval
+        run: bash script/pluginval.sh "target/vst3-bundle/ronnie-3000-vst3-ci-linux-x86_64/Ronnie 3000.vst3"
 
   build:
     name: Build and test (${{ matrix.name }})
@@ -95,3 +97,8 @@ jobs:
         run: |
           cargo build --locked -p ronie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
+      - name: Check the VST3 plugin with pluginval
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: bash script/pluginval.sh "target/vst3-bundle/ronnie-3000-vst3-ci-$PLATFORM/Ronnie 3000.vst3"
