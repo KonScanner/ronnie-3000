@@ -119,8 +119,8 @@ fn sixteen_frame_search_cost_is_bounded_and_measured() {
         std::time::Duration::from_micros(100)
     };
     // The system can stop the test thread in any callback, so the slowest few say more about the
-    // machine than about the search. A search that is not spread out is slow about once in each
-    // window, which is more than 1 in 200 of these callbacks, so this percentile still finds it.
+    // machine than about the search. A search that is not spread out is slow once in each splice,
+    // about one callback in 100 at the default window, so this percentile still finds it.
     durations.sort_unstable();
     let percentile = durations[durations.len() * 995 / 1000];
     let longest = durations[durations.len() - 1];

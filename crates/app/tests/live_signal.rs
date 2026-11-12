@@ -526,7 +526,13 @@ fn the_eq_spectrum_falls_to_the_floor_for_silence_and_when_the_audio_stops() {
     });
     assert!(bins.iter().all(|bin| *bin < -60.0), "{bins:?}");
 
-    spectrum_of(&mut rig, &block, 1_000.0, 0.5);
+    let bins = spectrum_until(&mut rig, &block, 1_000.0, 0.5, |bins| {
+        shows_sine(bins, 1_000.0)
+    });
+    assert!(
+        shows_sine(&bins, 1_000.0),
+        "the loud window did not arrive: {bins:?}"
+    );
     // No callback runs from here, so that an old window must not stay on the screen.
     let mut bins = rig.backend.spectrum_bins(&block);
     for _ in 0..40 {
