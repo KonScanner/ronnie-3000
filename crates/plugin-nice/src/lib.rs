@@ -747,11 +747,13 @@ mod tests {
         let height = shell_options(window.backend.clone())
             .initial_chrome()
             .design_height() as f32;
+        // macOS gives the host a size in points, and the other systems give it in pixels.
+        let factor = if cfg!(target_os = "macos") { 1.25 } else { 2.5 };
         assert_eq!(
             (size.width, size.height),
             (
-                (DESIGN_WIDTH as f32 * 2.5).round() as u32,
-                (height * 2.5).round() as u32
+                (DESIGN_WIDTH as f32 * factor).round() as u32,
+                (height * factor).round() as u32
             )
         );
     }
