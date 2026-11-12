@@ -15,9 +15,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # Full debug data makes each test program hundreds of megabytes. Line tables keep the panic
-  # locations, and the links and the cache are much smaller.
-  CARGO_PROFILE_DEV_DEBUG: line-tables-only
   NEXTEST_PROFILE: ci
 
 jobs:
@@ -47,9 +44,9 @@ jobs:
         env:
           VERSION: ci
           PLATFORM: linux-x86_64
-          LIBRARY: target/debug/libronie_plugin_nice.so
+          LIBRARY: target/ci/libronie_plugin_nice.so
         run: |
-          cargo build --locked -p ronie-plugin-nice
+          cargo build --locked --profile ci -p ronie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
       - name: Check the VST3 plugin with pluginval
         run: bash script/pluginval.sh "target/vst3-bundle/ronnie-3000-vst3-ci-linux-x86_64/Ronnie 3000.vst3"
@@ -63,11 +60,11 @@ jobs:
           - name: macOS
             os: macos-latest
             platform: macos-arm64
-            library: target/debug/libronie_plugin_nice.dylib
+            library: target/ci/libronie_plugin_nice.dylib
           - name: Windows
             os: windows-2025
             platform: windows-x86_64
-            library: target/debug/ronie_plugin_nice.dll
+            library: target/ci/ronie_plugin_nice.dll
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,8 +83,8 @@ jobs:
         # In bash, a failed first command stops the step. PowerShell would go on to the next.
         shell: bash
         run: |
-          cargo nextest run --workspace --locked --no-fail-fast
-          cargo test --workspace --locked --doc
+          cargo nextest run --workspace --locked --no-fail-fast --cargo-profile ci
+          cargo test --workspace --locked --doc --profile ci
       - name: Bundle the VST3 plugin
         shell: bash
         env:
@@ -95,7 +92,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           LIBRARY: ${{ matrix.library }}
         run: |
-          cargo build --locked -p ronie-plugin-nice
+          cargo build --locked --profile ci -p ronie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
       - name: Check the VST3 plugin with pluginval
         shell: bash

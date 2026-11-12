@@ -65,3 +65,10 @@ broken_intra_doc_links = "deny"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# The tests in CI and in `make check`. Light optimization runs the DSP tests about four times
+# faster. Debug assertions and overflow checks stay on, and line tables keep the panic locations.
+[profile.ci]
+inherits = "dev"
+opt-level = 1
+debug = "line-tables-only"
