@@ -139,6 +139,22 @@ chmod +x ronnie-3000-*-linux-x86_64.AppImage
 2. The app has no Microsoft signature yet. If SmartScreen stops it, click **More info → Run
    anyway**.
 
+### VST3 plugin (experimental)
+
+Ronnie 3000 also runs as a VST3 effect in your DAW. Download the `ronnie-3000-vst3-…` zip for
+your system from the same release.
+
+1. Close your DAW.
+2. Copy the folder **Ronnie 3000.vst3** to the VST3 folder of your system:
+   - Linux: `~/.vst3`
+   - macOS: `~/Library/Audio/Plug-Ins/VST3`
+   - Windows: `C:\Program Files\Common Files\VST3`
+3. Open your DAW, scan for new plugins, and add **Ronnie 3000** to a track.
+
+The DAW project keeps the full Ronnie session of each track, with the editor zoom. Switches and
+choices show in the DAW as stepped parameters, so you can automate them. The plugin is tested in
+REAPER on Linux. Reports from other DAWs are welcome in the issues.
+
 ### Build from source
 
 With [Rust](https://rustup.rs) installed, on Linux:
@@ -195,7 +211,8 @@ Windows, download the new zip. Your presets and settings stay. Turn the check of
 **Do I need a TONE3000 account?** Only for the community browser. Local `.nam` and `.wav` files
 work without an account and without the internet.
 
-**Is there a plugin for my DAW?** Not yet. Ronnie is a standalone app today. See the roadmap.
+**Is there a plugin for my DAW?** Yes, an experimental VST3 plugin. See
+[VST3 plugin](#vst3-plugin-experimental). A CLAP version comes later.
 
 **Where are my presets and settings?** In `~/.config/Ronie` on Linux,
 `~/Library/Application Support/Ronie` on macOS, and `%APPDATA%\Ronie` on Windows.
@@ -205,7 +222,7 @@ diagnostic log from **Settings → Plugin Settings → Diagnostics → Copy Logs
 
 ## Roadmap
 
-- Plugin versions for DAWs
+- A CLAP version of the plugin, and tests in more DAWs
 - MIDI program change for presets
 - A tuner reference pitch (for example A = 432 Hz or 442 Hz), and drop tunings in the tuning picker
 - Signed builds for macOS and Windows

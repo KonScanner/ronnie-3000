@@ -36,6 +36,14 @@ jobs:
           tool: cargo-deny
       - name: Build, lint, test, format, and dependency check
         run: make check
+      - name: Bundle the VST3 plugin
+        env:
+          VERSION: ci
+          PLATFORM: linux-x86_64
+          LIBRARY: target/debug/libronie_plugin_nice.so
+        run: |
+          cargo build --locked -p ronie-plugin-nice
+          DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
 
   build:
     name: Build and test (${{ matrix.name }})
@@ -45,8 +53,12 @@ jobs:
         include:
           - name: macOS
             os: macos-latest
+            platform: macos-arm64
+            library: target/debug/libronie_plugin_nice.dylib
           - name: Windows
             os: windows-2025
+            platform: windows-x86_64
+            library: target/debug/ronie_plugin_nice.dll
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,3 +71,12 @@ jobs:
         run: cargo build --locked -p ronie-app --bin ronie
       - name: Test
         run: cargo test --workspace --locked --no-fail-fast
+      - name: Bundle the VST3 plugin
+        shell: bash
+        env:
+          VERSION: ci
+          PLATFORM: ${{ matrix.platform }}
+          LIBRARY: ${{ matrix.library }}
+        run: |
+          cargo build --locked -p ronie-plugin-nice
+          DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh

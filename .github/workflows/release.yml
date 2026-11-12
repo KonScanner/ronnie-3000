@@ -78,12 +78,22 @@ jobs:
         run: make package VERSION="$VERSION" DIST_DIR=dist
       - name: Build the AppImage
         run: make appimage VERSION="$VERSION" DIST_DIR=dist
+      - name: Build the VST3 plugin
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        run: cargo build --release --locked -p ronie-plugin-nice
+      - name: Bundle the VST3 plugin
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        env:
+          PLATFORM: linux-${{ matrix.arch }}
+          LIBRARY: target/release/libronie_plugin_nice.so
+        run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-${{ matrix.arch }}
           path: |
             dist/*.tar.gz
             dist/*.AppImage
+            dist/*.zip
           if-no-files-found: error
 
   macos:
@@ -111,6 +121,20 @@ jobs:
             target/x86_64-apple-darwin/release/ronie
       - name: Build the app bundle
         run: BINARY=target/universal/ronie DIST_DIR=dist bash packaging/macos/bundle.sh
+      - name: Build the VST3 plugin for both architectures
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        run: |
+          cargo build --release --locked -p ronie-plugin-nice --target aarch64-apple-darwin
+          cargo build --release --locked -p ronie-plugin-nice --target x86_64-apple-darwin
+          lipo -create -output target/universal/libronie_plugin_nice.dylib \
+            target/aarch64-apple-darwin/release/libronie_plugin_nice.dylib \
+            target/x86_64-apple-darwin/release/libronie_plugin_nice.dylib
+      - name: Bundle the VST3 plugin
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        env:
+          PLATFORM: macos-universal
+          LIBRARY: target/universal/libronie_plugin_nice.dylib
+        run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-universal
@@ -141,6 +165,16 @@ jobs:
           Copy-Item target/release/ronie.exe "$folder/Ronnie 3000.exe"
           Copy-Item LICENSE "$folder/LICENSE.txt"
           Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
+      - name: Build the VST3 plugin
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        run: cargo build --release --locked -p ronie-plugin-nice
+      - name: Bundle the VST3 plugin
+        if: hashFiles('packaging/vst3/bundle.sh') != ''
+        shell: bash
+        env:
+          PLATFORM: windows-x86_64
+          LIBRARY: target/release/ronie_plugin_nice.dll
+        run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-x86_64
@@ -190,8 +224,29 @@ jobs:
 
           Check a download with \`sha256sum --check --ignore-missing SHA256SUMS\`.
           EOF
-      - name: Create the release
+          # A tag from before the plugin has no plugin files.
+          if compgen -G 'dist/ronnie-3000-vst3-*.zip' >/dev/null; then
+            cat >>notes.md <<EOF
+
+          ## VST3 plugin, experimental
+
+          | System | File |
+          |---|---|
+          | Linux x86_64 | \`ronnie-3000-vst3-$VERSION-linux-x86_64.zip\` |
+          | Linux ARM64 | \`ronnie-3000-vst3-$VERSION-linux-aarch64.zip\` |
+          | macOS 11+ (Apple silicon and Intel) | \`ronnie-3000-vst3-$VERSION-macos-universal.zip\` |
+          | Windows 10/11 x86_64 | \`ronnie-3000-vst3-$VERSION-windows-x86_64.zip\` |
+
+          Each plugin zip has an \`INSTALL.txt\` file with the plugin folder for your system.
+          EOF
+          fi
+      - name: Create the release, or replace its files on a new build
         run: |
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo "${{ github.repository }}" --clobber
+            gh release edit "$TAG" --repo "${{ github.repository }}" --notes-file notes.md
+            exit 0
+          fi
           prerelease=
           case "$TAG" in *-*) prerelease=--prerelease ;; esac
           gh release create "$TAG" dist/* \
