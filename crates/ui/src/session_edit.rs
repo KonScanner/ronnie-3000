@@ -29,7 +29,7 @@ use crate::{
 };
 
 /// Everything that one undo step restores.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SessionFrame {
     /// The chain and the session-only state.
     pub session: SessionSnapshot,
@@ -1298,26 +1298,12 @@ impl SessionEditor {
         value: ParameterValue,
         gesture: GesturePhase,
     ) -> Result<UiEffect, UiError> {
-        let spec = ParameterCatalog::v1()
-            .iter()
-            .find(|spec| spec.id == id)
-            .ok_or(UiError::UnknownParameter(id))?;
         if gesture == GesturePhase::Cancel {
+            Self::spec_of(id)?;
             self.cancel_gesture()?;
             return Ok(UiEffect::ParameterChanged);
         }
-        if !value.0.is_finite() {
-            return Err(UiError::InvalidAction(
-                "parameter value is not finite".to_owned(),
-            ));
-        }
-        let mut next = value.0.clamp(spec.min, spec.max);
-        if !spec.choices.is_empty() {
-            next = next.round();
-        } else if let Some(interval) = spec.interval.filter(|interval| *interval > 0.0) {
-            next = (next / interval).round() * interval;
-        }
-        let next = ParameterValue(next);
+        let next = Self::checked_value(id, value)?;
         let current = self.parameter(id);
         self.step_for_edit(gesture, current != Some(next));
         if let (Some(open), Some(current)) = (&mut self.open_gesture, current)
@@ -1329,6 +1315,49 @@ impl SessionEditor {
         self.close_gesture_after(gesture);
         self.next_revision();
         Ok(UiEffect::ParameterChanged)
+    }
+
+    /// Writes one parameter that a host automates. This is not an undo step, and it leaves an
+    /// open gesture as it is.
+    ///
+    /// # Errors
+    /// Returns an unknown-parameter or a non-finite-value error.
+    pub fn automate_parameter(
+        &mut self,
+        id: ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), UiError> {
+        let next = Self::checked_value(id, value)?;
+        if self.parameter(id) != Some(next) {
+            self.current.parameters.insert(id, next);
+            self.next_revision();
+        }
+        Ok(())
+    }
+
+    /// The catalog entry of `id`.
+    fn spec_of(id: ParameterId) -> Result<&'static ronie_core::params::ParameterSpec, UiError> {
+        ParameterCatalog::v1()
+            .iter()
+            .find(|spec| spec.id == id)
+            .ok_or(UiError::UnknownParameter(id))
+    }
+
+    /// The value that the catalog keeps for `value`: in range, and on the step of the parameter.
+    fn checked_value(id: ParameterId, value: ParameterValue) -> Result<ParameterValue, UiError> {
+        let spec = Self::spec_of(id)?;
+        if !value.0.is_finite() {
+            return Err(UiError::InvalidAction(
+                "parameter value is not finite".to_owned(),
+            ));
+        }
+        let mut next = value.0.clamp(spec.min, spec.max);
+        if !spec.choices.is_empty() {
+            next = next.round();
+        } else if let Some(interval) = spec.interval.filter(|interval| *interval > 0.0) {
+            next = (next / interval).round() * interval;
+        }
+        Ok(ParameterValue(next))
     }
 
     /// Takes the undo step that one edit needs. See [`Self::edit_parameter`] for the rules.
@@ -1673,6 +1702,28 @@ mod tests {
             .parameter(ParameterId("outputLevel"))
             .expect("catalog parameter")
             .0
+    }
+
+    #[test]
+    fn a_host_automation_write_checks_the_value_and_takes_no_undo_step() {
+        let mut editor = editor();
+
+        editor
+            .automate_parameter(ParameterId("outputLevel"), ParameterValue(7.0))
+            .expect("automate");
+
+        assert_eq!(level(&editor), 1.0, "the value stays in range");
+        assert!(!editor.view(0).can_undo);
+        assert!(
+            editor
+                .automate_parameter(ParameterId("outputLevel"), ParameterValue(f32::NAN))
+                .is_err()
+        );
+        assert!(
+            editor
+                .automate_parameter(ParameterId("noSuchParameter"), ParameterValue(0.0))
+                .is_err()
+        );
     }
 
     #[test]

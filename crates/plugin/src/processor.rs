@@ -100,9 +100,22 @@ struct ProcessorStorage {
     preset_store: Option<Arc<PresetStore>>,
     session_document: Option<Arc<JuceTree>>,
     model_bytes: ModelByteCache,
+    /// Goes up at each change of [`Self::model_bytes`]. A change can keep the same session frame,
+    /// so the encode cache compares this count too.
+    bytes_generation: u64,
     pending_restore: Option<SessionRestore>,
     prepare_generation: u64,
     stash: Option<Arc<LocalStash>>,
+}
+
+/// The last session encode, with each input that it read.
+#[derive(Debug)]
+struct EncodedSession {
+    frame: SessionFrame,
+    midi_channel: u8,
+    document: Option<Arc<JuceTree>>,
+    bytes_generation: u64,
+    bytes: Arc<[u8]>,
 }
 
 /// Owns control-side processor state and off-thread restore candidates, not the active graph.
@@ -110,6 +123,8 @@ struct ProcessorStorage {
 pub struct RonieProcessor {
     editor: SessionEditor,
     storage: ProcessorStorage,
+    /// A host can save its project often, and an encode copies each model of the session.
+    encoded: Option<EncodedSession>,
 }
 
 impl RonieProcessor {
@@ -124,12 +139,14 @@ impl RonieProcessor {
                 preset_store: None,
                 session_document: None,
                 model_bytes: ModelByteCache::new(256 * 1024 * 1024),
+                bytes_generation: 0,
                 pending_restore: None,
                 prepare_generation: 1,
                 stash: LocalStash::new(std::env::temp_dir().join("ronie-stash"))
                     .ok()
                     .map(Arc::new),
             },
+            encoded: None,
         }
     }
 
@@ -254,6 +271,18 @@ impl RonieProcessor {
         self.edit_parameter(id, value, GesturePhase::Change)
     }
 
+    /// Writes one parameter that a host automates, with no undo step.
+    ///
+    /// # Errors
+    /// Returns an unknown-parameter or non-finite-value error.
+    pub fn automate_parameter(
+        &mut self,
+        id: ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), UiError> {
+        self.editor.automate_parameter(id, value)
+    }
+
     /// Validates and writes one parameter, inside a gesture or as one undo step of its own.
     ///
     /// See [`UiAction::SetParameter`] for the gesture rules.
@@ -280,17 +309,52 @@ impl RonieProcessor {
         Ok((receipt.revision, receipt.effect))
     }
 
-    pub(crate) fn session_bytes(&self) -> Result<Vec<u8>, UiError> {
-        crate::persistence::encode_session(
-            self.editor.current(),
-            self.editor.midi_map().channel,
+    /// Encodes the session. An unchanged session gives the bytes of the last encode again.
+    pub(crate) fn session_bytes(&mut self) -> Result<Arc<[u8]>, UiError> {
+        let frame = self.editor.current();
+        let midi_channel = self.editor.midi_map().channel;
+        let document = self.storage.session_document.as_ref();
+        let bytes_generation = self.storage.bytes_generation;
+        if let Some(encoded) = &self.encoded
+            && encoded.midi_channel == midi_channel
+            && encoded.bytes_generation == bytes_generation
+            && encoded.document.as_ref().map(Arc::as_ptr) == document.map(Arc::as_ptr)
+            && encoded.frame == *frame
+        {
+            return Ok(Arc::clone(&encoded.bytes));
+        }
+        let bytes: Arc<[u8]> = crate::persistence::encode_session(
+            frame,
+            midi_channel,
             self.storage.stash.as_deref(),
-            self.storage.session_document.as_deref(),
+            document.map(Arc::as_ref),
             &self.storage.model_bytes,
-        )
+        )?
+        .into();
+        self.encoded = Some(EncodedSession {
+            frame: frame.clone(),
+            midi_channel,
+            document: document.cloned(),
+            bytes_generation,
+            bytes: Arc::clone(&bytes),
+        });
+        Ok(bytes)
     }
 
+    /// Replaces the session with a saved one, and prepares its chain for the current stream.
     pub(crate) fn restore_session_bytes(&mut self, bytes: &[u8]) -> Result<(), UiError> {
+        self.restore_saved_session(bytes, true)
+    }
+
+    /// Replaces the session with one from a host project, and compiles no model.
+    ///
+    /// A host restores a project before it gives the stream layout, so a chain from here is
+    /// usually for the wrong stream. The audio side compiles the chain instead.
+    pub(crate) fn restore_host_session_bytes(&mut self, bytes: &[u8]) -> Result<(), UiError> {
+        self.restore_saved_session(bytes, false)
+    }
+
+    fn restore_saved_session(&mut self, bytes: &[u8], compile: bool) -> Result<(), UiError> {
         let decoded = crate::persistence::decode_session(bytes, self.editor.current())?;
         let storage = &mut self.storage;
         // A tone without usable bytes runs as bypass in a live session, so it must not stop the
@@ -306,8 +370,9 @@ impl RonieProcessor {
                 // A refused entry is larger than the cache. The document still holds its bytes.
                 let _ = storage.model_bytes.insert(key, entry.bytes.clone());
             }
+            storage.bytes_generation += 1;
             None
-        } else {
+        } else if compile {
             crate::persistence::prepare_session_restore(
                 &decoded.document,
                 self.editor.current(),
@@ -315,12 +380,25 @@ impl RonieProcessor {
                 storage.prepare_generation + 1,
                 &storage.model_bytes,
             )?
+        } else {
+            crate::persistence::check_restore(
+                &decoded.document,
+                self.editor.current(),
+                &storage.model_bytes,
+            )?;
+            None
         };
         storage.prepare_generation += 1;
         storage.session_document = Some(Arc::new(decoded.document.raw));
-        storage.pending_restore = change.map(|change| SessionRestore::Prepared(Box::new(change)));
+        storage.pending_restore = match change {
+            Some(change) => Some(SessionRestore::Prepared(Box::new(change))),
+            None if compile => None,
+            None => Some(SessionRestore::Compile),
+        };
         self.editor
             .load_saved_session(decoded.frame, decoded.midi_channel);
+        // The old encode holds the old document and its bytes. The next save encodes again.
+        self.encoded = None;
         Ok(())
     }
 }
@@ -332,6 +410,7 @@ impl SessionStorage for ProcessorStorage {
         model_id: ModelId,
         bytes: ModelBytes,
     ) -> Result<(), UiError> {
+        self.bytes_generation += 1;
         self.model_bytes
             .insert(
                 ByteCacheKey {
@@ -360,6 +439,7 @@ impl SessionStorage for ProcessorStorage {
             if let Some(bytes) = self.model_bytes.get(&key(&source.id)) {
                 // Only an entry larger than the whole cache is refused, and this one is in it.
                 let _ = self.model_bytes.insert(key(copy), bytes);
+                self.bytes_generation += 1;
             }
         }
     }
@@ -517,4 +597,100 @@ impl SessionStorage for ProcessorStorage {
 
 fn control(error: impl std::fmt::Display) -> UiError {
     UiError::Control(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn processor() -> RonieProcessor {
+        RonieProcessor::new(PrepareSpec {
+            host_sample_rate: 48_000.0,
+            max_host_frames: 256,
+            oversampling: 1,
+            input_mode: ronie_core::InputMode::Left,
+            stereo_input: false,
+            stereo_output: true,
+        })
+    }
+
+    fn wav(last: u8) -> ModelBytes {
+        let mut bytes = b"RIFF".to_vec();
+        bytes.extend_from_slice(&44_u32.to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&48_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&96_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&2_u16.to_le_bytes());
+        bytes.extend_from_slice(&16_u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&8_u32.to_le_bytes());
+        for sample in [16_000_i16, 0, 0, i16::from(last)] {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        bytes.into()
+    }
+
+    fn embedded(bytes: &[u8]) -> Vec<Vec<u8>> {
+        ronie_core::StateCodec::new()
+            .decode_session(bytes)
+            .expect("session")
+            .model_cache
+            .iter()
+            .map(|entry| entry.bytes.to_vec())
+            .collect()
+    }
+
+    #[test]
+    fn new_model_bytes_in_the_same_session_give_new_saved_bytes() {
+        let mut processor = processor();
+        let block = processor.chain_state(0).chain.left[0].id.clone();
+        let tone = Tone::from_value(serde_json::json!({
+            "id": 42,
+            "title": "Remote tone",
+            "format": "ir",
+            "models": [
+                {"id": 7, "name": "Remote", "model_url": "https://models.example/7.wav"},
+            ]
+        }))
+        .expect("tone");
+        processor
+            .dispatch(UiAction::LoadToneWithBytes {
+                target_insert_id: block.clone(),
+                tone,
+                model_id: ModelId(7),
+                bytes: wav(0),
+            })
+            .expect("load");
+        let first = processor.session_bytes().expect("bytes");
+        assert!(Arc::ptr_eq(
+            &first,
+            &processor.session_bytes().expect("bytes")
+        ));
+
+        // The bytes change, and the session frame stays the same.
+        processor
+            .storage
+            .keep_model_bytes(&block, ModelId(7), wav(1))
+            .expect("keep");
+
+        let second = processor.session_bytes().expect("bytes");
+        assert!(!Arc::ptr_eq(&first, &second), "the old bytes are stale");
+        assert_eq!(embedded(&second), [wav(1).to_vec()]);
+    }
+
+    #[test]
+    fn a_restore_forgets_the_last_encode() {
+        let mut processor = processor();
+        let bytes = processor.session_bytes().expect("bytes");
+        assert!(processor.encoded.is_some());
+
+        processor
+            .restore_host_session_bytes(&bytes)
+            .expect("restore");
+
+        assert!(processor.encoded.is_none());
+    }
 }
