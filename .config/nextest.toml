@@ -7,3 +7,9 @@
 filter = 'binary(pitch_allocation) | binary(worker_allocation) | binary(live_signal)'
 threads-required = "num-test-threads"
 retries = 1
+
+# CI runs on shared machines, and many tests here compare wall-clock time with a limit. In CI, a
+# failed test runs one more time. A test that fails two times still fails the run.
+[profile.ci]
+retries = 1
+fail-fast = false

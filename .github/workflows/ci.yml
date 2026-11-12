@@ -18,6 +18,7 @@ env:
   # Full debug data makes each test program hundreds of megabytes. Line tables keep the panic
   # locations, and the links and the cache are much smaller.
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  NEXTEST_PROFILE: ci
 
 jobs:
   check:
