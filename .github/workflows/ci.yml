@@ -15,6 +15,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Full debug data makes each test program hundreds of megabytes. Line tables keep the panic
+  # locations, and the links and the cache are much smaller.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   check:
@@ -31,9 +34,12 @@ jobs:
       - name: Install Rust from rust-toolchain.toml
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Only main saves the cache. A pull request uses the cache of main.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: cargo-deny
+          tool: cargo-deny,cargo-nextest
       - name: Build, lint, test, format, and dependency check
         run: make check
       - name: Bundle the VST3 plugin
@@ -67,10 +73,18 @@ jobs:
       - name: Install Rust from rust-toolchain.toml
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - name: Build
-        run: cargo build --locked -p ronie-app --bin ronie
+        with:
+          # Only main saves the cache. A pull request uses the cache of main.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-nextest
       - name: Test
-        run: cargo test --workspace --locked --no-fail-fast
+        # In bash, a failed first command stops the step. PowerShell would go on to the next.
+        shell: bash
+        run: |
+          cargo nextest run --workspace --locked --no-fail-fast
+          cargo test --workspace --locked --doc
       - name: Bundle the VST3 plugin
         shell: bash
         env:
