@@ -6,6 +6,18 @@ All notable changes to Ronnie 3000 are in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-12
+
+### Added
+
+- Ronnie 3000 is also a VST3 plugin for your DAW, on Linux, macOS, and Windows. The plugin is
+  experimental. The DAW project keeps the full Ronnie session of each track, with the editor
+  zoom. Switches and choices show in the DAW as stepped parameters, so you can automate them.
+
+### Fixed
+
+- The output level no longer jumps for a moment when the signal chain changes.
+
 ## [0.1.1] - 2026-11-11
 
 ### Added
@@ -44,6 +56,7 @@ The first public release.
 - Install on Linux with an AppImage, a tarball, or a one-line script. Experimental builds for
   macOS and Windows.
 
-[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/KonScanner/ronnie-3000/releases/tag/v0.1.0
