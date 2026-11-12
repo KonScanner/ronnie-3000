@@ -35,6 +35,9 @@ jobs:
         with:
           # Only main saves the cache. A pull request uses the cache of main.
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # The cache key comes from the dependencies, not from the cargo profiles. Change this
+          # value when [profile.ci] in Cargo.toml changes, so that main saves a new cache.
+          key: profile-ci-1
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-deny,cargo-nextest
@@ -76,6 +79,9 @@ jobs:
         with:
           # Only main saves the cache. A pull request uses the cache of main.
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # The cache key comes from the dependencies, not from the cargo profiles. Change this
+          # value when [profile.ci] in Cargo.toml changes, so that main saves a new cache.
+          key: profile-ci-1
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-nextest
