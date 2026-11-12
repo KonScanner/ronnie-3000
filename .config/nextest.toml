@@ -1,10 +1,9 @@
 # cargo-nextest runs each test in its own process, and many tests at the same time.
 
-# These tests measure time, or count the allocations of all threads in the process. Other tests
-# on the same machine slow them down, so each one runs with no other test. A test that fails
-# and then passes on the second try shows as FLAKY in the summary.
+# These tests measure time. Other tests on the same machine slow them down, so each one runs with
+# no other test. A test that fails and then passes on the second try shows as FLAKY in the summary.
 [[profile.default.overrides]]
-filter = 'binary(pitch_allocation) | binary(worker_allocation) | binary(live_signal)'
+filter = 'binary(pitch_allocation) | binary(live_signal)'
 threads-required = "num-test-threads"
 retries = 1
 

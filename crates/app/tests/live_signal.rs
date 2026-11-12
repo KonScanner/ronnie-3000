@@ -452,13 +452,36 @@ fn each_change_of_a_knob_gesture_reaches_the_audio_at_once() {
 
 /// What the EQ page does: it polls while audio runs, and it waits for one full window.
 fn spectrum_of(rig: &mut Rig, block: &ronie_core::BlockId, hertz: f32, level: f32) -> [f32; 64] {
+    spectrum_until(rig, block, hertz, level, |_| true)
+}
+
+/// Polls as [`spectrum_of`] does, and then polls on until `ready` holds. A busy test machine can
+/// render slower than real time, so the first window can come later. The polls stop after
+/// 10 seconds, and the caller then fails on the bins.
+fn spectrum_until(
+    rig: &mut Rig,
+    block: &ronie_core::BlockId,
+    hertz: f32,
+    level: f32,
+    ready: impl Fn(&[f32; 64]) -> bool,
+) -> [f32; 64] {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     let mut bins = rig.backend.spectrum_bins(block);
-    for _ in 0..16 {
+    for poll in 1.. {
         rig.render_seconds(0.04, hertz, level);
         std::thread::sleep(std::time::Duration::from_millis(31));
         bins = rig.backend.spectrum_bins(block);
+        if poll >= 16 && (ready(&bins) || std::time::Instant::now() >= deadline) {
+            break;
+        }
     }
     bins
+}
+
+/// Whether the loudest bin is within a fifth of an octave of `hertz`, and loud.
+fn shows_sine(bins: &[f32; 64], hertz: f32) -> bool {
+    (loudest_hertz(bins) / f64::from(hertz)).log2().abs() < 0.2
+        && bins.iter().copied().fold(-100.0, f32::max) > -40.0
 }
 
 fn loudest_hertz(bins: &[f32; 64]) -> f64 {
@@ -478,7 +501,7 @@ fn the_eq_spectrum_of_a_block_finds_a_known_sine() {
     assert_eq!(rig.backend.spectrum_bins(&block), [-100.0; 64]);
 
     for hertz in [250.0_f32, 1_000.0, 4_000.0] {
-        let bins = spectrum_of(&mut rig, &block, hertz, 0.5);
+        let bins = spectrum_until(&mut rig, &block, hertz, 0.5, |bins| shows_sine(bins, hertz));
         let found = loudest_hertz(&bins);
         assert!(
             (found / f64::from(hertz)).log2().abs() < 0.2,
@@ -495,9 +518,12 @@ fn the_eq_spectrum_of_a_block_finds_a_known_sine() {
 fn the_eq_spectrum_falls_to_the_floor_for_silence_and_when_the_audio_stops() {
     let mut rig = Rig::new();
     let block = rig.load_tone();
-    assert!(spectrum_of(&mut rig, &block, 1_000.0, 0.5)[40] > -100.0);
+    let bins = spectrum_until(&mut rig, &block, 1_000.0, 0.5, |bins| bins[40] > -100.0);
+    assert!(bins[40] > -100.0, "{bins:?}");
 
-    let bins = spectrum_of(&mut rig, &block, 1_000.0, 0.0);
+    let bins = spectrum_until(&mut rig, &block, 1_000.0, 0.0, |bins| {
+        bins.iter().all(|bin| *bin < -60.0)
+    });
     assert!(bins.iter().all(|bin| *bin < -60.0), "{bins:?}");
 
     spectrum_of(&mut rig, &block, 1_000.0, 0.5);
@@ -519,14 +545,18 @@ fn the_eq_spectrum_follows_the_block_to_a_new_chain_and_a_new_stream() {
     rig.backend
         .dispatch(UiAction::SetStereoMode(true))
         .expect("a new chain");
-    let bins = spectrum_of(&mut rig, &block, 1_000.0, 0.5);
+    let bins = spectrum_until(&mut rig, &block, 1_000.0, 0.5, |bins| {
+        shows_sine(bins, 1_000.0)
+    });
     assert!(loudest_hertz(&bins) > 700.0 && loudest_hertz(&bins) < 1_400.0);
 
     rig.backend
         .dispatch(UiAction::Device(DeviceAction::Restart))
         .expect("a new stream");
     rig.backend.settle_audio().expect("settle");
-    let bins = spectrum_of(&mut rig, &block, 1_000.0, 0.5);
+    let bins = spectrum_until(&mut rig, &block, 1_000.0, 0.5, |bins| {
+        shows_sine(bins, 1_000.0)
+    });
     assert!(loudest_hertz(&bins) > 700.0 && loudest_hertz(&bins) < 1_400.0);
 }
 

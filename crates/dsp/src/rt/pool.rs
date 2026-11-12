@@ -8,13 +8,15 @@ use std::{
         atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
     },
     thread::JoinHandle,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use super::{Job, thread};
 
 const LEVELS: usize = 2;
 const FALLBACK_PARK: Duration = Duration::from_millis(100);
+/// The longest time that [`RtWorkerPool::prepare`] waits for its workers to start.
+const START_LIMIT: Duration = Duration::from_secs(1);
 
 thread_local! {
     static DEPTH: Cell<usize> = const { Cell::new(0) };
@@ -116,6 +118,7 @@ pub(crate) struct Shared {
     levels: [Level; LEVELS],
     enabled: AtomicBool,
     stop: AtomicBool,
+    started: AtomicUsize,
     wake: AtomicU64,
     wait_lock: Mutex<()>,
     wait: Condvar,
@@ -128,6 +131,7 @@ impl Shared {
             levels: std::array::from_fn(|_| Level::new()),
             enabled: AtomicBool::new(true),
             stop: AtomicBool::new(false),
+            started: AtomicUsize::new(0),
             wake: AtomicU64::new(0),
             wait_lock: Mutex::new(()),
             wait: Condvar::new(),
@@ -148,7 +152,8 @@ pub struct RtWorkerPool {
 }
 
 impl RtWorkerPool {
-    /// Allocates workers and all job storage on the control thread.
+    /// Allocates workers and all job storage on the control thread, and waits until each
+    /// worker runs.
     ///
     /// # Errors
     ///
@@ -255,10 +260,17 @@ fn prepare_with_spawn(
             }
         }
     }
+    // A thread allocates while it starts, for example for its name on Windows. The pool waits
+    // for that, so that it does not occur during the first callback.
+    let deadline = Instant::now() + START_LIMIT;
+    while shared.started.load(Ordering::Acquire) < workers.len() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_micros(200));
+    }
     Ok(RtWorkerPool { shared, workers })
 }
 
 pub(crate) fn worker_main(shared: Arc<Shared>) {
+    shared.started.fetch_add(1, Ordering::AcqRel);
     let mut observed = 0_u64;
     loop {
         if shared.stop.load(Ordering::Acquire) {
@@ -334,5 +346,11 @@ mod tests {
         });
         assert!(result.is_err());
         assert!(observed.expect("shared state").stop.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn a_prepared_pool_has_every_worker_running() {
+        let pool = RtWorkerPool::prepare(4, 16).expect("worker pool");
+        assert_eq!(pool.shared.started.load(Ordering::Acquire), 4);
     }
 }

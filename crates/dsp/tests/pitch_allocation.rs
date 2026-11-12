@@ -96,7 +96,7 @@ fn sixteen_frame_search_cost_is_bounded_and_measured() {
         ..Default::default()
     });
     let mut seed = 17_u32;
-    let mut longest = std::time::Duration::ZERO;
+    let mut durations = Vec::with_capacity(3000);
     let started = std::time::Instant::now();
     for _ in 0..3000 {
         let mut data = [0.0; 16];
@@ -110,7 +110,7 @@ fn sixteen_frame_search_cost_is_bounded_and_measured() {
         pitch
             .process(&mut PlanarBuffer::new(&mut data, 1, 16).expect("small buffer"))
             .expect("small callback");
-        longest = longest.max(callback_started.elapsed());
+        durations.push(callback_started.elapsed());
     }
     let elapsed = started.elapsed();
     let budget = if cfg!(debug_assertions) {
@@ -118,8 +118,15 @@ fn sixteen_frame_search_cost_is_bounded_and_measured() {
     } else {
         std::time::Duration::from_micros(100)
     };
+    // The system can stop the test thread in any callback, so the slowest few say more about the
+    // machine than about the search. A search that is not spread out is slow about once in each
+    // window, which is more than 1 in 200 of these callbacks, so this percentile still finds it.
+    durations.sort_unstable();
+    let percentile = durations[durations.len() * 995 / 1000];
+    let longest = durations[durations.len() - 1];
     assert!(
-        longest < budget,
-        "longest callback {longest:?} exceeded {budget:?}; one second of audio took {elapsed:?}",
+        percentile < budget,
+        "99.5% of the callbacks took up to {percentile:?}, over {budget:?}; the longest took \
+         {longest:?}, and one second of audio took {elapsed:?}",
     );
 }

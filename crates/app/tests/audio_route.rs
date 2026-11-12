@@ -1012,9 +1012,11 @@ fn slowest_frame(backend: &StandaloneBackend, frames: usize) -> Duration {
     slowest
 }
 
-/// A frame at 60 Hz has about 16 ms. A busy test machine can stop a thread, so that the limit
-/// leaves room for that and it still fails on a wait for the device work, which never ends here.
-const FRAME_LIMIT: Duration = Duration::from_millis(100);
+/// A frame at 60 Hz has about 16 ms, but this limit does not measure the frame speed. A frame that
+/// waits for the device work waits until the gate opens or until the 15 s work limit, so a limit
+/// far below that finds the wait. A busy shared test machine can stop a thread for some hundred
+/// milliseconds, so the limit leaves room for that.
+const FRAME_LIMIT: Duration = Duration::from_secs(2);
 
 #[test]
 fn a_frame_returns_while_the_first_open_waits_for_the_server() {
