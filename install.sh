@@ -66,7 +66,9 @@ refresh_desktop() {
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database "$prefix/share/applications" >/dev/null 2>&1 || true
     fi
-    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    # GTK reads the icon folders directly when they have no cache. An old cache hides a new
+    # icon, so refresh only a cache that exists.
+    if [ -f "$prefix/share/icons/hicolor/icon-theme.cache" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f "$prefix/share/icons/hicolor" >/dev/null 2>&1 || true
     fi
 }

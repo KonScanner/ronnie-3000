@@ -9,19 +9,24 @@ BINARY := ronie
 VERSION ?= $(shell cargo pkgid ronie-app | cut -d@ -f2)
 DIST_DIR ?= dist
 ICON_SIZES := 16 32 48 64 128 256 512
+VST3DIR ?= $(HOME)/.vst3
+VST3_BUNDLE = $(DESTDIR)$(VST3DIR)/Ronnie 3000.vst3
+VST3_FOLDER = $(VST3_BUNDLE)/Contents/$(shell uname -m)-linux
 
 .DEFAULT_GOAL := help
-.PHONY: help setup doctor build run check package appimage install uninstall
+.PHONY: help setup doctor build run check package appimage install uninstall vst3 install-vst3 uninstall-vst3
 
 help:
 	@printf 'Ronnie 3000\n\n'
-	@printf '  make setup      Install Ronnie for this user (builds from source when Rust is present,\n'
-	@printf '                  otherwise downloads the latest release)\n'
-	@printf '  make run        Build and open Ronnie from this checkout\n'
-	@printf '  make uninstall  Remove the files that make setup installed\n'
-	@printf '  make check      Run the full check: build, clippy, tests, format, and cargo deny\n'
-	@printf '  make package    Build a portable Linux tarball in %s/\n' "$(DIST_DIR)"
-	@printf '  make appimage   Build a Linux AppImage in %s/\n' "$(DIST_DIR)"
+	@printf '  make setup           Install Ronnie for this user, with a menu entry and an icon (builds\n'
+	@printf '                       from source when Rust is present, otherwise downloads the latest release)\n'
+	@printf '  make run             Build and open Ronnie from this checkout\n'
+	@printf '  make uninstall       Remove the files that make setup installed\n'
+	@printf '  make install-vst3    Build the VST3 plugin and install it in %s (Linux)\n' "$(VST3DIR)"
+	@printf '  make uninstall-vst3  Remove the VST3 plugin that make install-vst3 installed\n'
+	@printf '  make check           Run the full check: build, clippy, tests, format, and cargo deny\n'
+	@printf '  make package         Build a portable Linux tarball in %s/\n' "$(DIST_DIR)"
+	@printf '  make appimage        Build a Linux AppImage in %s/\n' "$(DIST_DIR)"
 
 setup:
 	@if command -v cargo >/dev/null 2>&1; then \
@@ -43,6 +48,9 @@ doctor:
 
 build:
 	./script/with-env.sh cargo build --release --locked -p ronie-app --bin $(BINARY)
+
+vst3:
+	./script/with-env.sh cargo build --release --locked -p ronie-plugin-nice
 
 run:
 	./script/with-env.sh cargo run --release --locked -p ronie-app --bin $(BINARY) -- --ui
@@ -68,7 +76,11 @@ install:
 	@# A staged install (DESTDIR) goes into a package. Its caches would list only Ronnie and
 	@# would replace the caches of the system that unpacks the package.
 	@if [ -z "$(DESTDIR)" ] && command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database $(DATADIR)/applications; fi
-	@if [ -z "$(DESTDIR)" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -q -t -f $(DATADIR)/icons/hicolor; fi
+	@# GTK reads the icon folders directly when they have no cache. An old cache hides a new icon,
+	@# so refresh only a cache that exists. Icons of other apps can make the refresh fail.
+	@if [ -z "$(DESTDIR)" ] && [ -f $(DATADIR)/icons/hicolor/icon-theme.cache ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then \
+		gtk-update-icon-cache -q -t -f $(DATADIR)/icons/hicolor || printf 'warning: the icon cache in %s was not refreshed\n' "$(DATADIR)/icons/hicolor"; \
+	fi
 	@printf 'Installed %s. Run `%s` or find Ronnie 3000 in your application launcher.\n' "$(DESTDIR)$(BINDIR)/$(BINARY)" "$(BINARY)"
 
 uninstall:
@@ -82,4 +94,20 @@ uninstall:
 		rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/$${size}x$${size}/apps/$(APP_ID).png; \
 	done
 	@if [ -z "$(DESTDIR)" ] && command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database $(DATADIR)/applications; fi
-	@if [ -z "$(DESTDIR)" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -q -t -f $(DATADIR)/icons/hicolor; fi
+	@# GTK reads the icon folders directly when they have no cache. An old cache hides a new icon,
+	@# so refresh only a cache that exists. Icons of other apps can make the refresh fail.
+	@if [ -z "$(DESTDIR)" ] && [ -f $(DATADIR)/icons/hicolor/icon-theme.cache ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then \
+		gtk-update-icon-cache -q -t -f $(DATADIR)/icons/hicolor || printf 'warning: the icon cache in %s was not refreshed\n' "$(DATADIR)/icons/hicolor"; \
+	fi
+
+# The VST3 plugin for Linux. A VST3 bundle is a folder, and on Linux it holds one library.
+install-vst3: doctor vst3
+	@[ "$$(uname -s)" = Linux ] || { printf 'error: make install-vst3 is for Linux; see the README for macOS and Windows\n' >&2; exit 1; }
+	install -Dm755 target/release/libronie_plugin_nice.so "$(VST3_FOLDER)/Ronnie 3000.so"
+	@printf 'Installed %s. Scan for new plugins in your DAW, then add Ronnie 3000 to a track.\n' "$(VST3_BUNDLE)"
+
+uninstall-vst3:
+	rm -f "$(VST3_FOLDER)/Ronnie 3000.so"
+	@for folder in "$(VST3_FOLDER)" "$(VST3_BUNDLE)/Contents" "$(VST3_BUNDLE)"; do \
+		if [ -d "$$folder" ]; then rmdir "$$folder" || exit 1; fi; \
+	done

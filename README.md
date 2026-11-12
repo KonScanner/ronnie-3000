@@ -165,8 +165,19 @@ cd ronnie-3000
 make setup
 ```
 
-`make setup` builds Ronnie and installs it under `~/.local`. On a computer without Rust, it
-downloads the latest release instead. See [CONTRIBUTING.md](CONTRIBUTING.md) for the build tools.
+`make setup` builds Ronnie and installs it under `~/.local`, with a menu entry and an icon. On a
+computer without Rust, it downloads the latest release instead. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the build tools.
+
+To also install the VST3 plugin for your DAW:
+
+```bash
+make install-vst3
+```
+
+This builds the plugin and installs **Ronnie 3000.vst3** in `~/.vst3`. Scan for new plugins in
+your DAW after the install. To remove Ronnie again, run `make uninstall` for the app and
+`make uninstall-vst3` for the plugin.
 
 ## First steps
 

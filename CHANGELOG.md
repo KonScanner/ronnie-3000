@@ -6,6 +6,11 @@ All notable changes to Ronnie 3000 are in this file. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- On Linux, `make install-vst3` builds the VST3 plugin from source and installs it in `~/.vst3`.
+  `make uninstall-vst3` removes it again.
+
 ## [0.1.2] - 2026-11-12
 
 ### Added
