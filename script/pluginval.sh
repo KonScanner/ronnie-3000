@@ -5,12 +5,12 @@
 #
 #   bash script/pluginval.sh "target/vst3-bundle/ronnie-3000-vst3-ci-linux-x86_64/Ronnie 3000.vst3"
 #
-# STRICTNESS sets the pluginval strictness level, 1 to 10. The default is 5.
+# STRICTNESS sets the pluginval strictness level, 1 to 10. The default is 10, the strictest.
 set -euo pipefail
 
 VERSION=v1.0.4
 BUNDLE=${1:?give the path of the .vst3 bundle}
-STRICTNESS=${STRICTNESS:-5}
+STRICTNESS=${STRICTNESS:-10}
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DIR="${CARGO_TARGET_DIR:-$ROOT/target}/pluginval-$VERSION"
 
