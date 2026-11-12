@@ -24,6 +24,8 @@ pub mod services;
 pub mod session_edit;
 /// Native design-space layout and shared services.
 pub mod shell;
+/// The Ronnie view with no window, which each shell shows.
+pub mod shell_view;
 /// Neutral scenario schema and backend-effect testbed.
 pub mod testbed;
 /// Shared dark theme tokens.

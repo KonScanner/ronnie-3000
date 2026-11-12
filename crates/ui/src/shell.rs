@@ -112,9 +112,9 @@ impl LayoutTransform {
 /// Rendered-pixel density steps per native pixel for the live zoom.
 const ZOOM_STEPS_PER_PIXEL: f64 = 16.0;
 /// Smallest live zoom, below the zoom that the minimum window size gives.
-const MIN_ZOOM: f64 = 0.25;
+pub(crate) const MIN_ZOOM: f64 = 0.25;
 /// Largest live zoom, above the zoom of a 16K display.
-const MAX_ZOOM: f64 = 32.0;
+pub(crate) const MAX_ZOOM: f64 = 32.0;
 
 /// Computes the egui zoom that fits the design box into a window.
 ///
@@ -165,14 +165,18 @@ pub fn refit_zoom(context: &egui::Context, chrome: Chrome) {
     // egui rescales the content rectangle when it applies a new zoom, so this product
     // stays correct on the frame of the change. `ViewportInfo::inner_rect` does not.
     let window = content.size() * context.zoom_factor();
-    let zoom = responsive_zoom(window.x, window.y, native, chrome);
+    apply_zoom(context, responsive_zoom(window.x, window.y, native, chrome));
+}
+
+/// Sets `zoom` when it differs from the current zoom. A change repeats this pass.
+pub(crate) fn apply_zoom(context: &egui::Context, zoom: f32) {
     if (context.zoom_factor() - zoom).abs() > 1e-4 {
         context.set_zoom_factor(zoom);
         context.request_discard("window size changed the zoom");
     }
 }
 
-fn at_least_design_box(rect: egui::Rect, chrome: Chrome) -> egui::Rect {
+pub(crate) fn at_least_design_box(rect: egui::Rect, chrome: Chrome) -> egui::Rect {
     let design = egui::vec2(DESIGN_WIDTH as f32, chrome.design_height() as f32);
     egui::Rect::from_min_size(rect.min, rect.size().max(design))
 }
@@ -247,6 +251,7 @@ use serde_json::json;
 use crate::{
     fonts::Fonts,
     scroller::{ScrollKey, Scroller},
+    shell_view::ShellView,
 };
 
 /// Everything that the production shell needs in order to run.
@@ -286,6 +291,17 @@ pub struct NativeShellOptions {
     pub update_settings: Option<ronie_core::SettingsStore>,
     /// The daily release check. Only the standalone app gives one, so other builds stay offline.
     pub release_feed: Option<Arc<dyn crate::services::release_check::ReleaseFeed>>,
+}
+
+impl NativeShellOptions {
+    /// The chrome of the first window of these options.
+    #[must_use]
+    pub fn initial_chrome(&self) -> Chrome {
+        Chrome {
+            banner: initial_window_has_banner(self),
+            hints: self.hints_enabled,
+        }
+    }
 }
 
 impl Default for NativeShellOptions {
@@ -352,16 +368,15 @@ pub trait ChromeScript {
     }
 }
 
-/// Longest time that a surface waits off the screen for its clean capture.
-const CAPTURE_WAIT_MS: i64 = 1_000;
-
 /// The production script, which does nothing.
-struct NoScript;
+pub(crate) struct NoScript;
 
 impl ChromeScript for NoScript {}
 
 /// The device state that the backend reports for the banners.
-fn backend_device(options: &NativeShellOptions) -> Option<crate::default::AudioDeviceState> {
+pub(crate) fn backend_device(
+    options: &NativeShellOptions,
+) -> Option<crate::default::AudioDeviceState> {
     options
         .backend
         .as_ref()?
@@ -429,7 +444,7 @@ pub fn initial_window_has_banner(options: &NativeShellOptions) -> bool {
 }
 
 /// The audio chain faults that the backend reports for the banners.
-fn backend_faults(options: &NativeShellOptions) -> Vec<crate::backend::ChainFault> {
+pub(crate) fn backend_faults(options: &NativeShellOptions) -> Vec<crate::backend::ChainFault> {
     options
         .backend
         .as_ref()
@@ -464,10 +479,7 @@ fn run_window(
     allow_background: bool,
 ) -> eframe::Result<()> {
     let window_scale = options.scale.unwrap_or(1.0).max(0.1);
-    let initial_chrome = Chrome {
-        banner: initial_window_has_banner(&options),
-        hints: options.hints_enabled,
-    };
+    let initial_chrome = options.initial_chrome();
     let (window_width, window_height) = initial_chrome.window_size(f64::from(window_scale));
     let initial_window_size = options
         .window_size
@@ -500,20 +512,8 @@ fn run_window(
         "Ronnie",
         native_options,
         Box::new(move |creation| {
-            Fonts::install(&creation.egui_ctx);
+            ShellView::prepare_context(&creation.egui_ctx);
             creation.egui_ctx.enable_accesskit();
-            // egui's default selection and cursor colours are blue.
-            creation.egui_ctx.all_styles_mut(|style| {
-                let visuals = &mut style.visuals;
-                visuals.selection.bg_fill = crate::theme::palette::EMBER;
-                visuals.selection.stroke.color = crate::theme::palette::CHROME;
-                visuals.text_cursor.stroke.color = crate::theme::palette::BLAZE;
-                visuals.hyperlink_color = crate::theme::palette::BLAZE;
-            });
-            // The window size owns the zoom, so keyboard zoom must not fight it.
-            creation
-                .egui_ctx
-                .options_mut(|egui_options| egui_options.zoom_with_keyboard = false);
             Ok(Box::new(NativeShellApp::new(
                 options,
                 Box::new(script),
@@ -580,13 +580,10 @@ pub(crate) fn build_chrome(
 
 struct NativeShellApp {
     options: NativeShellOptions,
-    chrome: Option<crate::default::ChromeController>,
+    view: ShellView,
     script: Box<dyn ChromeScript>,
-    started: Instant,
     frame_count: u64,
     max_frame_ms: f64,
-    clock: UiClock,
-    was_visible: bool,
     capture_requested: bool,
     capture_after_ms: u64,
     capture_requires_modal: bool,
@@ -594,20 +591,8 @@ struct NativeShellApp {
     capture_error: Option<String>,
     screenshot_tx: mpsc::Sender<Arc<egui::ColorImage>>,
     screenshot_rx: mpsc::Receiver<Arc<egui::ColorImage>>,
-    backdrop_tx: mpsc::Sender<Arc<egui::ColorImage>>,
-    backdrop_rx: mpsc::Receiver<Arc<egui::ColorImage>>,
-    blurred_tx: mpsc::Sender<egui::ColorImage>,
-    blurred_rx: mpsc::Receiver<egui::ColorImage>,
-    /// A blur stalls a frame for more than 100 ms at a scale of 2, so a worker does it. A self-test
-    /// blurs in its frame, because it captures at a fixed time and its image must show the backdrop.
-    blur_on_worker: bool,
-    modal_capture: crate::default::ModalCapture,
-    capture_wait_started_ms: Option<i64>,
-    backdrop_count: u32,
     report_written: bool,
     applied_design_height: i32,
-    shown_device: Option<crate::default::AudioDeviceState>,
-    shown_faults: Vec<crate::backend::ChainFault>,
 }
 
 impl NativeShellApp {
@@ -617,33 +602,19 @@ impl NativeShellApp {
         context: &egui::Context,
     ) -> Self {
         let (screenshot_tx, screenshot_rx) = mpsc::channel();
-        let (backdrop_tx, backdrop_rx) = mpsc::channel();
-        let (blurred_tx, blurred_rx) = mpsc::channel();
-        let mut clock = UiClock::default();
-        clock.add_listener(|| {});
-        let shown_device = backend_device(&options);
-        let shown_faults = backend_faults(&options);
-        let mut chrome = build_chrome(&mut options);
-        if let Some(chrome) = &mut chrome {
-            chrome.wait_for_dialog_backdrops();
+        let mut view = ShellView::new(&mut options, true);
+        if let Some(chrome) = view.chrome_mut() {
             script.start(chrome, context);
         }
-        let selftest = options.selftest;
         let capture_requires_modal = script.capture_waits_for_modal();
         let capture_after_ms = if capture_requires_modal { 1_800 } else { 900 };
-        let applied_design_height = chrome.as_ref().map_or_else(
-            || Chrome::default().design_height(),
-            |chrome| chrome.window_chrome().design_height(),
-        );
+        let applied_design_height = view.window_chrome().design_height();
         Self {
             options,
-            chrome,
+            view,
             script,
-            started: Instant::now(),
             frame_count: 0,
             max_frame_ms: 0.0,
-            clock,
-            was_visible: true,
             capture_requested: false,
             capture_after_ms,
             capture_requires_modal,
@@ -651,26 +622,9 @@ impl NativeShellApp {
             capture_error: None,
             screenshot_tx,
             screenshot_rx,
-            backdrop_tx,
-            backdrop_rx,
-            blurred_tx,
-            blurred_rx,
-            blur_on_worker: !selftest,
-            modal_capture: crate::default::ModalCapture::default(),
-            capture_wait_started_ms: None,
-            backdrop_count: 0,
             report_written: false,
             applied_design_height,
-            shown_device,
-            shown_faults,
         }
-    }
-
-    fn window_chrome(&self) -> Chrome {
-        self.chrome
-            .as_ref()
-            .map(crate::default::ChromeController::window_chrome)
-            .unwrap_or_default()
     }
 
     /// Moves the window edge by the chrome change, so the zoom returns to its value
@@ -680,7 +634,7 @@ impl NativeShellApp {
         if context.will_discard() {
             return;
         }
-        let Some(chrome) = &mut self.chrome else {
+        let Some(chrome) = self.view.chrome_mut() else {
             return;
         };
         let design_height = chrome.window_chrome().design_height();
@@ -718,105 +672,16 @@ impl NativeShellApp {
         }
     }
 
-    /// Asks for a capture, because the script waits for clean backdrops.
-    fn request_scripted_backdrop(&mut self, context: &egui::Context, now_ms: i64) {
-        let Some(chrome) = self.chrome.as_ref() else {
-            return;
-        };
-        if self.script.wants_clean_backdrops()
-            && self
-                .modal_capture
-                .request_due(now_ms, chrome.dialog_on_screen())
-        {
-            self.request_screenshot(context);
-        }
-    }
-
-    /// Asks for a capture, when a surface that needs a backdrop opened.
-    ///
-    /// The screenshot shows the next pass, and the surface stays out of that pass, so the image is
-    /// clean.
-    fn request_surface_backdrop(&mut self, context: &egui::Context, now_ms: i64) {
-        let Some(chrome) = self.chrome.as_mut() else {
-            return;
-        };
-        if self
-            .modal_capture
-            .request_for(chrome.backdrop_user(), now_ms)
-        {
-            chrome.begin_backdrop_capture();
-            self.request_screenshot(context);
-        }
-        let Some(chrome) = self.chrome.as_mut() else {
-            return;
-        };
-        if !chrome.capture_held() {
-            self.capture_wait_started_ms = None;
-            return;
-        }
-        // This reads the clock again, because an inline blur can take a long time in this frame.
-        let now_ms = self.started.elapsed().as_millis() as i64;
-        let started = *self.capture_wait_started_ms.get_or_insert(now_ms);
-        if now_ms.saturating_sub(started) >= CAPTURE_WAIT_MS {
-            chrome.release_dialogs();
-        }
-    }
-
     /// Whether this pass shows the final state of a self-test image, backdrop included.
     fn image_ready(&self) -> bool {
-        if self.script.wants_clean_backdrops() || self.modal_capture.in_flight() {
+        if self.script.wants_clean_backdrops() || self.view.modal_capture.in_flight() {
             return false;
         }
         !self.capture_requires_modal
             || self
-                .chrome
-                .as_ref()
+                .view
+                .chrome()
                 .is_some_and(crate::default::ChromeController::dialog_on_screen)
-    }
-
-    fn request_screenshot(&self, context: &egui::Context) {
-        let sender = self.backdrop_tx.clone();
-        context.request_screenshot(move |image| {
-            let _ = sender.send(image);
-        });
-    }
-
-    fn receive_modal_backdrop(&mut self, context: &egui::Context) {
-        if let Ok(image) = self.backdrop_rx.try_recv() {
-            let clean = self
-                .chrome
-                .as_ref()
-                .is_some_and(|chrome| !chrome.dialog_on_screen());
-            if self.modal_capture.complete(!clean) {
-                self.start_blur(image, context);
-            }
-        }
-        let Ok(blurred) = self.blurred_rx.try_recv() else {
-            return;
-        };
-        let Some(chrome) = self.chrome.as_mut() else {
-            return;
-        };
-        self.backdrop_count = self.backdrop_count.saturating_add(1);
-        let texture = context.load_texture("modal-backdrop", blurred, egui::TextureOptions::LINEAR);
-        chrome.set_modal_backdrop(Some(texture));
-        self.script.backdrop_ready(chrome, self.backdrop_count);
-    }
-
-    fn start_blur(&self, image: Arc<egui::ColorImage>, context: &egui::Context) {
-        let sender = self.blurred_tx.clone();
-        if !self.blur_on_worker {
-            let _ = sender.send(crate::default::ModalScrim::blur_snapshot(&image));
-            return;
-        }
-        let context = context.clone();
-        // With no thread, a held dialog stops its wait and paints on the plain scrim.
-        let _ = std::thread::Builder::new()
-            .name("ronie-backdrop-blur".to_owned())
-            .spawn(move || {
-                let _ = sender.send(crate::default::ModalScrim::blur_snapshot(&image));
-                context.request_repaint();
-            });
     }
 
     fn write_report(&mut self) {
@@ -827,7 +692,7 @@ impl NativeShellApp {
         let Some(path) = self.options.report.as_deref() else {
             return;
         };
-        let accessibility = self.chrome.as_mut().map_or_else(
+        let accessibility = self.view.chrome_mut().map_or_else(
             || json!({"passed": true, "node_count": 0, "focusable_count": 0, "unnamed_focusable": 0}),
             audit_chrome_accessibility,
         );
@@ -841,13 +706,13 @@ impl NativeShellApp {
             "renderer": "glow",
             "capture_saved": self.capture_saved,
             "capture_error": self.capture_error,
-            "system_modal_visible": self.chrome.as_ref().is_some_and(
+            "system_modal_visible": self.view.chrome().is_some_and(
                 crate::default::ChromeController::system_modal_visible
             ),
             "script": self.script.report(),
             "frame_count": self.frame_count,
             "max_frame_ms": self.max_frame_ms,
-            "hidden_period_ms": self.clock.period_ms(),
+            "hidden_period_ms": self.view.clock.period_ms(),
             "rss_kib": current_rss_kib(),
             "logic": logic_report(&accessibility),
             "platform_accessibility_activation": "unverified",
@@ -901,18 +766,9 @@ impl eframe::App for NativeShellApp {
     /// eframe does not call `ui` for an occluded window, and a maximized browser
     /// during sign-in occludes Ronnie. A self-test must also finish in that state.
     fn logic(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Some(chrome) = &mut self.chrome {
-            chrome.poll_auth();
-            chrome.poll_community();
-            chrome.poll_updates(crate::services::auth::now_ms());
-            if let Some(backend) = &self.options.backend {
-                let now_ms = crate::services::auth::now_ms();
-                sync_device_banner(backend.as_ref(), chrome, &mut self.shown_device, now_ms);
-                sync_chain_faults(backend.as_ref(), chrome, &mut self.shown_faults, now_ms);
-            }
-        }
+        self.view.poll();
         self.receive_capture();
-        let elapsed = self.started.elapsed();
+        let elapsed = self.view.started.elapsed();
         let capture_finished = self.options.capture.is_none()
             || self.capture_saved
             || self.capture_error.is_some()
@@ -921,73 +777,26 @@ impl eframe::App for NativeShellApp {
             self.write_report();
             context.send_viewport_cmd(ViewportCommand::Close);
         }
-        context.request_repaint_after(Duration::from_millis(self.clock.period_ms()));
+        context.request_repaint_after(self.view.repaint_period());
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let frame_started = Instant::now();
         let context = ui.ctx().clone();
-        let window_chrome = self.window_chrome();
-        refit_zoom(&context, window_chrome);
-        let visible = !context.input(|input| input.viewport().minimized.unwrap_or(false));
-        if visible && !self.was_visible {
-            self.clock.wake();
-        }
-        self.was_visible = visible;
-        self.clock.tick(visible);
-
-        let now_ms = self.started.elapsed().as_millis() as i64;
-        self.request_scripted_backdrop(&context, now_ms);
+        refit_zoom(&context, self.view.window_chrome());
+        let now_ms = self.view.begin_pass(&context, self.script.as_ref());
         let image_ready = self.image_ready();
 
-        // A pass with a stale zoom can be smaller than the design box. That pass must still
-        // lay out every widget, or egui clears keyboard focus and any held click.
-        let layout_rect = at_least_design_box(ui.max_rect(), window_chrome);
-        let mut layout_ui = ui.new_child(egui::UiBuilder::new().max_rect(layout_rect));
-        egui::CentralPanel::default()
-            .frame(egui::Frame::NONE.fill(egui::Color32::BLACK))
-            .show(&mut layout_ui, |ui| {
-                if let Some(chrome) = &mut self.chrome {
-                    crate::default::show(ui, chrome);
-                } else {
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(1024.0, 45.0),
-                        egui::Layout::left_to_right(egui::Align::Center),
-                        |ui| {
-                            ui.add_space(24.0);
-                            ui.label(
-                                egui::RichText::new("Ronnie")
-                                    .family(egui::FontFamily::Monospace)
-                                    .size(18.0)
-                                    .color(egui::Color32::WHITE),
-                            );
-                            ui.add_space(16.0);
-                            ui.label(
-                                egui::RichText::new("Native UI foundation")
-                                    .size(13.0)
-                                    .color(crate::theme::palette::TEXT_MUTED),
-                            );
-                        },
-                    );
-                    ui.separator();
-                    ui.centered_and_justified(|ui| {
-                        ui.label(
-                            egui::RichText::new("Reference Default")
-                                .size(14.0)
-                                .color(crate::theme::palette::TEXT_MUTED),
-                        );
-                    });
-                }
-            });
+        self.view.paint(ui);
 
-        if let Some(chrome) = self.chrome.as_mut() {
+        if let Some(chrome) = self.view.chrome_mut() {
             self.script.after_frame(chrome, self.frame_count);
         }
-        self.receive_modal_backdrop(&context);
-        self.request_surface_backdrop(&context, now_ms);
+        self.view
+            .finish_pass(&context, self.script.as_mut(), now_ms);
         self.apply_window_steps(&context);
 
-        let elapsed = self.started.elapsed();
+        let elapsed = self.view.started.elapsed();
         if self.options.selftest
             && elapsed >= Duration::from_millis(self.capture_after_ms)
             && image_ready
@@ -1257,7 +1066,7 @@ mod tests {
         };
         Fonts::install(context);
         let mut app = NativeShellApp::new(options, Box::new(NoScript), context);
-        app.blur_on_worker = false;
+        app.view.blur_on_worker = false;
         app
     }
 
@@ -1269,7 +1078,7 @@ mod tests {
         for _ in 0..4 {
             screenshots += screenshots_of_frame(&mut app, &context);
             // The old refresh period was 125 ms.
-            app.started -= Duration::from_millis(130);
+            app.view.started -= Duration::from_millis(130);
         }
         assert_eq!(screenshots, 0);
     }
@@ -1325,21 +1134,21 @@ mod tests {
         let mut app = production_app(&context);
         assert_eq!(screenshots_of_frame(&mut app, &context), 0);
 
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
         assert!(chrome.system_modal_visible());
         assert!(
-            app.chrome.as_ref().expect("chrome").dialogs_held(),
+            app.view.chrome.as_ref().expect("chrome").dialogs_held(),
             "the next frame must stay clean"
         );
         assert_eq!(screenshots_of_frame(&mut app, &context), 1);
         assert_eq!(screenshots_of_frame(&mut app, &context), 0, "one is enough");
-        assert!(app.chrome.as_ref().expect("chrome").dialogs_held());
+        assert!(app.view.chrome.as_ref().expect("chrome").dialogs_held());
 
-        app.backdrop_tx.send(backdrop()).expect("backdrop");
+        app.view.backdrop_tx.send(backdrop()).expect("backdrop");
         assert_eq!(screenshots_of_frame(&mut app, &context), 0);
-        let chrome = app.chrome.as_ref().expect("chrome");
+        let chrome = app.view.chrome.as_ref().expect("chrome");
         assert!(!chrome.dialogs_held(), "the backdrop has arrived");
         assert!(chrome.modal_backdrop().is_some());
         assert_eq!(screenshots_of_frame(&mut app, &context), 0);
@@ -1354,14 +1163,14 @@ mod tests {
             egui::ColorImage::new([1, 1], vec![egui::Color32::BLACK]),
             egui::TextureOptions::LINEAR,
         );
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_modal_backdrop(Some(older));
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
 
         assert_eq!(screenshots_of_frame(&mut app, &context), 1);
 
-        let chrome = app.chrome.as_ref().expect("chrome");
+        let chrome = app.view.chrome.as_ref().expect("chrome");
         assert!(chrome.dialogs_held());
         assert!(chrome.modal_backdrop().is_none());
     }
@@ -1370,22 +1179,23 @@ mod tests {
     fn a_blur_on_a_worker_reaches_the_held_dialog() {
         let context = egui::Context::default();
         let mut app = production_app(&context);
-        app.blur_on_worker = true;
-        let chrome = app.chrome.as_mut().expect("chrome");
+        app.view.blur_on_worker = true;
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
         assert_eq!(screenshots_of_frame(&mut app, &context), 1);
 
-        app.backdrop_tx.send(backdrop()).expect("backdrop");
+        app.view.backdrop_tx.send(backdrop()).expect("backdrop");
         let deadline = Instant::now() + Duration::from_secs(10);
-        while app.chrome.as_ref().expect("chrome").dialogs_held() {
+        while app.view.chrome.as_ref().expect("chrome").dialogs_held() {
             assert!(Instant::now() < deadline, "the blur did not arrive");
             let _ = screenshots_of_frame(&mut app, &context);
             std::thread::sleep(Duration::from_millis(1));
         }
 
         assert!(
-            app.chrome
+            app.view
+                .chrome
                 .as_ref()
                 .expect("chrome")
                 .modal_backdrop()
@@ -1397,27 +1207,29 @@ mod tests {
     fn a_screenshot_after_the_wait_still_gives_the_dialog_its_backdrop() {
         let context = egui::Context::default();
         let mut app = production_app(&context);
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
         assert_eq!(screenshots_of_frame(&mut app, &context), 1);
         let _ = screenshots_of_frame(&mut app, &context);
-        app.started -= Duration::from_millis(1_100);
+        app.view.started -= Duration::from_millis(1_100);
         let _ = screenshots_of_frame(&mut app, &context);
-        assert!(!app.chrome.as_ref().expect("chrome").dialogs_held());
+        assert!(!app.view.chrome.as_ref().expect("chrome").dialogs_held());
         assert!(
-            app.chrome
+            app.view
+                .chrome
                 .as_ref()
                 .expect("chrome")
                 .modal_backdrop()
                 .is_none()
         );
 
-        app.backdrop_tx.send(backdrop()).expect("backdrop");
+        app.view.backdrop_tx.send(backdrop()).expect("backdrop");
         let _ = screenshots_of_frame(&mut app, &context);
 
         assert!(
-            app.chrome
+            app.view
+                .chrome
                 .as_ref()
                 .expect("chrome")
                 .modal_backdrop()
@@ -1429,17 +1241,17 @@ mod tests {
     fn a_dialog_stops_waiting_when_no_screenshot_arrives() {
         let context = egui::Context::default();
         let mut app = production_app(&context);
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
         assert_eq!(screenshots_of_frame(&mut app, &context), 1);
-        assert!(app.chrome.as_ref().expect("chrome").dialogs_held());
+        assert!(app.view.chrome.as_ref().expect("chrome").dialogs_held());
 
         let _ = screenshots_of_frame(&mut app, &context);
-        app.started -= Duration::from_millis(1_100);
+        app.view.started -= Duration::from_millis(1_100);
         let _ = screenshots_of_frame(&mut app, &context);
 
-        assert!(!app.chrome.as_ref().expect("chrome").dialogs_held());
+        assert!(!app.view.chrome.as_ref().expect("chrome").dialogs_held());
     }
 
     #[test]
@@ -1453,7 +1265,7 @@ mod tests {
         Fonts::install(&context);
         let recorder = Recorder::default();
         let mut app = NativeShellApp::new(options, Box::new(recorder.clone()), &context);
-        app.blur_on_worker = false;
+        app.view.blur_on_worker = false;
         assert!(app.capture_requires_modal);
         assert_eq!(app.capture_after_ms, 1_800);
 
@@ -1462,7 +1274,7 @@ mod tests {
         assert_eq!(recorder.points(), ["start", "frame 0", "frame 1"]);
 
         // The first frame asked for this backdrop.
-        app.backdrop_tx.send(backdrop()).expect("backdrop");
+        app.view.backdrop_tx.send(backdrop()).expect("backdrop");
         run_frame(&mut app, &context);
         assert_eq!(
             recorder.points(),
@@ -1470,12 +1282,12 @@ mod tests {
         );
 
         // A backdrop that a modal paints over is not clean, so the script does not hear of it.
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         chrome.set_online(false);
         assert!(!chrome.require_connection("browse"));
         chrome.release_dialogs();
-        assert!(app.modal_capture.request_due(i64::MAX, false));
-        app.backdrop_tx.send(backdrop()).expect("backdrop");
+        assert!(app.view.modal_capture.request_due(i64::MAX, false));
+        app.view.backdrop_tx.send(backdrop()).expect("backdrop");
         run_frame(&mut app, &context);
         assert_eq!(
             recorder.points(),
@@ -1508,24 +1320,26 @@ mod tests {
             let context = egui::Context::default();
             Fonts::install(&context);
             let mut app = NativeShellApp::new(run.options, Box::new(run.script), &context);
-            app.blur_on_worker = false;
+            app.view.blur_on_worker = false;
             assert!(!app.script.passed(), "{id} starts with steps that wait");
             for frame in 0..6 {
                 // A screenshot arrives after the frame that asks for it. The fresh capture
                 // state removes the delay between two screenshots.
                 let modal = app
+                    .view
                     .chrome
                     .as_ref()
                     .is_some_and(crate::default::ChromeController::system_modal_visible);
                 if frame >= 2 && !modal {
-                    app.modal_capture = crate::default::ModalCapture::default();
-                    app.backdrop_tx.send(backdrop()).expect("backdrop");
+                    app.view.modal_capture = crate::default::ModalCapture::default();
+                    app.view.backdrop_tx.send(backdrop()).expect("backdrop");
                 }
                 run_frame(&mut app, &context);
             }
             assert!(app.script.passed(), "{id}: {}", app.script.report());
             assert_eq!(
-                app.chrome
+                app.view
+                    .chrome
                     .as_ref()
                     .is_some_and(crate::default::ChromeController::system_modal_visible),
                 app.capture_requires_modal,
@@ -1616,7 +1430,7 @@ mod tests {
         };
         let context = egui::Context::default();
         let mut app = NativeShellApp::new(options, Box::new(NoScript), &context);
-        let chrome = app.chrome.as_mut().expect("chrome");
+        let chrome = app.view.chrome.as_mut().expect("chrome");
         assert!(chrome.banners().active().is_some());
 
         // This dismissal ended on the second day of the Unix epoch.
@@ -1629,10 +1443,10 @@ mod tests {
         assert!(chrome.banners().active().is_none());
 
         // The time since the start of the app is small, and it would keep the banner hidden.
-        app.shown_device = None;
+        app.view.shown_device = None;
         eframe::App::logic(&mut app, &context, &mut eframe::Frame::_new_kittest());
 
-        let chrome = app.chrome.as_ref().expect("chrome");
+        let chrome = app.view.chrome.as_ref().expect("chrome");
         assert!(chrome.banners().active().is_some(), "the dismissal ended");
     }
 
@@ -1656,12 +1470,12 @@ mod tests {
         let context = egui::Context::default();
         let app = NativeShellApp::new(options, Box::new(NoScript), &context);
 
-        let chrome = app.chrome.as_ref().expect("chrome");
+        let chrome = app.view.chrome.as_ref().expect("chrome");
         assert_eq!(
             chrome.banners().active().expect("banner").headline,
             "Green Muff cannot run."
         );
-        assert_eq!(app.shown_faults, [fault()]);
+        assert_eq!(app.view.shown_faults, [fault()]);
         assert_eq!(
             app.applied_design_height,
             Chrome {
@@ -1683,7 +1497,8 @@ mod tests {
         let context = egui::Context::default();
         let mut app = NativeShellApp::new(options, Box::new(NoScript), &context);
         let banner = |app: &NativeShellApp| {
-            app.chrome
+            app.view
+                .chrome
                 .as_ref()
                 .and_then(|chrome| chrome.banners().active().cloned())
         };
@@ -1749,7 +1564,8 @@ mod tests {
         let context = egui::Context::default();
         let mut app = NativeShellApp::new(options, Box::new(NoScript), &context);
         let signed_in = |app: &NativeShellApp| {
-            app.chrome
+            app.view
+                .chrome
                 .as_ref()
                 .is_some_and(|chrome| chrome.session().signed_in())
         };

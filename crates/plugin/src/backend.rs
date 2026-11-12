@@ -106,6 +106,46 @@ impl ProcessorBackend {
         Ok(self.inner.lock()?.take_restore())
     }
 
+    /// Encodes the session for a host project, with the model bytes that its blocks use.
+    ///
+    /// An unchanged session gives the same bytes again with no new encode.
+    ///
+    /// # Errors
+    /// Returns a mutex or an encoding error.
+    pub fn session_bytes(&self) -> Result<Arc<[u8]>, UiError> {
+        self.inner.lock()?.session_bytes()
+    }
+
+    /// Replaces the session with a saved one. This compiles models, so call it on a control
+    /// thread, never on the audio thread.
+    ///
+    /// # Errors
+    /// Returns a mutex, a decoding, or a chain preparation error.
+    pub fn restore_session_bytes(&self, bytes: &[u8]) -> Result<(), UiError> {
+        self.inner.lock()?.restore_session_bytes(bytes)
+    }
+
+    /// Replaces the session with one from a host project, and compiles no model. Then
+    /// [`Self::take_restore`] gives [`SessionRestore::Compile`].
+    ///
+    /// # Errors
+    /// Returns a mutex, a decoding, or a restore check error.
+    pub fn restore_host_session_bytes(&self, bytes: &[u8]) -> Result<(), UiError> {
+        self.inner.lock()?.restore_host_session_bytes(bytes)
+    }
+
+    /// Writes one parameter that a host automates, with no undo step.
+    ///
+    /// # Errors
+    /// Returns a mutex, unknown-parameter, or non-finite-value error.
+    pub fn automate_parameter(
+        &self,
+        id: ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), UiError> {
+        self.inner.lock()?.automate_parameter(id, value)
+    }
+
     /// Records the final stream layout that later chain preparation must target.
     ///
     /// # Errors

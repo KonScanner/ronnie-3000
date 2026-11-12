@@ -66,6 +66,8 @@ pub struct OutputStage {
     dc: DcBlocker,
     tone: ToneStack,
     output_gain: LinearGain,
+    /// Whether a block ran. The first block starts at the set level, with no ramp from unity.
+    started: bool,
 }
 
 impl OutputStage {
@@ -80,6 +82,7 @@ impl OutputStage {
             dc: DcBlocker::new(sample_rate),
             tone: ToneStack::new(sample_rate)?,
             output_gain: LinearGain::new(sample_rate, 0.020, 1.0),
+            started: false,
         })
     }
 
@@ -91,6 +94,8 @@ impl OutputStage {
         if !self.output_gain.current().is_finite() {
             self.output_gain.set_current_and_target(1.0);
         }
+        // The next block starts at the set level, as the first block of a new stage does.
+        self.started = false;
     }
 
     /// Processes the complete output path without allocating.
@@ -113,8 +118,13 @@ impl OutputStage {
         }
         self.tone.set_controls(controls.tone);
         self.tone.process(buffer)?;
-        self.output_gain
-            .set_target(10.0_f32.powf((controls.output_level - 0.5) * 48.0 / 20.0));
+        let gain = 10.0_f32.powf((controls.output_level - 0.5) * 48.0 / 20.0);
+        if self.started {
+            self.output_gain.set_target(gain);
+        } else {
+            self.started = true;
+            self.output_gain.set_current_and_target(gain);
+        }
         for frame in 0..buffer.frames() {
             let gain = self.output_gain.next();
             for channel in 0..buffer.channels() {
@@ -122,5 +132,66 @@ impl OutputStage {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The output gain of each sample of one block of ones, at `output_level`.
+    fn gains(stage: &mut OutputStage, output_level: f32) -> Vec<f32> {
+        let mut samples = vec![1.0_f32; 2 * 64];
+        let mut buffer = PlanarBuffer::new(&mut samples, 2, 64).expect("buffer");
+        let controls = OutputControls {
+            output_level,
+            ..OutputControls::default()
+        };
+        stage
+            .process(&mut buffer, controls, |_, _| {})
+            .expect("process");
+        let unity = {
+            let mut reference = OutputStage::new(48_000.0, 64).expect("stage");
+            let mut ones = vec![1.0_f32; 2 * 64];
+            let mut buffer = PlanarBuffer::new(&mut ones, 2, 64).expect("buffer");
+            let unity = OutputControls {
+                output_level: 0.5,
+                ..OutputControls::default()
+            };
+            reference
+                .process(&mut buffer, unity, |_, _| {})
+                .expect("process");
+            ones
+        };
+        samples
+            .iter()
+            .zip(&unity)
+            .map(|(sample, reference)| sample / reference)
+            .collect()
+    }
+
+    #[test]
+    fn a_new_output_stage_starts_at_the_set_level() {
+        let mut stage = OutputStage::new(48_000.0, 64).expect("stage");
+        let quiet = 10.0_f32.powf(-24.0 / 20.0);
+
+        let first = gains(&mut stage, 0.0);
+
+        assert!((first[0] - quiet).abs() < 1e-3, "{}", first[0]);
+    }
+
+    #[test]
+    fn a_later_level_change_still_ramps() {
+        let mut stage = OutputStage::new(48_000.0, 64).expect("stage");
+        let _ = gains(&mut stage, 0.5);
+
+        let changed = gains(&mut stage, 0.0);
+
+        assert!(
+            changed[0] > 0.9,
+            "the change starts near unity: {}",
+            changed[0]
+        );
+        assert!(changed[63] < changed[0], "and goes down");
     }
 }

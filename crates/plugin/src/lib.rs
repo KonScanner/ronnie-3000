@@ -10,6 +10,9 @@ mod persistence;
 /// Control-side processor state and operations.
 pub mod processor;
 
-pub use audio_session::{AudioSessionState, SessionChain, SessionRestore, StreamFormat};
+pub use audio_session::{
+    AudioSessionState, SessionChain, SessionRestore, StreamFormat, catalog_default,
+    chain_controls_from,
+};
 pub use backend::{ProcessorBackend, UiBackend};
 pub use processor::{RonieProcessor, SessionChainPlan};

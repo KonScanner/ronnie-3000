@@ -1,6 +1,9 @@
 //! Design-space, chrome, font, clock, theme, and icon foundation tests.
 
-use std::{cell::Cell, rc::Rc};
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use ronie_ui::{
     clock::UiClock,
@@ -85,22 +88,24 @@ fn embedded_fonts_and_css_metrics_have_stable_fallbacks() {
 
 #[test]
 fn one_clock_polls_at_30hz_and_hidden_windows_only_wake_at_4hz() {
-    let calls = Rc::new(Cell::new(0));
+    let calls = Arc::new(AtomicUsize::new(0));
     let mut clock = UiClock::default();
-    let observed = Rc::clone(&calls);
-    clock.add_listener(move || observed.set(observed.get() + 1));
+    let observed = Arc::clone(&calls);
+    clock.add_listener(move || {
+        observed.fetch_add(1, Ordering::Relaxed);
+    });
     assert_eq!(clock.period_ms(), 33);
     clock.tick(false);
-    assert_eq!(calls.get(), 0);
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
     assert_eq!(clock.period_ms(), 250);
     clock.tick(false);
-    assert_eq!(calls.get(), 0);
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
     clock.wake();
     assert_eq!(clock.period_ms(), 33);
     clock.tick(true);
-    assert_eq!(calls.get(), 1);
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
     clock.tick(true);
-    assert_eq!(calls.get(), 2);
+    assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
 
 #[test]

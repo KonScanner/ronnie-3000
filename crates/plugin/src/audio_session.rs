@@ -144,16 +144,32 @@ pub fn chain_controls(
     stereo_output: bool,
 ) -> ChainControls {
     let value = |id: &'static str| {
-        parameters.get(&ParameterId(id)).map_or_else(
-            || {
-                ParameterCatalog::v1()
-                    .iter()
-                    .find(|spec| spec.id.0 == id)
-                    .map_or(0.0, |spec| spec.default)
-            },
-            |value| value.0,
-        )
+        parameters
+            .get(&ParameterId(id))
+            .map_or_else(|| catalog_default(id), |value| value.0)
     };
+    chain_controls_from(session.input_mode, value, stereo_output)
+}
+
+/// The default of a catalog parameter, or 0 for an unknown ID.
+#[must_use]
+pub fn catalog_default(id: &str) -> f32 {
+    ParameterCatalog::v1()
+        .iter()
+        .find(|spec| spec.id.0 == id)
+        .map_or(0.0, |spec| spec.default)
+}
+
+/// Maps catalog values and an input mode to callback controls.
+///
+/// `value` gives the value of each catalog ID. This does not allocate, so an audio callback can
+/// call it, for example to follow host automation.
+#[must_use]
+pub fn chain_controls_from(
+    input_mode: InputMode,
+    value: impl Fn(&'static str) -> f32,
+    stereo_output: bool,
+) -> ChainControls {
     let on = |id: &'static str| value(id) >= 0.5;
     let tonality = value("pitchTonality");
     let input = InputControls {
@@ -183,7 +199,7 @@ pub fn chain_controls(
     let invert_right = on("chainInvertRight");
     let balance = value("outputBalance");
     let mut routing = RoutingControls {
-        input_mode: session.input_mode,
+        input_mode,
         block: BlockControls {
             calibrate_input: on("calibrateInput"),
             input_calibration_dbu: value("inputCalibrationLevel"),
@@ -193,7 +209,7 @@ pub fn chain_controls(
         ..RoutingControls::default()
     };
     let mut image = ImageControls {
-        dual_mono: session.input_mode == InputMode::DualMono,
+        dual_mono: input_mode == InputMode::DualMono,
         spread_enabled: on("spreadEnabled"),
         spread: SpreadParams::from_normalized(
             value("spreadOffset"),

@@ -1,0 +1,30 @@
+[package]
+name = "ronie-plugin-nice"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+base64.workspace = true
+egui.workspace = true
+nice-plug.workspace = true
+nice-plug-egui.workspace = true
+ronie-core.workspace = true
+ronie-dsp.workspace = true
+ronie-plugin.workspace = true
+ronie-ui.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb.workspace = true
+
+[features]
+# Debug builds abort on an allocation in the audio callback. Use it for host tests.
+assert_process_allocs = ["nice-plug/assert_process_allocs"]

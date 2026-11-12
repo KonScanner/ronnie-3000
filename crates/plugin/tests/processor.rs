@@ -1425,3 +1425,53 @@ fn a_switched_model_survives_a_restart_and_only_its_bytes_are_stored() {
     let chain = restarted.prepare_session_chain().expect("chain");
     assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
 }
+
+#[test]
+fn a_host_restore_leaves_the_compile_pending() {
+    let saved = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let bytes = saved.session_bytes().expect("bytes");
+    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+
+    backend.restore_host_session_bytes(&bytes).expect("restore");
+
+    let restore = backend.take_restore().expect("restore");
+    assert!(
+        matches!(restore, Some(ronie_plugin::SessionRestore::Compile)),
+        "{restore:?}"
+    );
+    assert!(backend.take_restore().expect("restore").is_none());
+}
+
+#[test]
+fn an_unchanged_session_gives_the_same_saved_bytes() {
+    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
+
+    let first = backend.session_bytes().expect("bytes");
+    let again = backend.session_bytes().expect("bytes");
+
+    assert!(std::sync::Arc::ptr_eq(&first, &again));
+}
+
+#[test]
+fn a_new_download_of_the_same_model_gives_new_saved_bytes() {
+    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
+    let first = backend.session_bytes().expect("bytes");
+
+    let mut newer = wav_bytes().to_vec();
+    let last = newer.len() - 1;
+    newer[last] ^= 1;
+    load_with_bytes(&backend, catalog_ir_tone(), newer.clone().into());
+
+    let second = backend.session_bytes().expect("bytes");
+    assert!(!std::sync::Arc::ptr_eq(&first, &second));
+    let embedded: Vec<Vec<u8>> = ronie_core::StateCodec::new()
+        .decode_session(&second)
+        .expect("session")
+        .model_cache
+        .iter()
+        .map(|entry| entry.bytes.to_vec())
+        .collect();
+    assert_eq!(embedded, [newer]);
+}

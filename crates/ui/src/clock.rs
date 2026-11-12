@@ -3,13 +3,13 @@
 /// One scheduler for meters, spectra, tuner values, and service polls.
 #[derive(Default)]
 pub struct UiClock {
-    listeners: Vec<Box<dyn FnMut()>>,
+    listeners: Vec<Box<dyn FnMut() + Send>>,
     period_ms: u64,
 }
 
 impl UiClock {
     /// Adds one poller and activates the 30 Hz schedule.
-    pub fn add_listener(&mut self, listener: impl FnMut() + 'static) {
+    pub fn add_listener(&mut self, listener: impl FnMut() + Send + 'static) {
         self.listeners.push(Box::new(listener));
         self.period_ms = 33;
     }
