@@ -134,6 +134,12 @@ expected=$(awk -v file="$name" '$2 == file || $2 == "*" file { print $1 }' "$wor
 
 mkdir -p "$prefix"
 tar -xzf "$work/$name" -C "$prefix" --strip-components=2
+# The PATH of a desktop session often has no ~/.local/bin. The launcher then hides an entry
+# whose TryExec it cannot find, so give the desktop file the full path of the binary.
+desktop="$prefix/share/applications/ronnie-3000.desktop"
+sed -e "s|^Exec=ronie|Exec=\"$prefix/bin/ronie\"|" -e "s|^TryExec=ronie\$|TryExec=$prefix/bin/ronie|" \
+    "$desktop" >"$work/ronnie-3000.desktop"
+cat "$work/ronnie-3000.desktop" >"$desktop"
 refresh_desktop
 
 say "Installed Ronnie 3000 $version in $prefix."

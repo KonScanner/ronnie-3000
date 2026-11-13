@@ -71,6 +71,13 @@ install:
 		install -Dm644 assets/$(APP_ID)-$$size.png $(DESTDIR)$(DATADIR)/icons/hicolor/$${size}x$${size}/apps/$(APP_ID).png; \
 	done
 	install -Dm644 packaging/$(APP_ID).desktop $(DESTDIR)$(DATADIR)/applications/$(APP_ID).desktop
+	@# The PATH of a desktop session often has no ~/.local/bin. The launcher then hides an entry
+	@# whose TryExec it cannot find. A direct install writes the full path of the binary.
+	@# A staged install keeps the bare name, because a package puts the binary on the PATH.
+	@if [ -z "$(DESTDIR)" ]; then \
+		sed -e 's|^Exec=$(BINARY)|Exec="$(BINDIR)/$(BINARY)"|' -e 's|^TryExec=$(BINARY)$$|TryExec=$(BINDIR)/$(BINARY)|' \
+			packaging/$(APP_ID).desktop >$(DATADIR)/applications/$(APP_ID).desktop; \
+	fi
 	install -Dm644 LICENSE $(DESTDIR)$(DATADIR)/doc/ronnie/LICENSE
 	@if command -v desktop-file-validate >/dev/null 2>&1; then desktop-file-validate $(DESTDIR)$(DATADIR)/applications/$(APP_ID).desktop; fi
 	@# A staged install (DESTDIR) goes into a package. Its caches would list only Ronnie and
