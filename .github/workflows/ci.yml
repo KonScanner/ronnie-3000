@@ -1,9 +1,22 @@
 name: CI
 
+# CI skips a change that touches only these files, because no build, test, or bundle step uses them.
 on:
   push:
     branches: [main]
+    paths-ignore: &docs-only
+      - '**.md'
+      - LICENSE
+      - Makefile
+      - install.sh
+      - assets/screenshots/**
+      - packaging/linux/**
+      - packaging/ronnie-3000.desktop
+      - .github/CODEOWNERS
+      - .github/ISSUE_TEMPLATE/**
+      - .gitignore
   pull_request:
+    paths-ignore: *docs-only
   workflow_dispatch:
 
 permissions:
