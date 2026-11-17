@@ -442,7 +442,7 @@ fn view_info_button(ui: &mut egui::Ui, rect: egui::Rect) -> egui::Response {
     response
 }
 
-fn description(tone: &Tone) -> Option<String> {
+pub(super) fn description(tone: &Tone) -> Option<String> {
     tone.raw
         .get("description")
         .and_then(|value| value.as_str())
@@ -451,7 +451,7 @@ fn description(tone: &Tone) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn clean_strings(value: Option<&serde_json::Value>) -> Vec<String> {
+pub(super) fn clean_strings(value: Option<&serde_json::Value>) -> Vec<String> {
     value
         .and_then(|value| value.as_array())
         .into_iter()

@@ -28,6 +28,9 @@ pub struct LoadTarget {
     pub side: ChainSide,
     /// Insert or tone block identity.
     pub block_id: String,
+    /// Whether the load replaces the tone of the block in place, keeping its params, rather than
+    /// filling it as a new block.
+    pub replace: bool,
 }
 
 /// The one current generation of a flow.
@@ -113,13 +116,22 @@ impl LoadTicket {
                 bytes,
             },
             |downloaded| {
-                let target_insert_id = resolve_target(self.backend.as_ref(), &self.target)
+                let target = resolve_target(self.backend.as_ref(), &self.target)
                     .ok_or_else(|| UiError::UnknownTarget(self.target.block_id.clone()))?;
-                Ok(Some(UiAction::LoadToneWithBytes {
-                    target_insert_id,
-                    tone: downloaded.tone,
-                    model_id: downloaded.model_id,
-                    bytes: downloaded.bytes,
+                Ok(Some(if self.target.replace {
+                    UiAction::ReplaceTone {
+                        target_block_id: target,
+                        tone: downloaded.tone,
+                        model_id: downloaded.model_id,
+                        bytes: Some(downloaded.bytes),
+                    }
+                } else {
+                    UiAction::LoadToneWithBytes {
+                        target_insert_id: target,
+                        tone: downloaded.tone,
+                        model_id: downloaded.model_id,
+                        bytes: downloaded.bytes,
+                    }
                 }))
             },
         )
@@ -170,12 +182,16 @@ fn publish_model(
     Ok(true)
 }
 
-/// The remembered block, or the first open insert of its lane when the block is gone.
+/// The remembered block, or the first open insert of its lane when the block is gone. A
+/// replace has only its own block.
 fn resolve_target(backend: &dyn UiBackend, target: &LoadTarget) -> Option<BlockId> {
     let chain = backend.chain_state(0).chain;
     let remembered = BlockId(target.block_id.clone());
     if chain.block(&remembered).is_some() {
         return Some(remembered);
+    }
+    if target.replace {
+        return None;
     }
     let lane = match target.side {
         ChainSide::Left => &chain.left,
@@ -206,27 +222,56 @@ impl ModelSwitchFlow {
         }
     }
 
-    /// Starts a switch of `block_id` away from `replaces`, which ends each older switch.
+    /// Starts a switch of the active model of `block_id` away from `replaces`, which ends each
+    /// older switch.
     #[must_use]
     pub fn begin(&self, block_id: BlockId, replaces: Option<ModelId>) -> ModelSwitchTicket {
+        self.begin_slot(block_id, ModelSlot::A, replaces)
+    }
+
+    /// Starts a switch of one slot of `block_id` away from `replaces`, which ends each older
+    /// switch of either slot.
+    ///
+    /// Both slots share the one generation, so a switch of B ends a switch of A that is still
+    /// downloading, and the other way round. The ticket names its slot, so its bytes land only
+    /// in that slot.
+    #[must_use]
+    pub fn begin_slot(
+        &self,
+        block_id: BlockId,
+        slot: ModelSlot,
+        replaces: Option<ModelId>,
+    ) -> ModelSwitchTicket {
         ModelSwitchTicket {
             generation: self.gate.advance(),
             gate: self.gate.clone(),
             backend: self.backend.clone(),
             block_id,
+            slot,
             replaces,
         }
     }
 }
 
+/// Which model of a block a switch changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ModelSlot {
+    /// The active model (IR A of a cab).
+    #[default]
+    A,
+    /// The second IR of a cab, blended with A.
+    B,
+}
+
 /// The right of one background switch to publish, while its generation stays current and the
-/// block stays as the switch found it.
+/// slot of the block stays as the switch found it.
 #[derive(Clone)]
 pub struct ModelSwitchTicket {
     generation: u64,
     gate: LoadGate,
     backend: Arc<dyn UiBackend>,
     block_id: BlockId,
+    slot: ModelSlot,
     replaces: Option<ModelId>,
 }
 
@@ -236,6 +281,7 @@ impl std::fmt::Debug for ModelSwitchTicket {
             .debug_struct("ModelSwitchTicket")
             .field("generation", &self.generation)
             .field("block_id", &self.block_id)
+            .field("slot", &self.slot)
             .field("replaces", &self.replaces)
             .finish_non_exhaustive()
     }
@@ -248,10 +294,16 @@ impl ModelSwitchTicket {
         self.generation
     }
 
-    /// Active model when the switch started.
+    /// The model of the slot when the switch started.
     #[must_use]
     pub const fn replaces(&self) -> Option<ModelId> {
         self.replaces
+    }
+
+    /// The slot that this switch changes.
+    #[must_use]
+    pub const fn slot(&self) -> ModelSlot {
+        self.slot
     }
 
     /// Validates, publishes, and prepares one downloaded model on the calling thread.
@@ -284,15 +336,27 @@ impl ModelSwitchTicket {
                     model_id,
                     bytes,
                 } = downloaded;
-                Ok(self
-                    .holds_block(&tone)
-                    .then(|| UiAction::SelectModelWithBytes {
-                        block_id: self.block_id.clone(),
+                if !self.holds_block(&tone) {
+                    return Ok(None);
+                }
+                let block_id = self.block_id.clone();
+                let replaces = self.replaces;
+                Ok(Some(match self.slot {
+                    ModelSlot::A => UiAction::SelectModelWithBytes {
+                        block_id,
                         tone,
                         model_id,
-                        replaces: self.replaces,
+                        replaces,
                         bytes,
-                    }))
+                    },
+                    ModelSlot::B => UiAction::SelectSecondModelWithBytes {
+                        block_id,
+                        tone,
+                        model_id,
+                        replaces,
+                        bytes,
+                    },
+                }))
             },
         )
     }
@@ -308,7 +372,11 @@ impl ModelSwitchTicket {
             .chain
             .block(&self.block_id)
             .is_some_and(|block| {
-                block.active_model_id == self.replaces
+                let held = match self.slot {
+                    ModelSlot::A => block.active_model_id,
+                    ModelSlot::B => block.ir_b.map(|ir_b| ir_b.model_id),
+                };
+                held == self.replaces
                     && block
                         .tone
                         .as_ref()
@@ -327,6 +395,8 @@ pub struct LoadFlow {
     browser_open: bool,
     offline: bool,
     last_tone: Option<Tone>,
+    /// The tone of the last successful load, until [`Self::take_landed`] takes it.
+    landed: Option<Tone>,
 }
 
 impl LoadFlow {
@@ -342,11 +412,22 @@ impl LoadFlow {
             browser_open: false,
             offline: false,
             last_tone: None,
+            landed: None,
         }
     }
 
     /// Remembers an insert or swap target and opens tone selection.
     pub fn select(&mut self, side: ChainSide, target_block_id: &str) {
+        self.select_target(side, target_block_id, false);
+    }
+
+    /// Remembers a tone block whose tone the next load replaces in place, keeping the block's
+    /// params, and opens tone selection.
+    pub fn select_replace(&mut self, side: ChainSide, target_block_id: &str) {
+        self.select_target(side, target_block_id, true);
+    }
+
+    fn select_target(&mut self, side: ChainSide, target_block_id: &str, replace: bool) {
         // A load in progress belongs to the target that it started for.
         if self.phase == LoadPhase::Loading {
             self.gate.advance();
@@ -354,6 +435,7 @@ impl LoadFlow {
         self.pending = Some(LoadTarget {
             side,
             block_id: target_block_id.to_owned(),
+            replace,
         });
         self.browser_open = true;
         self.closed = false;
@@ -464,10 +546,16 @@ impl LoadFlow {
         if self.closed || generation != self.gate.current() {
             return false;
         }
+        self.landed = self.last_tone.clone();
         self.phase = LoadPhase::Ready;
         self.browser_open = false;
         self.pending = None;
         true
+    }
+
+    /// The tone of the last successful load. It comes out once.
+    pub fn take_landed(&mut self) -> Option<Tone> {
+        self.landed.take()
     }
 
     /// Records a failed load, which can retry. Returns false for a generation that is not current.
@@ -476,6 +564,17 @@ impl LoadFlow {
             return false;
         }
         self.phase = LoadPhase::Failed;
+        true
+    }
+
+    /// Ends a background load whose target is gone, with no failure to show. Returns false for a
+    /// generation that is not current.
+    pub fn drop_load(&mut self, generation: u64) -> bool {
+        if self.closed || generation != self.gate.current() {
+            return false;
+        }
+        self.phase = LoadPhase::Idle;
+        self.pending = None;
         true
     }
 
@@ -559,15 +658,26 @@ impl LoadFlow {
             self.phase = LoadPhase::Failed;
             return false;
         };
-        let result = self.backend.dispatch(UiAction::LoadTone {
-            target_insert_id,
-            tone,
-            model_id,
+        let loaded = tone.clone();
+        let result = self.backend.dispatch(if target.replace {
+            UiAction::ReplaceTone {
+                target_block_id: target_insert_id,
+                tone,
+                model_id,
+                bytes: None,
+            }
+        } else {
+            UiAction::LoadTone {
+                target_insert_id,
+                tone,
+                model_id,
+            }
         });
         if result.is_err() {
             self.phase = LoadPhase::Failed;
             return false;
         }
+        self.landed = Some(loaded);
         self.phase = LoadPhase::Ready;
         self.browser_open = false;
         self.pending = None;

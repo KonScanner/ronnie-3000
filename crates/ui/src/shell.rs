@@ -21,6 +21,43 @@ pub enum ViewMode {
     RonieFlow,
 }
 
+/// Whether the Stage layout draws light or dark.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Appearance {
+    /// Follow the appearance of the system, light when it is unknown.
+    #[default]
+    System,
+    /// Always light.
+    Light,
+    /// Always dark.
+    Dark,
+}
+
+impl Appearance {
+    /// The key of the explicit choice in the UI preferences of the machine.
+    pub const SETTINGS_KEY: &'static str = "ronie.appearance";
+
+    /// The stored value of an explicit choice; [`Appearance::System`] stores nothing.
+    #[must_use]
+    pub const fn stored(self) -> Option<&'static str> {
+        match self {
+            Self::System => None,
+            Self::Light => Some("light"),
+            Self::Dark => Some("dark"),
+        }
+    }
+
+    /// The choice that a stored value names, or [`Appearance::System`] for anything else.
+    #[must_use]
+    pub fn from_stored(value: Option<&str>) -> Self {
+        match value {
+            Some("light") => Self::Light,
+            Some("dark") => Self::Dark,
+            _ => Self::System,
+        }
+    }
+}
+
 /// Machine and session preferences consumed by the native shell.
 #[derive(Debug, Clone)]
 pub struct UiPreferences {
@@ -268,6 +305,11 @@ pub struct NativeShellOptions {
     pub scale: Option<f32>,
     /// Optional initial window size in native points. This overrides `scale`.
     pub window_size: Option<[f32; 2]>,
+    /// Which layout draws the window.
+    pub view_mode: ViewMode,
+    /// A light or dark Stage layout that this run must use, whatever the system and the
+    /// stored choice say, as a scenario needs; `None` to follow the stored choice or the system.
+    pub appearance: Option<Appearance>,
     /// Real backend for interactive chrome, or `None` for the neutral baseline.
     pub backend: Option<Arc<dyn UiBackend>>,
     /// Whether the editor exposes standalone-only controls and settings tabs.
@@ -312,6 +354,8 @@ impl Default for NativeShellOptions {
             report: None,
             scale: None,
             window_size: None,
+            view_mode: ViewMode::ReferenceDefault,
+            appearance: None,
             backend: None,
             standalone: true,
             presets: Vec::new(),
@@ -559,6 +603,7 @@ pub(crate) fn build_chrome(
         )
     };
     chrome.set_standalone(options.standalone);
+    chrome.set_view_mode(options.view_mode);
     if let Some(setup) = options.key_setup.take() {
         chrome.use_key_setup(setup);
     }
@@ -567,6 +612,10 @@ pub(crate) fn build_chrome(
     }
     if let Some(settings) = options.update_settings.take() {
         chrome.use_settings(settings);
+    }
+    // After use_settings, which replaces the appearance with the stored choice.
+    if let Some(appearance) = options.appearance {
+        chrome.set_appearance(appearance);
     }
     if let Some(device) = device {
         chrome.set_device_state(Some(device), 0);

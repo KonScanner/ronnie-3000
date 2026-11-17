@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Rect, Sense, TextureHandle};
 use ronie_core::{Tone, ToneId};
 
-use super::tile::{cover_uv, draw_gear, gear_glyph};
+use super::tile::{cover_uv, draw_gear, tone_glyph};
 use crate::theme::palette;
 
 /// Side of the square that takes a click on the favorite heart.
@@ -81,12 +81,7 @@ pub(super) fn show_at(
             .corner_radius(8.0 * scale)
             .paint_at(ui, image_rect);
     } else {
-        let gear = tone
-            .raw
-            .get("gear")
-            .and_then(|value| value.as_str())
-            .unwrap_or_default();
-        draw_gear(&painter, image_rect, gear_glyph(gear));
+        draw_gear(&painter, image_rect, tone_glyph(tone, None));
     }
 
     let text_x = rect.left() + 140.0 * scale;
@@ -442,7 +437,7 @@ fn title_galley(
     ui.ctx().fonts_mut(|fonts| fonts.layout_job(job))
 }
 
-fn model_count(tone: &Tone) -> u64 {
+pub(crate) fn model_count(tone: &Tone) -> u64 {
     let field = if tone.kind == ronie_core::ModelKind::Nam {
         "a2_models_count"
     } else {
@@ -575,7 +570,7 @@ fn text_width(ui: &egui::Ui, text: &str, size: f32) -> f32 {
     })
 }
 
-fn compact_count(value: u64) -> String {
+pub(crate) fn compact_count(value: u64) -> String {
     if value < 10_000 {
         let digits = value.to_string();
         let mut output = String::new();

@@ -23,15 +23,17 @@ use ronie_ui::{
         ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiAction, UiBackend, UiError,
         UiReceipt,
     },
-    default::{ART_SIDE, AuthPhase, ChromeController, FilterMenu, ModelOption, TileVisualState},
+    default::{
+        ART_SIDE, AuthPhase, ChromeController, FilterMenu, ModelOption, Placement, TileVisualState,
+    },
     driver::UiDriver,
     services::{
         AuthService, CatalogStatus, LoadFlow, LoadPhase, ModelSwitchFlow,
         community::{CommunityAccess, CommunityHandle, CommunityService},
         community_worker::{
             CATALOG_PAGE_SIZE, CommunityEvent, CommunityFailure, CommunityScope, CommunityWorker,
-            LoadRequest, ModelSwitchRequest, ModelsRequest, QueryRequest, TAXONOMY_PAGE_SIZE,
-            TaxonomyRequest,
+            LoadRequest, ModelSwitchRequest, ModelsRequest, QueryRequest, QueryScope,
+            TAXONOMY_PAGE_SIZE, TaxonomyRequest,
         },
         session::{AuthFlowAdapter, FlowEvent},
     },
@@ -560,6 +562,7 @@ fn request(generation: u64, query: ToneQuery, signed_in: bool) -> QueryRequest {
         query,
         page: 1,
         signed_in,
+        scope: QueryScope::Browser,
     }
 }
 
@@ -612,7 +615,12 @@ fn a_signed_out_query_requests_only_the_public_trending_preview() {
     worker.start_query(runtime.handle(), request(7, query, false));
     let events = events_until(&mut worker, |events| !events.is_empty());
 
-    let [CommunityEvent::Query { generation, result }] = events.as_slice() else {
+    let [
+        CommunityEvent::Query {
+            generation, result, ..
+        },
+    ] = events.as_slice()
+    else {
         panic!("{events:?}");
     };
     assert_eq!(*generation, 7);
@@ -647,6 +655,7 @@ fn a_signed_in_search_uses_the_catalog_page_size_and_a_bearer() {
             query,
             page: 2,
             signed_in: true,
+            scope: QueryScope::Browser,
         },
     );
     let events = events_until(&mut worker, |events| !events.is_empty());
@@ -885,6 +894,7 @@ fn a_rejected_refresh_reports_a_lost_session_one_time() {
     assert_eq!(
         events,
         [CommunityEvent::Query {
+            scope: QueryScope::Browser,
             generation: 1,
             result: Err(CommunityFailure::SessionLost),
         }]
@@ -3776,6 +3786,209 @@ fn a_late_compile_after_each_change_reaches_no_processor() {
 }
 
 #[test]
+fn a_replace_wins_over_a_capture_download_of_that_block() {
+    let mut rig = DetailRig::new();
+    rig.open(&[1104, 1105]);
+    rig.offer_file(1105, b"late");
+    rig.routes.hold(&model_file(1105));
+    let block = BlockId(BLOCK.to_owned());
+    let mut params = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&block)
+        .expect("block")
+        .params
+        .clone();
+    params.input_gain = 0.8;
+    rig.inner
+        .dispatch(UiAction::SetBlockParams {
+            block_id: block.clone(),
+            params: params.clone(),
+        })
+        .expect("tune");
+    rig.pick(1105);
+    rig.wait_for_download(1105);
+
+    let mut local = DetailRig::other_tone();
+    local.local = true;
+    rig.chrome.replace_tone(BLOCK, local);
+    rig.routes.release(&model_file(1105));
+    let_tasks_finish();
+    rig.chrome.poll_community();
+    let_tasks_finish();
+    rig.chrome.poll_community();
+
+    assert!(
+        switched_bytes(&rig.inner).is_empty(),
+        "no stale capture lands"
+    );
+    let replaced = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&block)
+        .cloned()
+        .expect("block");
+    assert_eq!(replaced.tone.map(|tone| tone.id), Some(ToneId(900)));
+    assert_eq!(replaced.active_model_id, Some(ModelId(901)));
+    assert_eq!(replaced.params, params, "the replace keeps the params");
+    assert!(
+        rig.chrome
+            .detail()
+            .is_none_or(|detail| detail.model_select().target().is_none()),
+        "the detail waits for no capture"
+    );
+}
+
+/// The block `BLOCK` with its params changed from the defaults, as the backend holds it.
+fn tune_block(rig: &DetailRig, gain: f64) -> ronie_core::ChainBlock {
+    let block = BlockId(BLOCK.to_owned());
+    let mut params = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&block)
+        .expect("block")
+        .params
+        .clone();
+    params.input_gain = gain;
+    params.enabled = false;
+    rig.inner
+        .dispatch(UiAction::SetBlockParams {
+            block_id: block.clone(),
+            params,
+        })
+        .expect("tune");
+    rig.inner
+        .chain_state(0)
+        .chain
+        .block(&block)
+        .cloned()
+        .expect("block")
+}
+
+/// Starts a catalog replace of `BLOCK` with tone 5, whose file download waits.
+fn start_held_replace(rig: &mut DetailRig) {
+    rig.routes
+        .respond(TONE_FIVE, tone_answer(5, "nam"))
+        .respond(MODELS, one_model(7, PUBLIC_URL))
+        .respond(PUBLIC_FILE, file_answer(b"nam bytes"));
+    rig.routes.hold(PUBLIC_FILE);
+    rig.chrome.replace_tone(BLOCK, catalog_row(5));
+    let routes = rig.routes.clone();
+    pump(&mut rig.chrome, "the replace download", move |_| {
+        routes.count(PUBLIC_FILE) == 1
+    });
+}
+
+fn block_tone(rig: &DetailRig) -> Option<ToneId> {
+    rig.inner
+        .chain_state(0)
+        .chain
+        .block(&BlockId(BLOCK.to_owned()))
+        .and_then(|block| block.tone.as_ref().map(|tone| tone.id))
+}
+
+#[test]
+fn a_catalog_replace_keeps_the_params_of_landing_time_and_one_undo_restores_the_block() {
+    let mut rig = DetailRig::new();
+    start_held_replace(&mut rig);
+    let old = tune_block(&rig, 0.8);
+    rig.routes.release(PUBLIC_FILE);
+    pump(&mut rig.chrome, "the landing", |chrome| {
+        chrome.load_flow_phase() == LoadPhase::Ready
+    });
+
+    let block = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&old.id)
+        .cloned()
+        .expect("block");
+    assert_eq!(block_tone(&rig), Some(ToneId(5)));
+    assert_eq!(block.params, old.params, "the params of landing time stay");
+    rig.chrome.undo().expect("undo");
+    assert_eq!(rig.inner.chain_state(0).chain.block(&old.id), Some(&old));
+}
+
+#[test]
+fn an_edit_between_the_publish_and_the_poll_keeps_the_replaced_params() {
+    let mut rig = DetailRig::new();
+    start_held_replace(&mut rig);
+    let old = tune_block(&rig, 0.7);
+    rig.routes.release(PUBLIC_FILE);
+    // The worker publishes with no poll, and an edit of another block takes an undo step
+    // before the poll sees the landing.
+    wait_for("the publish", || block_tone(&rig) == Some(ToneId(5)));
+    let other = BlockId("blk-2".to_owned());
+    let mut params = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&other)
+        .expect("amp")
+        .params
+        .clone();
+    params.mix = 0.3;
+    rig.inner
+        .dispatch(UiAction::SetBlockParams {
+            block_id: other,
+            params,
+        })
+        .expect("edit");
+    pump(&mut rig.chrome, "the landing", |chrome| {
+        chrome.load_flow_phase() == LoadPhase::Ready
+    });
+    let block = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&old.id)
+        .cloned()
+        .expect("block");
+    assert_eq!(block.params, old.params, "the replaced params stay");
+}
+
+#[test]
+fn a_catalog_replace_lands_with_its_params_after_a_return_to_main() {
+    let mut rig = DetailRig::new();
+    start_held_replace(&mut rig);
+    let old = tune_block(&rig, 0.6);
+    rig.chrome.go_to_main();
+    rig.routes.release(PUBLIC_FILE);
+    pump(&mut rig.chrome, "the landing", |chrome| {
+        chrome.load_flow_phase() == LoadPhase::Ready
+    });
+    let block = rig
+        .inner
+        .chain_state(0)
+        .chain
+        .block(&old.id)
+        .cloned()
+        .expect("block");
+    assert_eq!(block_tone(&rig), Some(ToneId(5)));
+    assert_eq!(block.params, old.params);
+}
+
+#[test]
+fn a_failed_catalog_replace_leaves_the_block_untouched() {
+    let mut rig = DetailRig::new();
+    let old = tune_block(&rig, 0.6);
+    let revision = rig.inner.chain_state(0).revision;
+    rig.routes
+        .respond(TONE_FIVE, tone_answer(5, "nam"))
+        .respond(MODELS, models_answer(serde_json::json!([])));
+    rig.chrome.replace_tone(BLOCK, catalog_row(5));
+    pump(&mut rig.chrome, "the failure", |chrome| {
+        chrome.load_flow_phase() == LoadPhase::Failed
+    });
+    assert_eq!(rig.inner.chain_state(0).chain.block(&old.id), Some(&old));
+    assert_eq!(rig.inner.chain_state(0).revision, revision);
+}
+
+#[test]
 fn a_late_download_gives_way_to_a_newer_switch() {
     let mut rig = DetailRig::new();
     rig.open(&[1104, 1105, 1106]);
@@ -5215,4 +5428,244 @@ fn an_image_404_keeps_the_placeholder_the_session_and_the_chain() {
     assert_eq!(mock.chain_state(0).revision, revision);
     assert!(published_bytes(&mock).is_empty());
     assert_eq!(routes.count(TOKEN), 0);
+}
+
+// ---------------------------------------------------------------- Stage add menu
+
+#[test]
+fn an_add_menu_query_fills_the_menu_store_and_not_the_browser() {
+    let directory = tempfile::tempdir().expect("settings root");
+    let routes = signed_in_routes(&directory);
+    routes.respond(SEARCH, page_of(&[(2, "Menu row")]));
+    let mut chrome = chrome_over(&routes, &directory);
+
+    chrome.open_add_results(ronie_core::gear::GearCategory::Amp, "");
+    pump(&mut chrome, "the menu answer", |chrome| {
+        chrome
+            .add_store()
+            .is_some_and(|store| store.result().is_some())
+    });
+
+    let titles: Vec<String> = chrome
+        .add_store()
+        .and_then(|store| store.result())
+        .map(|page| page.data.iter().map(|tone| tone.title.clone()).collect())
+        .unwrap_or_default();
+    assert_eq!(titles, ["Menu row"]);
+    assert!(chrome.browser().is_none());
+    let seen = routes.seen(SEARCH);
+    assert_eq!(seen.len(), 1);
+    assert!(seen[0].target.contains("gears=amp"), "{}", seen[0].target);
+}
+
+fn menu_titles(chrome: &ChromeController) -> Vec<String> {
+    chrome
+        .add_store()
+        .and_then(|store| store.result())
+        .map(|page| page.data.iter().map(|tone| tone.title.clone()).collect())
+        .unwrap_or_default()
+}
+
+#[test]
+fn a_late_answer_of_a_closed_category_does_not_fill_the_next_one() {
+    let directory = tempfile::tempdir().expect("settings root");
+    let routes = signed_in_routes(&directory);
+    routes
+        .respond(SEARCH, page_of(&[(1, "Pedal row")]))
+        .respond(SEARCH, page_of(&[(2, "Amp row")]));
+    routes.hold(SEARCH);
+    let mut chrome = chrome_over(&routes, &directory);
+
+    chrome.open_add_results(ronie_core::gear::GearCategory::Pedal, "");
+    let waiting = routes.clone();
+    pump(&mut chrome, "the pedal query", move |_| {
+        waiting.count(SEARCH) == 1
+    });
+    // Back to the categories before the answer, then another category.
+    chrome.close_add_results();
+    routes.release(SEARCH);
+    let_tasks_finish();
+    chrome.open_add_results(ronie_core::gear::GearCategory::Amp, "");
+    chrome.poll_community();
+
+    assert!(
+        menu_titles(&chrome).is_empty(),
+        "the pedal answer is refused: {:?}",
+        menu_titles(&chrome)
+    );
+    pump(&mut chrome, "the amp answer", |chrome| {
+        !menu_titles(chrome).is_empty()
+    });
+    assert_eq!(menu_titles(&chrome), ["Amp row"]);
+    let seen = routes.seen(SEARCH);
+    assert_eq!(seen.len(), 2);
+    assert!(seen[1].target.contains("gears=amp"), "{}", seen[1].target);
+}
+
+#[test]
+fn signed_out_a_downloaded_library_tone_asks_for_sign_in_and_a_local_one_adds() {
+    use ronie_ui::{services::RecentTones, shell::ViewMode};
+    let directory = tempfile::tempdir().expect("settings root");
+    let routes = Routes::default();
+    let downloaded = Tone::from_value(serde_json::json!({
+        "id": 5, "title": "Downloaded Plexi", "format": "nam", "gear": "amp",
+        "models": [{"id": 50, "name": "m", "model_url": PUBLIC_URL}]
+    }))
+    .expect("catalog tone");
+    let stashed = Tone::from_value(serde_json::json!({
+        "id": 0, "title": "Stashed Twin", "format": "nam", "gear": "amp", "local": true,
+        "models": [{"id": 1, "name": "m", "model_url": "file:///stash/twin.nam"}]
+    }))
+    .expect("local tone");
+    let mut recent = RecentTones::default();
+    recent.remember(downloaded);
+    recent.remember(stashed);
+    let inner = backend();
+    inner
+        .dispatch(UiAction::SetTextPreference {
+            key: RecentTones::KEY.to_owned(),
+            value: recent.to_text(),
+        })
+        .expect("seed");
+    let mut chrome = chrome_with(inner.clone(), &routes, &directory);
+    chrome.set_view_mode(ViewMode::RonieFlow);
+    let mut driver = UiDriver::new(chrome, (*inner).clone());
+    driver.settle();
+    assert!(!driver.chrome().session().signed_in());
+    let open_amps = |driver: &mut UiDriver| {
+        let _ = driver.click("Add a block").expect("plus");
+        driver.settle();
+        let _ = driver.click("AMP").expect("AMP row");
+        driver.settle();
+    };
+
+    open_amps(&mut driver);
+    assert!(driver.shows_text("ADD"), "the local row still adds");
+    assert!(
+        driver.shows_text("SIGN IN"),
+        "the downloaded row asks for a sign-in"
+    );
+    let _ = driver.click("Stashed Twin").expect("local row");
+    driver.settle();
+    let lane: Vec<String> = inner
+        .chain_state(0)
+        .chain
+        .left
+        .iter()
+        .filter(|block| !block.is_insert)
+        .filter_map(|block| block.tone.as_ref().map(|tone| tone.title.clone()))
+        .collect();
+    // An amp is placed by type, which is before the cab.
+    assert_eq!(
+        lane.iter().rev().nth(1).map(String::as_str),
+        Some("Stashed Twin"),
+        "{lane:?}"
+    );
+
+    open_amps(&mut driver);
+    let _ = driver.click("Downloaded Plexi").expect("catalog row");
+    driver.settle();
+    let_tasks_finish();
+    driver.settle();
+
+    assert!(driver.chrome().auth_active(), "the sign-in starts");
+    assert!(
+        !driver
+            .chrome()
+            .toast()
+            .is_some_and(|text| text.contains("session ended")),
+        "{:?}",
+        driver.chrome().toast()
+    );
+    assert!(
+        !driver
+            .chrome()
+            .visible_toast()
+            .is_some_and(|text| text.contains("session ended")),
+        "{:?}",
+        driver.chrome().visible_toast()
+    );
+    assert_eq!(routes.count(TONE_FIVE), 0, "no load starts");
+    assert_eq!(driver.chrome().loading_tone(), None);
+}
+
+#[test]
+fn an_add_while_another_downloads_lands_only_the_newer_tone() {
+    let directory = tempfile::tempdir().expect("settings root");
+    let routes = signed_in_routes(&directory);
+    routes
+        .respond(TONE_FIVE, tone_answer(5, "nam"))
+        .respond(MODELS, one_model(7, PUBLIC_URL))
+        .respond(PUBLIC_FILE, file_answer(b"old"));
+    routes.hold(PUBLIC_FILE);
+    let inner = backend();
+    let insert = inner
+        .chain_state(0)
+        .chain
+        .left
+        .iter()
+        .rev()
+        .find(|block| block.is_insert)
+        .map(|block| block.id.0.clone())
+        .expect("insert");
+    let mut chrome = chrome_with(inner.clone(), &routes, &directory);
+
+    chrome.add_tone(ChainSide::Left, &insert, catalog_row(5), Placement::End);
+    let waiting = routes.clone();
+    pump(&mut chrome, "the first download", move |_| {
+        waiting.count(PUBLIC_FILE) == 1
+    });
+    assert_eq!(chrome.loading_tone(), Some(ToneId(5)));
+
+    routes
+        .respond(TONE_SIX, tone_answer(6, "nam"))
+        .respond(MODELS, one_model(8, "https://models.example/files/8.nam"))
+        .respond("/files/8.nam", file_answer(b"new"));
+    chrome.add_tone(ChainSide::Left, &insert, catalog_row(6), Placement::End);
+    assert_eq!(
+        chrome.loading_tone(),
+        Some(ToneId(6)),
+        "the row of the first tone no longer reads DOWNLOADING"
+    );
+    pump(&mut chrome, "the second load", |chrome| {
+        chrome.load_flow_phase() == LoadPhase::Ready
+    });
+    chrome.sync_browser();
+    routes.release(PUBLIC_FILE);
+    let_tasks_finish();
+    chrome.poll_community();
+    chrome.sync_browser();
+
+    assert_eq!(published_bytes(&inner), [b"new".to_vec()]);
+    assert_eq!(chrome.loading_tone(), None);
+    assert!(chrome.browser().is_none(), "an add opens no browser");
+    assert_eq!(
+        chrome.gallery().selection(),
+        &ronie_ui::default::GallerySelection::BlockDetail(BlockId(insert)),
+        "the new block opens"
+    );
+}
+
+#[test]
+fn a_catalog_replace_of_a_block_that_went_away_ends_quietly() {
+    let mut rig = DetailRig::new();
+    start_held_replace(&mut rig);
+    rig.inner
+        .dispatch(UiAction::RemoveBlock(BlockId(BLOCK.to_owned())))
+        .expect("remove");
+    let revision = rig.inner.chain_state(0).revision;
+    rig.routes.release(PUBLIC_FILE);
+    let_tasks_finish();
+    rig.chrome.poll_community();
+    let_tasks_finish();
+    rig.chrome.poll_community();
+
+    assert_eq!(rig.chrome.toast(), None, "no failure toast");
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Failed);
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Loading);
+    assert_eq!(
+        rig.inner.chain_state(0).revision,
+        revision,
+        "nothing landed"
+    );
 }

@@ -1,0 +1,40 @@
+{
+  "id": "modern-us",
+  "width": 1456,
+  "height": 902,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        333.0,
+        674.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        454.0,
+        674.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        575.0,
+        674.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

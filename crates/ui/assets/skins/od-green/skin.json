@@ -1,0 +1,50 @@
+{
+  "id": "od-green",
+  "width": 586,
+  "height": 778,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        216.0,
+        114.0
+      ],
+      "side": 104,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        405.0,
+        114.0
+      ],
+      "side": 104,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        311.0,
+        180.0
+      ],
+      "side": 66,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      400.0,
+      269.2
+    ],
+    "size": [
+      85.0,
+      28.8
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "boost",
+  "width": 468,
+  "height": 658,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        164.0,
+        100.0
+      ],
+      "side": 98,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        307.0,
+        100.0
+      ],
+      "side": 98,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        236.0,
+        104.0
+      ],
+      "side": 46,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      235.5,
+      184.7
+    ],
+    "size": [
+      72.9,
+      22.2
+    ]
+  }
+}

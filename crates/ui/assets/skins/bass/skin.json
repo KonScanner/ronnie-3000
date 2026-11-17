@@ -1,0 +1,40 @@
+{
+  "id": "bass",
+  "width": 1216,
+  "height": 905,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        278.0,
+        356.0
+      ],
+      "side": 72,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        384.0,
+        356.0
+      ],
+      "side": 72,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        491.0,
+        356.0
+      ],
+      "side": 72,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

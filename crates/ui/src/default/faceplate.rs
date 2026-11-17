@@ -74,6 +74,8 @@ const CONTROLS: &[Control] = &[
     },
 ];
 
+/// Width of the Mono/Stereo lanes switch.
+const LANES_WIDTH: f32 = 64.0;
 const PRIMARY: f32 = 48.0;
 const SECONDARY: f32 = 36.0;
 const ICON: f32 = 20.0;
@@ -85,6 +87,10 @@ const KNOB_HEIGHT_SECONDARY: f32 = 63.0;
 /// Persistent faceplate bindings and optional advanced deck.
 pub struct Faceplate {
     backend: Arc<dyn UiBackend>,
+    /// Whether the Mono/Stereo lanes switch shows after Input.
+    lanes: bool,
+    /// A lanes change the user asked for, for the controller to apply.
+    lanes_request: Option<bool>,
     knobs: Vec<(Control, Knob)>,
     active_deck: Option<DeckModel>,
     deck_anchor: Option<Pos2>,
@@ -116,6 +122,8 @@ impl Faceplate {
             deck_anchor: None,
             deck_trigger: None,
             input_mode_open: false,
+            lanes: false,
+            lanes_request: None,
         }
     }
 
@@ -222,10 +230,11 @@ impl Faceplate {
     pub fn show(&mut self, ui: &mut egui::Ui) {
         let bounds = ui.available_rect_before_wrap();
         let painter = ui.painter_at(bounds);
-        painter.rect_filled(bounds, 0.0, crate::theme::palette::SURFACE_RAISED);
+        let look = crate::theme::Look::get(ui.ctx());
+        painter.rect_filled(bounds, 0.0, look.panel);
         painter.line_segment(
             [bounds.left_top(), bounds.right_top()],
-            Stroke::new(1.0, crate::theme::palette::HAIRLINE),
+            Stroke::new(1.0, look.edge),
         );
         let content = Rect::from_min_max(
             bounds.min + egui::vec2(30.0, 16.0),
@@ -239,7 +248,13 @@ impl Faceplate {
         let gate = self.effect_visible("gateThreshold");
         let pitch = self.effect_visible("pitchSemitones");
         let input_mode = chain.stereo_input;
-        let input_w = PRIMARY + if input_mode { GROUP_GAP + 38.0 } else { 0.0 };
+        let input_w = PRIMARY
+            + if input_mode { GROUP_GAP + 38.0 } else { 0.0 }
+            + if self.lanes {
+                GROUP_GAP + LANES_WIDTH
+            } else {
+                0.0
+            };
         let effects_w = if gate { 66.0 } else { 0.0 }
             + if pitch { 66.0 } else { 0.0 }
             + if gate && pitch { TONE_GAP } else { 0.0 };
@@ -324,13 +339,24 @@ impl Faceplate {
             }
             self.show_input_mode_menu(ui, &response, stereo, chain.branch.is_some());
         }
+        if self.lanes {
+            let lanes_x = x + input_w - LANES_WIDTH;
+            self.show_lanes(
+                ui,
+                &painter,
+                lanes_x,
+                content.top(),
+                content.bottom(),
+                stereo,
+            );
+        }
         x += input_w + gap;
 
         if gate {
             let rect = secondary_rect(x);
             let knob = self.knob(ui, "gateThreshold", rect, SECONDARY, Some(DeckKind::Gate));
             if !self.enabled("gateEnabled") {
-                painter.rect_filled(rect, 0.0, crate::theme::palette::KNOB_VEIL);
+                painter.rect_filled(rect, 0.0, crate::theme::Look::get(painter.ctx()).veil);
             }
             power_button(
                 ui,
@@ -368,7 +394,7 @@ impl Faceplate {
                 let _ = super::tuning::apply_optimize(self.backend.as_ref());
             }
             if !self.enabled("pitchEnabled") {
-                painter.rect_filled(rect, 0.0, crate::theme::palette::KNOB_VEIL);
+                painter.rect_filled(rect, 0.0, crate::theme::Look::get(painter.ctx()).veil);
             }
             power_button(
                 ui,
@@ -404,7 +430,7 @@ impl Faceplate {
                     egui::vec2(3.0 * PRIMARY + 2.0 * TONE_GAP, KNOB_HEIGHT_PRIMARY),
                 ),
                 0.0,
-                crate::theme::palette::KNOB_VEIL,
+                crate::theme::Look::get(painter.ctx()).veil,
             );
         }
         power_button(
@@ -533,7 +559,7 @@ impl Faceplate {
             let icon_color = if running {
                 Color32::BLACK
             } else {
-                crate::theme::palette::TEXT_MUTED
+                crate::theme::Look::get(painter.ctx()).text_muted
             };
             let stroke = Stroke::new(7.0 / 6.0, icon_color);
             for y in [-7.0 / 3.0, 7.0 / 3.0] {
@@ -572,7 +598,11 @@ impl Faceplate {
             None,
         );
 
+        // Decks float on a dark surface, so they keep the dark colours in any layout.
+        let look = crate::theme::Look::get(ui.ctx());
+        crate::theme::Look::install(ui.ctx(), crate::theme::Look::reference());
         self.show_deck(ui, bounds.top());
+        crate::theme::Look::install(ui.ctx(), look);
         self.close_hidden_drags(ui.ctx().cumulative_pass_nr());
     }
 
@@ -698,6 +728,75 @@ impl Faceplate {
     }
 
     /// Shows the open deck above its knob. `bar_top` is the top edge of the bottom bar.
+    /// Shows the Mono/Stereo lanes switch after Input.
+    pub fn set_show_lanes(&mut self, shown: bool) {
+        self.lanes = shown;
+    }
+
+    /// The lanes change the user asked for since the last call: `Some(true)` for stereo.
+    pub fn take_lanes_request(&mut self) -> Option<bool> {
+        self.lanes_request.take()
+    }
+
+    fn show_lanes(
+        &mut self,
+        ui: &mut egui::Ui,
+        painter: &egui::Painter,
+        x: f32,
+        top: f32,
+        bottom: f32,
+        stereo: bool,
+    ) {
+        let look = crate::theme::Look::get(ui.ctx());
+        let center_x = x + LANES_WIDTH / 2.0;
+        painter.text(
+            egui::pos2(center_x, top + 7.0),
+            egui::Align2::CENTER_CENTER,
+            "LANES",
+            egui::FontId::new(11.0, egui::FontFamily::Name("arimo-bold".into())),
+            look.text,
+        );
+        let track = Rect::from_min_size(egui::pos2(x + 4.0, top + 22.0), egui::vec2(18.0, 40.0));
+        painter.rect(
+            track,
+            9.0,
+            look.edge,
+            Stroke::new(1.0, look.edge),
+            egui::StrokeKind::Inside,
+        );
+        let dot_y = if stereo {
+            track.top() + 9.0
+        } else {
+            track.bottom() - 9.0
+        };
+        painter.circle_filled(egui::pos2(track.center().x, dot_y), 6.0, look.text);
+        let rows = [
+            ("Stereo", "Stereo mode", true, track.top() + 9.0),
+            ("Mono", "Mono mode", false, track.bottom() - 9.0),
+        ];
+        for (text, label, wants_stereo, y) in rows {
+            let row =
+                Rect::from_min_max(egui::pos2(x, y - 9.0), egui::pos2(x + LANES_WIDTH, y + 9.0));
+            let response = ui.interact(row, ui.scope_id().with(label), Sense::click());
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
+            painter.text(
+                egui::pos2(track.right() + 8.0, y),
+                egui::Align2::LEFT_CENTER,
+                text,
+                egui::FontId::proportional(11.0),
+                if wants_stereo == stereo {
+                    look.text
+                } else {
+                    look.text_muted
+                },
+            );
+            if response.clicked() && wants_stereo != stereo {
+                self.lanes_request = Some(wants_stereo);
+            }
+        }
+        let _ = bottom;
+    }
+
     fn show_deck(&mut self, ui: &mut egui::Ui, bar_top: f32) {
         let Some(kind) = self.active_deck.as_ref().map(DeckModel::kind) else {
             return;
@@ -817,9 +916,9 @@ fn power_button(
 
 fn draw_power(painter: &egui::Painter, rect: Rect, enabled: bool) {
     let color = if enabled {
-        Color32::WHITE
+        crate::theme::Look::get(painter.ctx()).text
     } else {
-        crate::theme::palette::TEXT_MUTED
+        crate::theme::Look::get(painter.ctx()).text_muted
     };
     let stroke = Stroke::new(1.2, color);
     let center = rect.center();
@@ -837,7 +936,7 @@ fn draw_advert(painter: &egui::Painter, rect: Rect, label: &'static str, inward:
     painter.rect_stroke(
         rect,
         24.0,
-        Stroke::new(1.0, Color32::WHITE),
+        Stroke::new(1.0, crate::theme::Look::get(painter.ctx()).text),
         egui::StrokeKind::Inside,
     );
     let font = egui::FontId::proportional(12.0);
@@ -861,7 +960,7 @@ fn draw_advert(painter: &egui::Painter, rect: Rect, label: &'static str, inward:
                 point(2.0, 8.0),
                 point(2.0, 2.0),
             ],
-            Stroke::new(0.805, Color32::WHITE),
+            Stroke::new(0.805, crate::theme::Look::get(painter.ctx()).text),
         ));
         if points_right == inward {
             x += 28.0 + text_width;
@@ -870,7 +969,7 @@ fn draw_advert(painter: &egui::Painter, rect: Rect, label: &'static str, inward:
                 egui::Align2::CENTER_CENTER,
                 label,
                 font.clone(),
-                Color32::WHITE,
+                crate::theme::Look::get(painter.ctx()).text,
             );
             x += 8.0;
         }

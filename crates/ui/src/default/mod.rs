@@ -27,7 +27,9 @@ pub mod popover;
 pub mod presets;
 pub mod settings;
 pub mod sign_in;
+pub mod skins;
 pub mod spectrum;
+mod stage;
 pub mod system_settings;
 pub mod tile;
 pub mod tile_menu;
@@ -39,6 +41,7 @@ pub mod update;
 
 pub use self::decks::DeckKind;
 pub use self::filters::FilterMenu;
+pub use self::header::Placement;
 pub use crate::services::{
     ART_SIDE, AVATAR_SIDE, AuthPhase, AuthService, AuthSnapshot,
     BrowserController as CatalogBrowserController, CatalogSeed, CatalogStatus, CatalogStore,
@@ -49,7 +52,7 @@ pub use banners::{
     AudioDeviceState, BANNER_HEIGHT, BannerAction, BannerSpec, BannerStore, BannerVariant,
     BannerViewAction, WindowStep, banner_window_transition,
 };
-pub use block::{BlockDetail, BlockView};
+pub use block::{BlockDetail, BlockView, SlotRequest, StageSlots};
 pub use block_info::{BlockInfoPanel, InfoAction, InfoLayout, InfoPrompt};
 pub use browser::{BrowserAction, BrowserController, BrowserView};
 pub use chain::{ChainGallery, GallerySelection, TileVisualState};

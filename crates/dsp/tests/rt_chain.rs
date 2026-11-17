@@ -1,8 +1,10 @@
 //! Atomic chain publication and callback failure tests.
 
-use ronie_core::InputMode;
+use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
 use ronie_dsp::{
     ChainError, LatencyReport, PlanarBuffer, PrepareSpec,
+    block::BlockModel,
+    ir::compile_ir,
     lane::LaneSnapshot,
     prepare::PreparedChainChange,
     rt_chain::{ChainCommand, ChainControls, RtChain},
@@ -273,4 +275,95 @@ fn a_poisoned_output_is_repaired_and_the_output_stage_state_is_cleared() {
         "audio must return, {} against {before}",
         rms(&after)
     );
+}
+
+/// A chain of one cab block blending two copies of one long IR, so the blend is inaudible.
+fn same_ir_pair_chain() -> (RtChain, ronie_dsp::rt_chain::ChainCommandSender, ChainBlock) {
+    let kernel: Vec<f32> = (0..4_800)
+        .map(|index| (index as f32 * 0.37).sin() * (-(index as f32) / 1_200.0).exp())
+        .collect();
+    let ir = || {
+        compile_ir(
+            &AudioDocument {
+                sample_rate: 48_000.0,
+                channels: vec![kernel.clone()],
+            },
+            None,
+        )
+        .expect("compiled IR")
+    };
+    let block = ChainBlock::tone(
+        "cab",
+        Tone::from_value(serde_json::json!({
+            "id": 1,
+            "title": "Cab",
+            "format": "ir",
+            "models": [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}]
+        }))
+        .expect("tone"),
+        ModelId(1),
+    );
+    let change = PreparedChainChange::new(
+        1,
+        spec(),
+        LaneSnapshot {
+            blocks: vec![block.clone()],
+            models: vec![Some(BlockModel::IrPair { a: ir(), b: ir() })],
+        },
+        empty_snapshot(),
+        false,
+        LatencyReport {
+            samples: 0,
+            tail_seconds: 0.0,
+        },
+    )
+    .expect("chain preparation");
+    let (mut chain, sender) = RtChain::prepare(change, 1).expect("real-time chain");
+    chain.set_controls(unity_controls());
+    (chain, sender, block)
+}
+
+#[test]
+fn changing_the_blend_keeps_engine_state() {
+    let (mut untouched, _untouched_sender) = {
+        let (chain, sender, _) = same_ir_pair_chain();
+        (chain, sender)
+    };
+    let (mut blended, sender, block) = same_ir_pair_chain();
+    run_sine(&mut untouched, 20);
+    run_sine(&mut blended, 20);
+
+    let mut params = block.params.clone();
+    params.ir_blend = 0.9;
+    params.ir_a_level = 0.5;
+    sender
+        .try_send(ChainCommand::UpdateBlockParams(vec![(
+            block.id.clone(),
+            params,
+        )]))
+        .expect("queue the blend");
+
+    // Silence after the change: only the convolvers' tails sound, so a reset or a
+    // swap fade would show as a difference from the untouched chain.
+    let mut loudest = 0.0_f32;
+    for _ in 0..40 {
+        let mut expected = vec![0.0; 128];
+        let mut actual = vec![0.0; 128];
+        untouched
+            .process(&mut PlanarBuffer::new(&mut expected, 2, 64).expect("buffer"))
+            .expect("untouched");
+        blended
+            .process(&mut PlanarBuffer::new(&mut actual, 2, 64).expect("buffer"))
+            .expect("blended");
+        for (actual, expected) in actual.iter().zip(&expected) {
+            assert!(
+                (actual - expected).abs() <= 1.0e-5,
+                "{actual} != {expected}"
+            );
+            loudest = loudest.max(actual.abs());
+        }
+    }
+    assert!(loudest > 1.0e-3, "the tails must sound: {loudest}");
+    assert_eq!(blended.active_generation(), 1);
+    assert_eq!(sender.drain_retired(), 1, "only the old settings retire");
 }

@@ -36,6 +36,73 @@ proptest! {
         }
         let _ = bytes;
     }
+
+    #[test]
+    fn a_persistence_fuzz_case_with_b(
+        b in proptest::option::of(prop_oneof![0_i64..4, any::<i64>()]),
+        blend in juce_value(),
+        a_level in juce_value(),
+        b_level in juce_value(),
+        invert in juce_value(),
+        cut in any::<usize>(),
+    ) {
+        let mut properties = vec![
+            ("id".into(), ronie_core::JuceValue::String("cab".into())),
+            ("type".into(), ronie_core::JuceValue::String("IR".into())),
+            ("toneJson".into(), ronie_core::JuceValue::String(IR_TONE.into())),
+            ("activeModelId".into(), ronie_core::JuceValue::Int64(1)),
+            ("irBlend".into(), blend),
+            ("irALevel".into(), a_level),
+            ("irBLevel".into(), b_level),
+            ("irBInvert".into(), invert),
+        ];
+        if let Some(b) = b {
+            properties.push(("irBModelId".into(), ronie_core::JuceValue::Int64(b)));
+        }
+        let block = ronie_core::JuceTree {
+            identifier: "ChainBlock".into(),
+            properties,
+            children: Vec::new(),
+        };
+        let root = ronie_core::JuceTree {
+            identifier: "Root".into(),
+            properties: Vec::new(),
+            children: vec![ronie_core::JuceTree {
+                identifier: "ChainSnapshot".into(),
+                properties: Vec::new(),
+                children: vec![ronie_core::JuceTree {
+                    identifier: "ChainBlocks".into(),
+                    properties: Vec::new(),
+                    children: vec![block],
+                }],
+            }],
+        };
+        let mut encoded = b"T3KB".to_vec();
+        encoded.extend(ronie_core::JuceCodec::default().write_tree(&root).expect("fixture"));
+        let codec = StateCodec::new();
+        let document = codec.decode_session(&encoded).expect("a B never breaks a session");
+        let cab = &document.snapshot.chain.left[0];
+        // A B that the stored tone does not list is dropped, so a later save cannot fail on it.
+        let kept = b.filter(|id| [1, 2].contains(id));
+        prop_assert_eq!(cab.ir_b.map(|ir_b| ir_b.model_id.0), kept);
+        let again = codec
+            .decode_session(&codec.encode_session(&document).expect("re-encode"))
+            .expect("re-decode");
+        prop_assert_eq!(&again.snapshot.chain.left[0], cab);
+        let _ = codec.decode_session(&encoded[..cut % encoded.len()]);
+    }
+}
+
+const IR_TONE: &str = r#"{"id":7,"title":"Cab","format":"ir","models":[{"id":1,"name":"A","model_url":"https://fixtures.local/1.wav"},{"id":2,"name":"B","model_url":"https://fixtures.local/2.wav"}]}"#;
+
+fn juce_value() -> impl Strategy<Value = ronie_core::JuceValue> {
+    prop_oneof![
+        any::<bool>().prop_map(ronie_core::JuceValue::Bool),
+        any::<i32>().prop_map(ronie_core::JuceValue::Int),
+        any::<i64>().prop_map(ronie_core::JuceValue::Int64),
+        any::<f64>().prop_map(ronie_core::JuceValue::Double),
+        "[^\\x00]{0,8}".prop_map(ronie_core::JuceValue::String),
+    ]
 }
 
 #[tokio::test]

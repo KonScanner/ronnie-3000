@@ -496,7 +496,10 @@ fn encode_block(
         })?;
         let stored = tone
             .clone()
-            .for_storage(active)
+            .for_storage(
+                active,
+                block.stored_ir_b().map(|ir_b| ir_b.model_id).as_slice(),
+            )
             .map_err(|error| UiError::Control(error.to_string()))?;
         set_property(&mut output, "toneId", JuceValue::Int64(tone.id.0));
         set_property(
@@ -509,6 +512,8 @@ fn encode_block(
             ),
         );
         set_property(&mut output, "activeModelId", JuceValue::Int64(active.0));
+        block.write_ir_pair_juce(&mut output);
+        block.write_skin_juce(&mut output);
         let eq = encode_eq(block, previous.and_then(|block| child(block, "Eq")));
         upsert_child(&mut output, "Eq", eq);
         let cache = encode_model_cache(
@@ -519,7 +524,17 @@ fn encode_block(
         )?;
         upsert_child(&mut output, "ModelCache", cache);
     } else {
-        for name in ["toneId", "toneJson", "activeModelId"] {
+        for name in [
+            "toneId",
+            "toneJson",
+            "activeModelId",
+            ronie_core::IR_B_MODEL_ID,
+            "irBlend",
+            "irALevel",
+            "irBLevel",
+            "irBInvert",
+            ronie_core::SKIN_OVERRIDE,
+        ] {
             remove_property(&mut output, name);
         }
         output
@@ -843,7 +858,7 @@ fn prepare_restored_lanes(
     })
 }
 
-/// Whether an active model in this document has no embedded bytes.
+/// Whether an active model or an IR B in this document has no embedded bytes.
 pub(crate) fn active_model_lacks_bytes(document: &SessionDocument) -> bool {
     let chain = &document.snapshot.chain;
     chain
@@ -852,13 +867,45 @@ pub(crate) fn active_model_lacks_bytes(document: &SessionDocument) -> bool {
         .chain(&chain.right)
         .filter(|block| !block.is_insert)
         .any(|block| {
-            block.active_model_id.is_some_and(|active| {
-                !document
-                    .model_cache
-                    .iter()
-                    .any(|entry| entry.block_id == block.id && entry.model_id == active)
-            })
+            block
+                .active_model_id
+                .into_iter()
+                .chain(ir_b_model_id(block))
+                .any(|model_id| {
+                    !document
+                        .model_cache
+                        .iter()
+                        .any(|entry| entry.block_id == block.id && entry.model_id == model_id)
+                })
         })
+}
+
+/// The IR B model of a tone block, when it names one other than its active model.
+fn ir_b_model_id(block: &ChainBlock) -> Option<ModelId> {
+    let active = block.active_model_id?;
+    block
+        .ir_b
+        .map(|ir_b| ir_b.model_id)
+        .filter(|model_id| *model_id != active)
+}
+
+/// Marks each tone block whose IR B has no bytes in `sources`. Such a block plays its active
+/// model alone, and keeps its IR B for a later download and the next save.
+pub(crate) fn mark_missing_ir_b(session: &mut SessionSnapshot, sources: &ModelSources<'_>) {
+    let chain = &mut session.chain;
+    for block in chain.left.iter_mut().chain(chain.right.iter_mut()) {
+        block.ir_b_missing = !block.is_insert
+            && ir_b_model_id(block).is_some_and(|model_id| {
+                let Some(tone) = block.tone.as_ref() else {
+                    return true;
+                };
+                tone.models
+                    .iter()
+                    .find(|model| model.id == model_id)
+                    .and_then(|model| resolve_model_bytes(block, tone, model, sources))
+                    .is_none()
+            });
+    }
 }
 
 /// Sources of model bytes for a chain prepared from the live session.
@@ -966,7 +1013,33 @@ fn live_model(
         .ok_or(ChainFaultKind::MissingModel)?;
     let bytes =
         resolve_model_bytes(block, tone, model, sources).ok_or(ChainFaultKind::MissingModel)?;
-    compile_block_model(&block.id, tone, model, &bytes).map_err(|_| ChainFaultKind::ModelRejected)
+    let compiled = compile_block_model(&block.id, tone, model, &bytes)
+        .map_err(|_| ChainFaultKind::ModelRejected)?;
+    // An IR B without bytes, or one that cannot compile, leaves A playing alone.
+    let ir_b = ir_b_model_id(block)
+        .and_then(|model_id| tone.models.iter().find(|model| model.id == model_id))
+        .and_then(|model| {
+            let bytes = resolve_model_bytes(block, tone, model, sources)?;
+            compile_block_model(&block.id, tone, model, &bytes).ok()
+        });
+    Ok(with_ir_b(compiled, ir_b))
+}
+
+/// Blends `b` into `a` when both are cab IRs. Any other pair plays `a` alone, because the block
+/// takes its cab pad and default mix from one IR kind.
+fn with_ir_b(
+    a: ronie_dsp::block::BlockModel,
+    b: Option<ronie_dsp::block::BlockModel>,
+) -> ronie_dsp::block::BlockModel {
+    use ronie_dsp::{block::BlockModel, ir::IrKind};
+    match (a, b) {
+        (BlockModel::Ir(a), Some(BlockModel::Ir(b)))
+            if a.kind == IrKind::Cab && b.kind == IrKind::Cab =>
+        {
+            BlockModel::IrPair { a, b }
+        }
+        (a, _) => a,
+    }
 }
 
 /// Compiles untrusted bytes as one model of `tone`, and keeps nothing.
@@ -1075,8 +1148,12 @@ fn prepare_lane(
         };
         match compile_block_model(&block.id, tone, model, bytes) {
             Ok(model) => {
+                // An IR B without bytes, or one that cannot compile, leaves A playing alone.
+                let ir_b = restored_ir_b(block, tone, jobs).and_then(|(b_model, b_bytes)| {
+                    compile_block_model(&block.id, tone, b_model, b_bytes).ok()
+                });
                 snapshot.blocks.push(block.clone());
-                snapshot.models.push(Some(model));
+                snapshot.models.push(Some(with_ir_b(model, ir_b)));
             }
             Err(error) => {
                 compile_error.get_or_insert(error);
@@ -1131,6 +1208,22 @@ fn restored_model<'a>(
     Ok(Some((tone, model, bytes)))
 }
 
+/// The IR B model of a block and the bytes that a restore prepares for it, when it has both.
+fn restored_ir_b<'a>(
+    block: &ChainBlock,
+    tone: &'a Tone,
+    jobs: &'a [ronie_core::PreparationJob],
+) -> Option<(&'a ToneModel, &'a ModelBytes)> {
+    let model_id = ir_b_model_id(block)?;
+    let bytes = jobs
+        .iter()
+        .find(|job| job.block_id == block.id && job.model_id == model_id)?
+        .bytes
+        .as_ref()?;
+    let model = tone.models.iter().find(|model| model.id == model_id)?;
+    Some((model, bytes))
+}
+
 fn compile_block_model(
     block_id: &BlockId,
     tone: &Tone,
@@ -1163,5 +1256,184 @@ fn compile_block_model(
             })?;
             Ok(ronie_dsp::block::BlockModel::Ir(compiled))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const IR_PAIR_PROPERTIES: [&str; 5] = [
+        ronie_core::IR_B_MODEL_ID,
+        "irBlend",
+        "irALevel",
+        "irBLevel",
+        "irBInvert",
+    ];
+
+    fn two_mic_block() -> ChainBlock {
+        let tone = Tone::from_value(serde_json::json!({
+            "id": 42,
+            "title": "Two mics",
+            "format": "ir",
+            "models": [
+                {"id": 7, "name": "A", "model_url": "https://models.example/7.wav"},
+                {"id": 8, "name": "B", "model_url": "https://models.example/8.wav"},
+            ]
+        }))
+        .expect("tone");
+        let mut block = ChainBlock::tone("cab", tone, ModelId(7));
+        block.ir_b = Some(ronie_core::IrB {
+            model_id: ModelId(8),
+        });
+        block.params.ir_blend = 0.7;
+        block
+    }
+
+    fn has(tree: &JuceTree, name: &str) -> bool {
+        tree.properties.iter().any(|(key, _)| key == name)
+    }
+
+    #[test]
+    fn clearing_b_removes_its_properties() {
+        let cache = ModelByteCache::new(1024);
+        let block = two_mic_block();
+        let saved = encode_block(&block, None, None, &cache).expect("save with B");
+        assert_eq!(integer_property(&saved, ronie_core::IR_B_MODEL_ID), Some(8));
+        assert_eq!(number_property(&saved, "irBlend"), Some(0.7));
+        for name in IR_PAIR_PROPERTIES {
+            assert!(has(&saved, name), "{name} is written");
+        }
+
+        let mut cleared = block.clone();
+        cleared.ir_b = None;
+        let resaved = encode_block(&cleared, None, Some(&saved), &cache).expect("save");
+        assert!(
+            !has(&resaved, ronie_core::IR_B_MODEL_ID),
+            "a cleared B is not kept"
+        );
+
+        let insert = ChainBlock::insert("cab");
+        let emptied = encode_block(&insert, None, Some(&saved), &cache).expect("save");
+        for name in IR_PAIR_PROPERTIES {
+            assert!(!has(&emptied, name), "an insert keeps no {name}");
+        }
+    }
+
+    #[test]
+    fn a_skin_override_is_saved_only_while_set() {
+        let cache = ModelByteCache::new(1024);
+        let mut block = two_mic_block();
+        block.skin = Some("cab-112-clean".to_owned());
+        let saved = encode_block(&block, None, None, &cache).expect("save with a skin");
+        assert!(
+            saved
+                .properties
+                .iter()
+                .any(|(name, value)| name == ronie_core::SKIN_OVERRIDE
+                    && *value == JuceValue::String("cab-112-clean".into())),
+            "{:?}",
+            saved.properties
+        );
+
+        block.skin = None;
+        let resaved = encode_block(&block, None, Some(&saved), &cache).expect("save Auto");
+        assert!(
+            !has(&resaved, ronie_core::SKIN_OVERRIDE),
+            "Auto is not kept"
+        );
+
+        let insert = ChainBlock::insert("cab");
+        let emptied = encode_block(&insert, None, Some(&saved), &cache).expect("save");
+        assert!(
+            !has(&emptied, ronie_core::SKIN_OVERRIDE),
+            "an insert has no skin"
+        );
+    }
+
+    #[test]
+    fn a_b_outside_the_tone_is_not_saved() {
+        let cache = ModelByteCache::new(1024);
+        let mut block = two_mic_block();
+        block.ir_b = Some(ronie_core::IrB {
+            model_id: ModelId(9),
+        });
+        let saved = encode_block(&block, None, None, &cache).expect("save without B");
+        assert!(
+            !has(&saved, ronie_core::IR_B_MODEL_ID),
+            "an absent B is not named"
+        );
+        assert_eq!(number_property(&saved, "irBlend"), Some(0.7));
+    }
+
+    fn empty_frame() -> SessionFrame {
+        ronie_ui::session_edit::SessionEditor::new(ronie_dsp::PrepareSpec {
+            host_sample_rate: 48_000.0,
+            max_host_frames: 64,
+            oversampling: 1,
+            input_mode: ronie_core::InputMode::Stereo,
+            stereo_input: false,
+            stereo_output: true,
+        })
+        .current()
+        .clone()
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig {
+            failure_persistence: Some(Box::new(
+                proptest::test_runner::FileFailurePersistence::Off,
+            )),
+            ..proptest::prelude::ProptestConfig::default()
+        })]
+
+        #[test]
+        fn any_b_id_saves_and_restores(
+            b in proptest::prop_oneof![5_i64..10, proptest::prelude::any::<i64>()],
+        ) {
+            let cache = ModelByteCache::new(1024);
+            let mut frame = empty_frame();
+            let mut block = two_mic_block();
+            block.ir_b = Some(ronie_core::IrB { model_id: ModelId(b) });
+            frame.session.chain.left = vec![block];
+            let bytes = encode_session(&frame, 0, None, None, &cache).expect("a B never stops a save");
+            let decoded = decode_session(&bytes, &frame).expect("restore");
+            let restored = &decoded.frame.session.chain.left[0];
+            let listed = [7, 8].contains(&b);
+            proptest::prop_assert_eq!(
+                restored.ir_b.map(|ir_b| ir_b.model_id.0),
+                listed.then_some(b)
+            );
+            let again = encode_session(&decoded.frame, 0, None, Some(&decoded.document.raw), &cache)
+                .expect("a restored B never stops a save");
+            let twice = decode_session(&again, &frame).expect("restore again");
+            proptest::prop_assert_eq!(&twice.frame.session.chain.left[0], restored);
+        }
+    }
+
+    #[test]
+    fn the_model_cache_embeds_b() {
+        let cache = ModelByteCache::new(1024);
+        let block = two_mic_block();
+        for (model, bytes) in [(7, b"mic-a"), (8, b"mic-b")] {
+            cache
+                .insert(
+                    ByteCacheKey {
+                        block_id: block.id.clone(),
+                        model_id: ModelId(model),
+                        namespace: ronie_core::model_namespace(&block, ModelId(model)),
+                    },
+                    ModelBytes::from(bytes.as_slice()),
+                )
+                .expect("cache");
+        }
+        let saved = encode_block(&block, None, None, &cache).expect("save");
+        let embedded: Vec<_> = child(&saved, "ModelCache")
+            .expect("model cache")
+            .children
+            .iter()
+            .map(|cached| integer_property(cached, "modelId"))
+            .collect();
+        assert_eq!(embedded, [Some(7), Some(8)]);
     }
 }

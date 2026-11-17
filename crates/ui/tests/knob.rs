@@ -838,3 +838,15 @@ fn an_open_field_inside_the_view_still_commits() {
         }]
     );
 }
+
+#[test]
+fn a_blend_knob_shows_the_share_of_each_source_and_reads_the_share_of_a() {
+    let spec = KnobSpec::blend();
+    assert_eq!(spec.format(0.5), "50 / 50");
+    assert_eq!(spec.format(0.35), "65 / 35");
+    assert_eq!(spec.format(0.0), "100 / 0");
+    for (text, blend) in [("65", 0.35), ("80 / 20", 0.2)] {
+        let read = spec.parse(text).expect("a number");
+        assert!((read - blend).abs() < 1e-9, "{text} read as {read}");
+    }
+}

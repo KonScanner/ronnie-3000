@@ -322,7 +322,9 @@ impl UiBackend for StandaloneBackend {
         // A load flow holds its lock here and calls `settle_audio` next.
         let for_settle = matches!(
             action,
-            UiAction::LoadToneWithBytes { .. } | UiAction::SelectModelWithBytes { .. }
+            UiAction::LoadToneWithBytes { .. }
+                | UiAction::ReplaceTone { bytes: Some(_), .. }
+                | UiAction::SelectModelWithBytes { .. }
         );
         let edit = || self.processor.dispatch(action);
         if for_settle {

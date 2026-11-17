@@ -1,0 +1,50 @@
+{
+  "id": "fuzz",
+  "width": 621,
+  "height": 768,
+  "knobs": [
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        162.0,
+        103.0
+      ],
+      "side": 120,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        310.0,
+        103.0
+      ],
+      "side": 120,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        459.0,
+        103.0
+      ],
+      "side": 120,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      310.5,
+      203.6
+    ],
+    "size": [
+      82.4,
+      25.4
+    ]
+  }
+}

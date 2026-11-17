@@ -1,0 +1,40 @@
+{
+  "id": "default-crunch",
+  "width": 1360,
+  "height": 781,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        327.0,
+        551.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        447.0,
+        551.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        568.0,
+        551.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

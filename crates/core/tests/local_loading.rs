@@ -36,6 +36,40 @@ fn minimal_nam() -> Vec<u8> {
     br#"{"version":"0.7.0","architecture":"WaveNet","config":{},"weights":[]}"#.to_vec()
 }
 
+fn nam_with_metadata() -> Vec<u8> {
+    br#"{"version":"0.7.0","architecture":"WaveNet","config":{},"weights":[],
+        "metadata":{"gear_type":"amp","gear_make":"Marshall","gear_model":"JCM800 2203","tone_type":"crunch"}}"#
+        .to_vec()
+}
+
+#[test]
+fn local_inspection_reads_top_level_nam_metadata() {
+    let inspection = inspect_local_model("lead.nam", &nam_with_metadata(), &accept_nam)
+        .expect("model with metadata should inspect");
+
+    assert_eq!(inspection.gear.as_deref(), Some("amp"));
+    assert_eq!(inspection.gear_make.as_deref(), Some("Marshall"));
+    assert_eq!(inspection.gear_model.as_deref(), Some("JCM800 2203"));
+    assert_eq!(inspection.tone_type.as_deref(), Some("crunch"));
+}
+
+#[test]
+fn local_load_keeps_nam_metadata_for_gear_identification() {
+    let temp = TempDir::new().expect("temp dir");
+    let input = temp.path().join("lead.nam");
+    fs::write(&input, nam_with_metadata()).expect("NAM");
+    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+
+    let loaded = load_local_path(&input, &stash, &accept_nam).expect("model should load");
+    let model = loaded.tone.models.first().expect("one model");
+    let hints = ronie_core::gear::GearHints::from_tone(&loaded.tone, Some(model));
+    let identity = ronie_core::gear::identify(&hints);
+
+    assert_eq!(model.raw["gear_make"], "Marshall");
+    assert_eq!(model.raw["tone_type"], "crunch");
+    assert_eq!(identity.family, ronie_core::gear::GearFamily::HeadBritish);
+}
+
 fn accept_nam(_: &NamDocument) -> DspResult<()> {
     Ok(())
 }

@@ -15,6 +15,8 @@ pub mod download;
 /// Typed document and processing errors.
 pub mod error;
 mod fs;
+/// Gear families behind captures, for skins and chain icons.
+pub mod gear;
 /// Bounded HTTP transports and origin policy.
 pub mod http;
 /// Bounded JUCE variant and ValueTree codecs.
@@ -67,8 +69,8 @@ pub use cache::{
 };
 pub use chain::{
     ActivePreset, BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot, EqBand,
-    EqBandType, EqParams, InputMode, MidiMapping, MidiSource, SessionSnapshot, model_namespace,
-    references_model,
+    EqBandType, EqParams, IR_B_MODEL_ID, InputMode, IrB, MidiMapping, MidiSource, SKIN_OVERRIDE,
+    SessionSnapshot, model_namespace, references_model,
 };
 pub use download::{DecodedImage, DownloadClient};
 pub use error::{

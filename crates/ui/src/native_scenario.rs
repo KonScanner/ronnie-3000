@@ -415,6 +415,9 @@ impl NativeScenario {
             presets,
             authenticated: state["auth"].as_bool().unwrap_or(false),
             hints_enabled: state["hints"].as_bool().unwrap_or(true),
+            view_mode: scenario_layout(scenario)?,
+            // A capture must not depend on the host: light unless the scenario asks for dark.
+            appearance: Some(scenario_appearance(scenario)?),
             auth: auth_flow(id).map(|flow| Box::new(flow) as Box<dyn AuthFlowAdapter>),
             key_setup: key_setup(id).map(|setup| Box::new(setup) as Box<dyn KeySetup>),
             ..Default::default()
@@ -443,6 +446,36 @@ impl NativeScenario {
     /// Returns native window creation, rendering, or event-loop errors.
     pub fn run(self) -> eframe::Result<()> {
         crate::shell::run_scripted(self.options, self.script)
+    }
+}
+
+/// The layout that a scenario's `layout` state key names: the reference layout when it has none.
+fn scenario_layout(scenario: &UiScenario) -> Result<crate::shell::ViewMode, String> {
+    match &scenario.state["layout"] {
+        serde_json::Value::Null => Ok(crate::shell::ViewMode::ReferenceDefault),
+        serde_json::Value::String(value) if value == "reference" => {
+            Ok(crate::shell::ViewMode::ReferenceDefault)
+        }
+        serde_json::Value::String(value) if value == "stage" => {
+            Ok(crate::shell::ViewMode::RonieFlow)
+        }
+        other => Err(format!(
+            "{}: unknown layout {other}; use \"reference\" or \"stage\"",
+            scenario.id
+        )),
+    }
+}
+
+/// The appearance that a scenario's `appearance` state key names: light when it has none.
+fn scenario_appearance(scenario: &UiScenario) -> Result<crate::shell::Appearance, String> {
+    match &scenario.state["appearance"] {
+        serde_json::Value::Null => Ok(crate::shell::Appearance::Light),
+        serde_json::Value::String(value) if value == "light" => Ok(crate::shell::Appearance::Light),
+        serde_json::Value::String(value) if value == "dark" => Ok(crate::shell::Appearance::Dark),
+        other => Err(format!(
+            "{}: unknown appearance {other}; use \"light\" or \"dark\"",
+            scenario.id
+        )),
     }
 }
 

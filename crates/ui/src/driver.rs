@@ -71,6 +71,8 @@ pub struct Control {
     pub rect: egui::Rect,
     /// Whether the control can take a click.
     pub clickable: bool,
+    /// Whether a radio button or toggle is on.
+    pub checked: bool,
     id: egui::Id,
 }
 
@@ -101,6 +103,10 @@ pub struct UiDriver {
     effects_seen: usize,
     opened_urls: Vec<String>,
     copied_text: Vec<String>,
+    /// A window size a test chose instead of the design size.
+    window: Option<egui::Vec2>,
+    /// The appearance of the system that each frame reports, or none for an unknown one.
+    system_theme: Option<egui::Theme>,
 }
 
 impl UiDriver {
@@ -135,6 +141,8 @@ impl UiDriver {
             effects_seen,
             opened_urls: Vec::new(),
             copied_text: Vec::new(),
+            window: None,
+            system_theme: None,
         };
         driver.settle();
         driver
@@ -205,14 +213,33 @@ impl UiDriver {
         self.focused.as_deref()
     }
 
+    /// Draws in a window of `size` points from the next frame on, for a test of a small window.
+    pub fn set_window_size(&mut self, size: egui::Vec2) {
+        self.window = Some(size);
+        self.settle();
+    }
+
     /// Runs one frame without input.
     pub fn frame(&mut self) {
-        self.run(Vec::new());
+        let _ = self.run(Vec::new());
+    }
+
+    /// Runs one frame without input and returns what it painted, for a test of colours.
+    pub fn frame_shapes(&mut self) -> Vec<egui::Shape> {
+        self.run(Vec::new())
+            .into_iter()
+            .map(|clipped| clipped.shape)
+            .collect()
+    }
+
+    /// Reports `theme` as the appearance of the system from the next frame on.
+    pub fn set_system_theme(&mut self, theme: Option<egui::Theme>) {
+        self.system_theme = theme;
     }
 
     /// Runs one frame with exactly these input events, for input that a real frame can batch.
     pub fn play(&mut self, events: Vec<egui::Event>) {
-        self.run(events);
+        let _ = self.run(events);
     }
 
     /// Runs enough frames for a surface that opened to paint and take input.
@@ -551,14 +578,18 @@ impl UiDriver {
     }
 
     fn screen_rect(&self) -> egui::Rect {
+        if let Some(size) = self.window {
+            return egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+        }
         let height = self.chrome.window_chrome().design_height() as f32;
         egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(DESIGN_WIDTH, height))
     }
 
-    fn run(&mut self, events: Vec<egui::Event>) {
+    fn run(&mut self, events: Vec<egui::Event>) -> Vec<egui::epaint::ClippedShape> {
         let input = egui::RawInput {
             screen_rect: Some(self.screen_rect()),
             events,
+            system_theme: self.system_theme,
             ..Default::default()
         };
         let chrome = &mut self.chrome;
@@ -576,6 +607,7 @@ impl UiDriver {
             }
         }
         self.read_tree(output.platform_output.accesskit_update.take());
+        output.shapes
     }
 
     fn read_tree(&mut self, update: Option<accesskit::TreeUpdate>) {
@@ -622,6 +654,7 @@ impl UiDriver {
                     rect: (to_global * widget.interact_rect).intersect(screen),
                     clickable: node.supports_action(accesskit::Action::Click)
                         && !node.is_disabled(),
+                    checked: node.toggled() == Some(accesskit::Toggled::True),
                     id: widget.id,
                 })
             })

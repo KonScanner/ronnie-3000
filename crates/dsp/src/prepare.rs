@@ -88,6 +88,9 @@ impl PreparedChainChange {
             .chain(&right.models)
             .filter_map(|model| match model {
                 Some(crate::block::BlockModel::Ir(ir)) => Some(ir.tail_seconds()),
+                Some(crate::block::BlockModel::IrPair { a, b }) => {
+                    Some(a.tail_seconds().max(b.tail_seconds()))
+                }
                 _ => None,
             })
             .fold(latency.tail_seconds, f64::max);

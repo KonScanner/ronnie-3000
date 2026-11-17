@@ -35,7 +35,8 @@ fn help_text() -> String {
     [
         "Ronnie standalone",
         "  ronie [--ui] [--dummy | --backend B] [--selftest] [--capture PATH] [--report PATH] [--scale N]",
-        "      Opens the window. This is the default.",
+        "        [--layout stage | reference]",
+        "      Opens the window. This is the default. --layout stage opens the Stage layout.",
         "  ronie --smoke [--dummy | --backend B] [--seconds N]",
         "      Runs the audio with no window for N seconds (default 1), then stops.",
         "  ronie --help",
@@ -70,6 +71,7 @@ fn run_ui(options: Options) -> eyre::Result<()> {
         capture: options.capture,
         report: options.report,
         scale: options.scale,
+        view_mode: options.view_mode,
         backend: Some(Arc::new(backend)),
         presets,
         community,
@@ -155,6 +157,7 @@ struct Options {
     capture: Option<PathBuf>,
     report: Option<PathBuf>,
     scale: Option<f32>,
+    view_mode: ronie_ui::shell::ViewMode,
 }
 
 impl Options {
@@ -170,6 +173,7 @@ impl Options {
         let mut capture = None;
         let mut report = None;
         let mut scale = None;
+        let mut view_mode = ronie_ui::shell::ViewMode::ReferenceDefault;
         let mut arguments = arguments.into_iter();
         while let Some(argument) = arguments.next() {
             match argument.as_str() {
@@ -224,6 +228,20 @@ impl Options {
                             .wrap_err("parsing --scale")?,
                     );
                 }
+                "--layout" => {
+                    window_flag.get_or_insert("--layout");
+                    view_mode = match arguments
+                        .next()
+                        .ok_or_else(|| eyre!("--layout needs stage or reference"))?
+                        .as_str()
+                    {
+                        "stage" => ronie_ui::shell::ViewMode::RonieFlow,
+                        "reference" => ronie_ui::shell::ViewMode::ReferenceDefault,
+                        other => {
+                            return Err(eyre!("unknown layout {other}: use stage or reference"));
+                        }
+                    };
+                }
                 "--help" | "-h" => help = true,
                 _ => return Err(eyre!("unknown argument {argument}")),
             }
@@ -252,6 +270,7 @@ impl Options {
             capture,
             report,
             scale,
+            view_mode,
         })
     }
 }
@@ -315,6 +334,22 @@ mod tests {
         let dummy = parse(&["--dummy"]).expect("options");
         assert_eq!(dummy.mode, Mode::Ui);
         assert_eq!(dummy.backend, Some(AudioBackendKind::Dummy));
+    }
+
+    #[test]
+    fn the_layout_flag_chooses_the_view_mode() {
+        use ronie_ui::shell::ViewMode;
+        assert_eq!(
+            parse(&[]).expect("options").view_mode,
+            ViewMode::ReferenceDefault
+        );
+        let stage = parse(&["--layout", "stage"]).expect("options");
+        assert_eq!(stage.view_mode, ViewMode::RonieFlow);
+        let reference = parse(&["--layout", "reference"]).expect("options");
+        assert_eq!(reference.view_mode, ViewMode::ReferenceDefault);
+        assert!(parse(&["--layout", "nope"]).is_err());
+        assert!(parse(&["--layout"]).is_err());
+        assert!(parse(&["--smoke", "--layout", "stage"]).is_err());
     }
 
     #[test]

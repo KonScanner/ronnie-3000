@@ -60,3 +60,83 @@ fn reference_accepts_rust_session_tree() {
     let xml = String::from_utf8(accepted).expect("Reference XML");
     assert!(xml.contains("RonieState"), "{xml}");
 }
+
+/// A session saved with a cab's second IR: the Reference must still accept it, and the block
+/// keeps its active model (A) for the Reference to play.
+#[test]
+#[ignore = "requires private Reference source and build directories"]
+fn reference_accepts_a_session_written_with_ir_b() {
+    let tone = ronie_core::Tone::from_value(serde_json::json!({
+        "id": 42,
+        "title": "Two mics",
+        "format": "ir",
+        "models": [{"id": 7, "name": "A"}, {"id": 8, "name": "B"}]
+    }))
+    .expect("tone");
+    let mut block = ronie_core::ChainBlock::tone("cab", tone.clone(), ronie_core::ModelId(7));
+    block.ir_b = Some(ronie_core::IrB {
+        model_id: ronie_core::ModelId(8),
+    });
+    block.params.ir_blend = 0.65;
+    let cached = |model: i64, data: &[u8]| JuceTree {
+        identifier: "CachedModel".into(),
+        properties: vec![
+            ("modelId".into(), JuceValue::Int64(model)),
+            ("data".into(), JuceValue::Binary(data.to_vec())),
+        ],
+        children: Vec::new(),
+    };
+    let mut chain_block = JuceTree {
+        identifier: "ChainBlock".into(),
+        properties: vec![
+            ("id".into(), JuceValue::String("cab".into())),
+            ("type".into(), JuceValue::String("IR".into())),
+            ("enabled".into(), JuceValue::Bool(true)),
+            ("toneId".into(), JuceValue::Int64(42)),
+            (
+                "toneJson".into(),
+                JuceValue::String(tone.to_json().expect("tone json")),
+            ),
+            ("activeModelId".into(), JuceValue::Int64(7)),
+        ],
+        children: vec![JuceTree {
+            identifier: "ModelCache".into(),
+            properties: Vec::new(),
+            children: vec![cached(7, b"mic-a"), cached(8, b"mic-b")],
+        }],
+    };
+    block.write_ir_pair_juce(&mut chain_block);
+    let session = JuceTree {
+        identifier: "RonieState".into(),
+        properties: vec![("schemaVersion".into(), JuceValue::Int(1))],
+        children: vec![JuceTree {
+            identifier: "ChainSnapshot".into(),
+            properties: vec![("stereoEnabled".into(), JuceValue::Bool(false))],
+            children: vec![JuceTree {
+                identifier: "ChainBlocks".into(),
+                properties: Vec::new(),
+                children: vec![chain_block],
+            }],
+        }],
+    };
+    let body = JuceCodec::default()
+        .write_tree(&session)
+        .expect("Rust encode");
+    let mut state = b"T3KB".to_vec();
+    state.extend_from_slice(&body);
+    let document = StateCodec::new()
+        .decode_session(&state)
+        .expect("Rust reads its own session");
+    assert_eq!(document.snapshot.chain.left[0].ir_b, block.ir_b);
+
+    let Ok(oracle) = StateOracle::new() else {
+        return;
+    };
+
+    let accepted = oracle
+        .run(&StateCommand::body_decode(body))
+        .expect("Reference accepts a session written with IR B");
+    let xml = String::from_utf8(accepted).expect("Reference XML");
+    assert!(xml.contains("activeModelId=\"7\""), "{xml}");
+    assert!(xml.contains("irBModelId=\"8\""), "{xml}");
+}

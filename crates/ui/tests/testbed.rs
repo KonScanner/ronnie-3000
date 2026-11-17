@@ -12,13 +12,13 @@ fn official_scenarios_have_exact_section_counts() {
     let scenarios = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("fixtures parse");
     // The 103 official scenarios, 4 scenarios of the tuning picker, 3 of OPTIMIZE, 3 of the key
-    // page and the saved key, and 1 of the update check.
-    assert_eq!(scenarios.len(), 114);
+    // page and the saved key, 1 of the update check, and the dark Stage block page.
+    assert_eq!(scenarios.len(), 115);
     let mut counts = BTreeMap::new();
     for scenario in scenarios {
         *counts.entry(scenario.section).or_insert(0_usize) += 1;
     }
-    assert_eq!(counts.get(&UiSection::Main), Some(&17));
+    assert_eq!(counts.get(&UiSection::Main), Some(&18));
     assert_eq!(counts.get(&UiSection::Loading), Some(&14));
     assert_eq!(counts.get(&UiSection::Banners), Some(&10));
     assert_eq!(counts.get(&UiSection::Browser), Some(&37));
@@ -174,7 +174,7 @@ fn complete_selftest_passes() {
     let scenarios = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("fixtures parse");
     let report = selftest::run_all(&scenarios).expect("selftest passes");
-    assert_eq!(report.passed, 114 - BLOCKED_FIXTURES.len());
+    assert_eq!(report.passed, 115 - BLOCKED_FIXTURES.len());
     assert_eq!(report.failed, BLOCKED_FIXTURES.len());
     assert_eq!(
         report.blocked,
@@ -211,7 +211,7 @@ fn visual_manifest_is_separate_from_neutral_state() {
         serde_json::from_str(include_str!("../../../fixtures/ui-visual-manifest.json"))
             .expect("visual manifest parses");
     let scenarios = manifest["scenarios"].as_array().expect("manifest rows");
-    assert_eq!(scenarios.len(), 114);
+    assert_eq!(scenarios.len(), 115);
     for row in scenarios {
         assert_eq!(row["global_mismatch_max"], 0.019);
         assert_eq!(row["worst_tile_64_max"], 0.24);

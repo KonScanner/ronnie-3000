@@ -632,3 +632,90 @@ fn a_ticket_of_a_flow_that_no_longer_exists_publishes_nothing() {
     );
     assert_eq!(publications(&backend), 0);
 }
+
+// ------------------------------------------------------------ The two IRs of a cab
+
+/// A catalog IR pack as a block stores it after a download of `model`: only that model.
+fn stored_cab(model: i64) -> ronie_core::Tone {
+    ronie_core::Tone::from_value(serde_json::json!({
+        "id": 7,
+        "title": "Cab",
+        "format": "ir",
+        "models": [{
+            "id": model,
+            "name": format!("Mic {model}"),
+            "model_url": format!("https://models.example/{model}.wav"),
+        }],
+    }))
+    .expect("cab")
+}
+
+fn cab_slots(backend: &MockBackend, block: &ronie_core::BlockId) -> (Option<i64>, Option<i64>) {
+    let chain = backend.chain_state(0).chain;
+    let block = chain.block(block).expect("block");
+    (
+        block.active_model_id.map(|id| id.0),
+        block.ir_b.map(|ir_b| ir_b.model_id.0),
+    )
+}
+
+/// The switches of A and B share one generation, so a newer switch of either slot ends the
+/// other. A ticket still names its slot: A's bytes never land in B, nor B's in A.
+#[test]
+fn switching_a_while_b_downloads_lands_each_in_its_slot() {
+    use ronie_ui::services::{ModelSlot, ModelSwitchFlow};
+
+    let backend = mock_backend("main-empty");
+    let block = ronie_core::BlockId(insert(&backend));
+    backend
+        .dispatch(UiAction::LoadTone {
+            target_insert_id: block.clone(),
+            tone: stored_cab(71),
+            model_id: ModelId(71),
+        })
+        .expect("cab");
+    let flow = ModelSwitchFlow::new(backend.clone());
+
+    // B starts to download, and then the user switches A.
+    let b = flow.begin_slot(block.clone(), ModelSlot::B, None);
+    let a = flow.begin_slot(block.clone(), ModelSlot::A, Some(ModelId(71)));
+    assert_eq!((a.slot(), b.slot()), (ModelSlot::A, ModelSlot::B));
+    assert!(
+        !b.publish(stored_cab(72), ModelId(72), bytes())
+            .expect("late B")
+    );
+    assert_eq!(cab_slots(&backend, &block), (Some(71), None));
+    assert!(a.publish(stored_cab(73), ModelId(73), bytes()).expect("A"));
+    assert_eq!(cab_slots(&backend, &block), (Some(73), None));
+
+    // B again, with no switch after it, lands in B and leaves A.
+    let b = flow.begin_slot(block.clone(), ModelSlot::B, None);
+    assert!(b.publish(stored_cab(72), ModelId(72), bytes()).expect("B"));
+    assert_eq!(cab_slots(&backend, &block), (Some(73), Some(72)));
+
+    // A switch of A leaves B, and a B ticket that names another B publishes nothing.
+    let a = flow.begin_slot(block.clone(), ModelSlot::A, Some(ModelId(73)));
+    assert!(a.publish(stored_cab(71), ModelId(71), bytes()).expect("A"));
+    assert_eq!(cab_slots(&backend, &block), (Some(71), Some(72)));
+    let b = flow.begin_slot(block.clone(), ModelSlot::B, Some(ModelId(73)));
+    assert!(
+        !b.publish(stored_cab(74), ModelId(74), bytes())
+            .expect("B of another B")
+    );
+    assert_eq!(cab_slots(&backend, &block), (Some(71), Some(72)));
+
+    let kinds: Vec<&str> = backend
+        .actions()
+        .iter()
+        .filter_map(|action| match action {
+            UiAction::SelectModelWithBytes { model_id, .. } => {
+                Some(if model_id.0 == 72 { "A got B" } else { "A" })
+            }
+            UiAction::SelectSecondModelWithBytes { model_id, .. } => {
+                Some(if model_id.0 == 72 { "B" } else { "B got A" })
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(kinds, ["A", "B", "A"]);
+}
