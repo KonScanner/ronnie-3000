@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use ronie_core::{
+use ronnie_core::{
     ApiConfig, ApiError, CatalogClient, HttpResponse, Profile, RecordedTransport, SecretString,
     Taxonomy, TokenProvider, ToneId, ToneQuery, ToneSort,
 };
@@ -43,7 +43,7 @@ async fn catalog_config_applies_request_deadlines() {
         .expect("task");
     assert!(matches!(
         response,
-        Err(ApiError::Http(ronie_core::HttpError::BodyTimeout))
+        Err(ApiError::Http(ronnie_core::HttpError::BodyTimeout))
     ));
     assert_eq!(
         transport.requests()[0].connect_timeout,

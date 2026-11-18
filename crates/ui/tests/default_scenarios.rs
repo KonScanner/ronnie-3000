@@ -1,8 +1,8 @@
 //! Full Default scenario inventory and visual-comparison contracts.
 
 use eframe::egui::{Color32, ColorImage};
-use ronie_core::ToneQuery;
-use ronie_ui::{
+use ronnie_core::ToneQuery;
+use ronnie_ui::{
     backend::MockBackend,
     default::{BlockView, CatalogStatus, FilterMenu, Overlay, SettingsTab},
     driver::UiDriver,
@@ -194,8 +194,8 @@ fn assert_named_state(scenario: &UiScenario, driver: &UiDriver) {
                 "Buffer: 20 ms",
             ]);
             assert!(driver.shows_text("Delay: about 16 ms"), "{id}");
-            let backend = ronie_ui::backend::MockBackend::from_scenario(scenario);
-            assert!(ronie_ui::default::tuning::optimize(&backend), "{id}");
+            let backend = ronnie_ui::backend::MockBackend::from_scenario(scenario);
+            assert!(ronnie_ui::default::tuning::optimize(&backend), "{id}");
         }
         "chrome-pitch-optimize" | "chrome-pitch-optimize-off" => {
             assert!(
@@ -205,8 +205,8 @@ fn assert_named_state(scenario: &UiScenario, driver: &UiDriver) {
             let on = id == "chrome-pitch-optimize";
             shows(&["Optimize settings", "STEP", "Tuning: D Standard (-2)"]);
             shows(&[if on { "Buffer: 40 ms" } else { "Buffer: 30 ms" }]);
-            let backend = ronie_ui::backend::MockBackend::from_scenario(scenario);
-            assert_eq!(ronie_ui::default::tuning::optimize(&backend), on, "{id}");
+            let backend = ronnie_ui::backend::MockBackend::from_scenario(scenario);
+            assert_eq!(ronnie_ui::default::tuning::optimize(&backend), on, "{id}");
         }
         "chrome-pitch-caption" => {
             shows(&["Pitch: -2 st"]);
@@ -437,12 +437,12 @@ fn real_input_opens_the_surfaces_that_the_steps_open() {
 
 #[test]
 fn artwork_cover_uv_preserves_aspect_with_a_centered_crop() {
-    let uv = ronie_ui::default::tile::cover_uv([1600, 1000], [224, 224]);
+    let uv = ronnie_ui::default::tile::cover_uv([1600, 1000], [224, 224]);
     assert!((uv.min.x - 0.1875).abs() < 0.0001);
     assert_eq!(uv.min.y, 0.0);
     assert!((uv.max.x - 0.8125).abs() < 0.0001);
     assert_eq!(uv.max.y, 1.0);
-    let tall = ronie_ui::default::tile::cover_uv([1000, 1600], [224, 224]);
+    let tall = ronnie_ui::default::tile::cover_uv([1000, 1600], [224, 224]);
     assert_eq!(tall.min.x, 0.0);
     assert!((tall.min.y - 0.1875).abs() < 0.0001);
     assert_eq!(tall.max.x, 1.0);
@@ -456,7 +456,7 @@ fn documented_visual_thresholds_match_the_reference_floor() {
 }
 
 #[test]
-fn comparison_excludes_only_the_ronie_wordmark() {
+fn comparison_excludes_only_the_ronnie_wordmark() {
     let scenario = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenarios")
         .into_iter()
@@ -481,7 +481,7 @@ fn comparison_excludes_only_the_ronie_wordmark() {
         .save(candidate.join("main-mono.png"))
         .expect("brand-only PNG");
     let report = directory.path().join("report.json");
-    ronie_ui::native_scenario::compare_suite(
+    ronnie_ui::native_scenario::compare_suite(
         &reference,
         &candidate,
         &report,
@@ -498,7 +498,7 @@ fn comparison_excludes_only_the_ronie_wordmark() {
         .save(candidate.join("main-mono.png"))
         .expect("control PNG");
     assert!(
-        ronie_ui::native_scenario::compare_suite(&reference, &candidate, &report, &[scenario])
+        ronnie_ui::native_scenario::compare_suite(&reference, &candidate, &report, &[scenario])
             .is_err(),
         "a changed control pixel must still fail"
     );
@@ -531,7 +531,7 @@ fn a_scenario_with_no_reference_image_fails_and_the_report_lists_it() {
     let report_path = directory.path().join("report.json");
 
     let result =
-        ronie_ui::native_scenario::compare_suite(&reference, &candidate, &report_path, &scenarios);
+        ronnie_ui::native_scenario::compare_suite(&reference, &candidate, &report_path, &scenarios);
 
     assert!(
         result.is_err(),
@@ -566,7 +566,7 @@ fn detail_info_scenario_includes_the_tone_description() {
     let block = backend
         .chain_state(0)
         .chain
-        .block(&ronie_core::BlockId("blk-2".to_owned()))
+        .block(&ronnie_core::BlockId("blk-2".to_owned()))
         .cloned()
         .expect("detail block");
     let description = block
@@ -600,7 +600,7 @@ fn detail_scenarios_open_the_saved_detail_block() {
             backend
                 .chain_state(0)
                 .chain
-                .block(&ronie_core::BlockId("blk-2".to_owned()))
+                .block(&ronnie_core::BlockId("blk-2".to_owned()))
                 .is_some(),
             "{} must retain its detail block",
             scenario.id
@@ -642,12 +642,12 @@ fn model_picker_scenario_uses_the_complete_mock_page() {
     let block = backend
         .chain_state(0)
         .chain
-        .block(&ronie_core::BlockId("blk-2".to_owned()))
+        .block(&ronnie_core::BlockId("blk-2".to_owned()))
         .cloned()
         .expect("detail block");
     let models = block.tone.expect("tone").models;
     assert_eq!(models.len(), 5);
-    assert_eq!(models[0].id, ronie_core::ModelId(1101));
+    assert_eq!(models[0].id, ronnie_core::ModelId(1101));
     assert_eq!(models[1].name, "AC30-6 TB Brl 2");
     assert_eq!(models[4].name, "AC30-6 TB Nrm 3");
 }

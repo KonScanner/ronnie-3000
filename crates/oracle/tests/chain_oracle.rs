@@ -1,10 +1,12 @@
 //! Neutral full-chain scenario and private processor oracle tests.
 
+mod common;
+
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
-use ronie_core::InputMode;
-use ronie_dsp::PrepareSpec;
-use ronie_oracle::{ChainOracle, ChainScenario, ChainStateChange, OracleError};
+use ronnie_core::InputMode;
+use ronnie_dsp::PrepareSpec;
+use ronnie_oracle::{ChainOracle, ChainScenario, ChainStateChange, OracleError};
 use serde_json::{Value, json};
 
 fn scenario(callback_frames: Vec<usize>) -> ChainScenario {
@@ -118,13 +120,8 @@ fn invalid_scenarios_fail_before_starting_a_private_process() {
 #[test]
 #[ignore = "requires the private full-chain Reference runner"]
 fn private_empty_chain_is_repeatable_across_callback_slicing() {
-    let oracle = match ChainOracle::new() {
-        Ok(oracle) => oracle,
-        Err(OracleError::NotConfigured) => {
-            eprintln!("skipping only the private full-chain oracle case");
-            return;
-        }
-        Err(error) => panic!("invalid private oracle configuration: {error}"),
+    let Some(oracle) = common::chain_oracle() else {
+        return;
     };
     let first = oracle
         .render(&scenario(vec![64, 32]))
@@ -146,10 +143,8 @@ fn private_empty_chain_is_repeatable_across_callback_slicing() {
 #[test]
 #[ignore = "requires the private full-chain Reference runner"]
 fn private_runner_applies_indexed_state_changes() {
-    let oracle = match ChainOracle::new() {
-        Ok(oracle) => oracle,
-        Err(OracleError::NotConfigured) => return,
-        Err(error) => panic!("invalid private oracle configuration: {error}"),
+    let Some(oracle) = common::chain_oracle() else {
+        return;
     };
     let mut scenario = scenario(vec![48, 48]);
     scenario.state_changes.push(ChainStateChange {

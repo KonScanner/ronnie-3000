@@ -1,14 +1,16 @@
 //! Reference filename and v2 preset acceptance tests.
 
-use ronie_core::{
+mod common;
+
+use ronnie_core::{
     JuceCodec, JuceTree, JuceValue, read_preset_header, sanitize_stem, write_preset_v2,
 };
-use ronie_oracle::state::{StateCommand, StateOracle};
+use ronnie_oracle::state::StateCommand;
 
 #[test]
 #[ignore = "requires private Reference source and build directories"]
 fn reference_matches_preset_filename_rules() {
-    let Ok(oracle) = StateOracle::new() else {
+    let Some(oracle) = common::state_oracle() else {
         return;
     };
     let cases = [
@@ -49,7 +51,7 @@ fn reference_matches_preset_filename_rules() {
 #[test]
 #[ignore = "requires private Reference source and build directories"]
 fn reference_accepts_rust_v2_header_and_body() {
-    let Ok(oracle) = StateOracle::new() else {
+    let Some(oracle) = common::state_oracle() else {
         return;
     };
     let preset = JuceTree {
@@ -85,7 +87,7 @@ fn reference_accepts_rust_v2_header_and_body() {
 #[test]
 #[ignore = "requires private Reference source and build directories"]
 fn reference_accepts_rust_legacy_body() {
-    let Ok(oracle) = StateOracle::new() else {
+    let Some(oracle) = common::state_oracle() else {
         return;
     };
     let preset = JuceTree {

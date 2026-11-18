@@ -1,5 +1,5 @@
 [package]
-name = "ronie-oracle"
+name = "ronnie-oracle"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,9 +11,9 @@ workspace = true
 [dependencies]
 clap.workspace = true
 eyre.workspace = true
-ronie-core.workspace = true
-ronie-dsp.workspace = true
-ronie-ui.workspace = true
+ronnie-core.workspace = true
+ronnie-dsp.workspace = true
+ronnie-ui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

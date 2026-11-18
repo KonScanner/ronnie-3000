@@ -1,5 +1,5 @@
 [package]
-name = "ronie-plugin"
+name = "ronnie-plugin"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,9 +9,9 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-ronie-core.workspace = true
-ronie-dsp.workspace = true
-ronie-ui.workspace = true
+ronnie-core.workspace = true
+ronnie-dsp.workspace = true
+ronnie-ui.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true

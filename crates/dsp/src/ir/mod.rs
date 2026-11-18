@@ -89,10 +89,10 @@ impl CompiledIr {
 ///
 /// Returns WAV validation or IR preparation errors.
 pub fn compile_ir_bytes(
-    bytes: &ronie_core::ModelBytes,
+    bytes: &ronnie_core::ModelBytes,
     gear: Option<&str>,
 ) -> Result<std::sync::Arc<CompiledIr>, crate::ChainError> {
-    let document = ronie_core::decode_wav(bytes.as_ref())
+    let document = ronnie_core::decode_wav(bytes.as_ref())
         .map_err(|error| crate::ChainError::Preparation(format!("invalid IR WAV: {error}")))?;
     compile_ir(&document, gear)
 }

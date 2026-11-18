@@ -53,6 +53,8 @@ while [ $# -gt 0 ]; do
 done
 
 installed_files() {
+    say "$prefix/bin/ronnie"
+    # Releases before the rename to Ronnie installed the binary as ronie.
     say "$prefix/bin/ronie"
     say "$prefix/share/applications/ronnie-3000.desktop"
     say "$prefix/share/icons/hicolor/scalable/apps/ronnie-3000.svg"
@@ -76,7 +78,7 @@ refresh_desktop() {
 if [ "$uninstall" = yes ]; then
     installed_files | while IFS= read -r file; do rm -f "$file"; done
     refresh_desktop
-    say "Removed Ronnie 3000 from $prefix. Your presets and settings stay in ~/.config/Ronie."
+    say "Removed Ronnie 3000 from $prefix. Your presets and settings stay in ~/.config/Ronnie."
     exit 0
 fi
 
@@ -133,17 +135,26 @@ expected=$(awk -v file="$name" '$2 == file || $2 == "*" file { print $1 }' "$wor
 [ "$(digest "$work/$name")" = "$expected" ] || die "the checksum of $name does not match SHA256SUMS"
 
 mkdir -p "$prefix"
+# Releases before the rename to Ronnie name the binary ronie. Use the name in the archive.
+if tar -tzf "$work/$name" | awk '/\/bin\/ronnie$/ { found = 1 } END { exit !found }'; then
+    binary=ronnie
+else
+    binary=ronie
+fi
 tar -xzf "$work/$name" -C "$prefix" --strip-components=2
+if [ "$binary" = ronnie ]; then
+    rm -f "$prefix/bin/ronie"
+fi
 # The PATH of a desktop session often has no ~/.local/bin. The launcher then hides an entry
 # whose TryExec it cannot find, so give the desktop file the full path of the binary.
 desktop="$prefix/share/applications/ronnie-3000.desktop"
-sed -e "s|^Exec=ronie|Exec=\"$prefix/bin/ronie\"|" -e "s|^TryExec=ronie\$|TryExec=$prefix/bin/ronie|" \
+sed -e "s|^Exec=$binary|Exec=\"$prefix/bin/$binary\"|" -e "s|^TryExec=$binary\$|TryExec=$prefix/bin/$binary|" \
     "$desktop" >"$work/ronnie-3000.desktop"
 cat "$work/ronnie-3000.desktop" >"$desktop"
 refresh_desktop
 
 say "Installed Ronnie 3000 $version in $prefix."
 case ":$PATH:" in
-*":$prefix/bin:"*) say 'Open Ronnie 3000 from your application menu, or run: ronie' ;;
-*) say "Open Ronnie 3000 from your application menu, or run: $prefix/bin/ronie" ;;
+*":$prefix/bin:"*) say "Open Ronnie 3000 from your application menu, or run: $binary" ;;
+*) say "Open Ronnie 3000 from your application menu, or run: $prefix/bin/$binary" ;;
 esac

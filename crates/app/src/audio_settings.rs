@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use quick_xml::{Reader, events::Event};
-use ronie_core::{PropertiesFile, SettingsStore};
+use ronnie_core::{PropertiesFile, SettingsStore};
 
 use crate::audio::{AudioBackendKind, AudioError, DeviceConfig};
 

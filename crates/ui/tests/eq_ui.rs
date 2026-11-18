@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::{EqBandType, params::ParameterId};
-use ronie_ui::{
+use ronnie_core::{EqBandType, params::ParameterId};
+use ronnie_ui::{
     backend::{GesturePhase, MockBackend, UiAction, UiBackend},
     default::{
         BlockView, EqEditor, EqField, EqViewMode, format_freq, freq_to_norm, gain_to_y,
@@ -299,11 +299,11 @@ fn scenario_steps() -> usize {
     undo_all(&MockBackend::from_scenario(&scenario()))
 }
 
-fn band(backend: &MockBackend, index: usize) -> ronie_core::EqBand {
+fn band(backend: &MockBackend, index: usize) -> ronnie_core::EqBand {
     backend
         .chain_state(0)
         .chain
-        .block(&ronie_core::BlockId("blk-2".to_owned()))
+        .block(&ronnie_core::BlockId("blk-2".to_owned()))
         .expect("detail block")
         .params
         .eq
@@ -548,7 +548,7 @@ fn a_dot_drag_that_the_page_hides_ends_before_the_next_edit() {
     backend
         .dispatch(UiAction::SetParameter {
             id: ParameterId("inputLevel"),
-            value: ronie_core::params::ParameterValue(0.25),
+            value: ronnie_core::params::ParameterValue(0.25),
             gesture: GesturePhase::End,
         })
         .expect("another edit");

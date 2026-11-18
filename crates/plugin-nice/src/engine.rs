@@ -17,16 +17,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::{
+use ronnie_dsp::{
     command::{ChainCommand, ChainCommandSender},
     prepare::PreparedChainChange,
     rt_chain::RtChain,
 };
-use ronie_plugin::{AudioSessionState, ProcessorBackend, StreamFormat, UiBackend};
+use ronnie_plugin::{AudioSessionState, ProcessorBackend, StreamFormat, UiBackend};
 
 use crate::params::lock;
 
@@ -271,7 +271,7 @@ impl Engine {
         self.running.store(true, Ordering::Release);
         let engine: Weak<Self> = Arc::downgrade(self);
         let spawned = std::thread::Builder::new()
-            .name("ronie-plugin-chain".to_owned())
+            .name("ronnie-plugin-chain".to_owned())
             .spawn(move || {
                 loop {
                     std::thread::sleep(SYNC_PERIOD);
@@ -336,7 +336,7 @@ impl Engine {
 
     /// Sends what the session changed to the chain. Returns a plan to compile, when only a new
     /// chain can reproduce the session.
-    fn plan_or_pump(&self) -> Option<(u64, ronie_plugin::SessionChainPlan)> {
+    fn plan_or_pump(&self) -> Option<(u64, ronnie_plugin::SessionChainPlan)> {
         let mut guard = lock(&self.link);
         let link = guard.as_mut()?;
         let wanted = self.wanted_oversampling();
@@ -399,14 +399,14 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ronie_core::InputMode;
-    use ronie_dsp::{PlanarBuffer, PrepareSpec};
-    use ronie_plugin::RonieProcessor;
+    use ronnie_core::InputMode;
+    use ronnie_dsp::{PlanarBuffer, PrepareSpec};
+    use ronnie_plugin::RonnieProcessor;
 
     const FRAMES: usize = 256;
 
     fn engine() -> Arc<Engine> {
-        let processor = RonieProcessor::new(PrepareSpec {
+        let processor = RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: FRAMES,
             oversampling: 1,
@@ -489,7 +489,7 @@ mod tests {
 
         engine
             .backend
-            .dispatch(ronie_ui::backend::UiAction::SetStereoMode(true))
+            .dispatch(ronnie_ui::backend::UiAction::SetStereoMode(true))
             .expect("stereo mode");
         engine.sync();
         let _ = peak_after(&mut chain, 1);
@@ -577,7 +577,7 @@ mod tests {
         let _chain = engine.activate(format).expect("chain");
         engine
             .backend
-            .dispatch(ronie_ui::backend::UiAction::SetStereoMode(true))
+            .dispatch(ronnie_ui::backend::UiAction::SetStereoMode(true))
             .expect("stereo mode");
         let state = engine.backend.audio_state().expect("state");
         let start = Instant::now();

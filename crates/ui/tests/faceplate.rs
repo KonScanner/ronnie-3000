@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::params::{ParameterId, ParameterValue};
-use ronie_ui::{
+use ronnie_core::params::{ParameterId, ParameterValue};
+use ronnie_ui::{
     backend::{GesturePhase, MockBackend, UiAction, UiBackend},
     default::{ChromeController, DeckKind, DeckModel, Faceplate, MeasurementState},
     driver::UiDriver,
@@ -33,7 +33,7 @@ fn knob_uses_reference_gain_mapping_and_typed_input() {
 
 #[test]
 fn the_knob_and_the_tile_gain_show_one_text_for_one_value() {
-    use ronie_ui::default::tile::format_gain_db;
+    use ronnie_ui::default::tile::format_gain_db;
 
     let spec = KnobSpec::parameter(ParameterId("inputLevel")).expect("catalog");
     for (typed, normalized, text) in [
@@ -116,7 +116,7 @@ fn input_mode_menu_dispatches_the_selected_routing_mode() {
     faceplate.open_input_mode();
     let context = eframe::egui::Context::default();
     context.enable_accesskit();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let input = eframe::egui::RawInput {
         screen_rect: Some(eframe::egui::Rect::from_min_size(
             eframe::egui::Pos2::ZERO,
@@ -168,10 +168,10 @@ fn input_mode_menu_dispatches_the_selected_routing_mode() {
     });
     output.textures_delta.clear();
     assert_eq!(
-        ronie_ui::backend::UiBackend::chain_state(backend.as_ref(), 0)
+        ronnie_ui::backend::UiBackend::chain_state(backend.as_ref(), 0)
             .session
             .input_mode,
-        ronie_core::InputMode::DualMono
+        ronnie_core::InputMode::DualMono
     );
 }
 
@@ -234,9 +234,9 @@ fn scenario_sliders_toggles_and_meters_reach_the_ui() {
         0.35
     );
     assert_eq!(
-        ronie_ui::backend::UiBackend::parameter(
+        ronnie_ui::backend::UiBackend::parameter(
             backend.as_ref(),
-            ronie_core::params::ParameterId("spreadEnabled")
+            ronnie_core::params::ParameterId("spreadEnabled")
         )
         .expect("spread toggle")
         .0,
@@ -248,7 +248,7 @@ fn scenario_sliders_toggles_and_meters_reach_the_ui() {
         .find(|scenario| scenario.id == "main-meters-hot")
         .expect("hot meters scenario");
     let backend = MockBackend::from_scenario(hot);
-    let meters = ronie_ui::backend::UiBackend::meter_levels(&backend);
+    let meters = ronnie_ui::backend::UiBackend::meter_levels(&backend);
     assert_eq!(meters.input_db, [0.0, -2.0]);
     assert_eq!(meters.output_db, [-3.0, -4.0]);
     assert_eq!(meters.cpu, 0.22);
@@ -490,7 +490,7 @@ fn a_faceplate_knob_drag_continues_when_a_knob_before_it_shows() {
     driver.settle();
 
     let moved = f64::from(value(&backend, "outputLevel") - start);
-    let expected = 40.0 * ronie_ui::widgets::knob::DRAG_PER_POINT;
+    let expected = 40.0 * ronnie_ui::widgets::knob::DRAG_PER_POINT;
     assert!(
         (moved - expected).abs() < 1.0e-3,
         "the drag stayed on the output knob: {moved} and not {expected}"

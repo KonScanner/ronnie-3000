@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ChainSide, DownloadError, FetchRequest, HttpError, HttpMethod, HttpRequest,
     HttpResponse, HttpTransport, ModelBytes, ModelId, ModelKind, ModelSource, OAuthConfig,
     OAuthTokens, OriginPolicy, Profile, RecordedTransport, SecretString, SessionStore,
@@ -18,7 +18,7 @@ use ronie_core::{
     UI_PREFERENCES_SETTINGS,
     params::{ParameterId, ParameterValue},
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{
         ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiAction, UiBackend, UiError,
         UiReceipt,
@@ -102,7 +102,7 @@ fn user_response() -> HttpResponse {
 fn earlier_launch_signed_in(directory: &TempDir, expires_at_ms: i64) {
     let earlier = SessionStore::new(
         settings(directory),
-        ronie_core::OAuthFlow::new(
+        ronnie_core::OAuthFlow::new(
             OAuthConfig::new(
                 Url::parse("https://api.example").expect("origin"),
                 "public-client",
@@ -1453,7 +1453,7 @@ fn a_query_of_a_browser_that_a_load_replaced_cannot_reach_the_next_browser() {
         .into_iter()
         .find(|scenario| scenario.id == "main-detail")
         .map(|scenario| {
-            ronie_ui::backend::UiBackend::chain_state(&MockBackend::from_scenario(&scenario), 0)
+            ronnie_ui::backend::UiBackend::chain_state(&MockBackend::from_scenario(&scenario), 0)
                 .chain
                 .left[0]
                 .tone
@@ -2073,7 +2073,7 @@ fn a_heart_takes_no_click_while_a_tone_loads() {
     assert!(
         matches!(
             refused,
-            Err(ronie_ui::driver::DriverError::NotInteractive { .. })
+            Err(ronnie_ui::driver::DriverError::NotInteractive { .. })
         ),
         "{refused:?}"
     );
@@ -3838,7 +3838,7 @@ fn a_replace_wins_over_a_capture_download_of_that_block() {
 }
 
 /// The block `BLOCK` with its params changed from the defaults, as the backend holds it.
-fn tune_block(rig: &DetailRig, gain: f64) -> ronie_core::ChainBlock {
+fn tune_block(rig: &DetailRig, gain: f64) -> ronnie_core::ChainBlock {
     let block = BlockId(BLOCK.to_owned());
     let mut params = rig
         .inner
@@ -4921,7 +4921,7 @@ fn a_model_401_adopts_the_token_of_another_process_with_no_refresh() {
 
     let other_process = SessionStore::new(
         settings(&rig._directory),
-        ronie_core::OAuthFlow::new(
+        ronnie_core::OAuthFlow::new(
             OAuthConfig::new(
                 Url::parse("https://api.example").expect("origin"),
                 "public-client",
@@ -5013,7 +5013,7 @@ fn a_device_code_that_waits_and_then_expires_stores_nothing() {
 
     assert!(matches!(
         finished,
-        Some(Err(ronie_core::OAuthError::ExpiredDeviceCode))
+        Some(Err(ronnie_core::OAuthError::ExpiredDeviceCode))
     ));
     assert_eq!(auth.snapshot().phase, AuthPhase::DeviceFailed);
     assert!(!handle.has_stored_tokens());
@@ -5435,7 +5435,7 @@ fn an_add_menu_query_fills_the_menu_store_and_not_the_browser() {
     routes.respond(SEARCH, page_of(&[(2, "Menu row")]));
     let mut chrome = chrome_over(&routes, &directory);
 
-    chrome.open_add_results(ronie_core::gear::GearCategory::Amp, "");
+    chrome.open_add_results(ronnie_core::gear::GearCategory::Amp, "");
     pump(&mut chrome, "the menu answer", |chrome| {
         chrome
             .add_store()
@@ -5472,7 +5472,7 @@ fn a_late_answer_of_a_closed_category_does_not_fill_the_next_one() {
     routes.hold(SEARCH);
     let mut chrome = chrome_over(&routes, &directory);
 
-    chrome.open_add_results(ronie_core::gear::GearCategory::Pedal, "");
+    chrome.open_add_results(ronnie_core::gear::GearCategory::Pedal, "");
     let waiting = routes.clone();
     pump(&mut chrome, "the pedal query", move |_| {
         waiting.count(SEARCH) == 1
@@ -5481,7 +5481,7 @@ fn a_late_answer_of_a_closed_category_does_not_fill_the_next_one() {
     chrome.close_add_results();
     routes.release(SEARCH);
     let_tasks_finish();
-    chrome.open_add_results(ronie_core::gear::GearCategory::Amp, "");
+    chrome.open_add_results(ronnie_core::gear::GearCategory::Amp, "");
     chrome.poll_community();
 
     assert!(
@@ -5500,7 +5500,7 @@ fn a_late_answer_of_a_closed_category_does_not_fill_the_next_one() {
 
 #[test]
 fn signed_out_a_downloaded_library_tone_asks_for_sign_in_and_a_local_one_adds() {
-    use ronie_ui::{services::RecentTones, shell::ViewMode};
+    use ronnie_ui::{services::RecentTones, shell::ViewMode};
     let directory = tempfile::tempdir().expect("settings root");
     let routes = Routes::default();
     let downloaded = Tone::from_value(serde_json::json!({
@@ -5524,7 +5524,7 @@ fn signed_out_a_downloaded_library_tone_asks_for_sign_in_and_a_local_one_adds() 
         })
         .expect("seed");
     let mut chrome = chrome_with(inner.clone(), &routes, &directory);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*inner).clone());
     driver.settle();
     assert!(!driver.chrome().session().signed_in());
@@ -5637,7 +5637,7 @@ fn an_add_while_another_downloads_lands_only_the_newer_tone() {
     assert!(chrome.browser().is_none(), "an add opens no browser");
     assert_eq!(
         chrome.gallery().selection(),
-        &ronie_ui::default::GallerySelection::BlockDetail(BlockId(insert)),
+        &ronnie_ui::default::GallerySelection::BlockDetail(BlockId(insert)),
         "the new block opens"
     );
 }
@@ -5657,6 +5657,77 @@ fn a_catalog_replace_of_a_block_that_went_away_ends_quietly() {
     rig.chrome.poll_community();
 
     assert_eq!(rig.chrome.toast(), None, "no failure toast");
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Failed);
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Loading);
+    assert_eq!(
+        rig.inner.chain_state(0).revision,
+        revision,
+        "nothing landed"
+    );
+}
+
+/// A load that is on its way cannot land in a chain that a preset switch replaced.
+#[test]
+fn a_preset_switch_ends_a_replace_that_is_on_its_way() {
+    let mut rig = DetailRig::new();
+    start_held_replace(&mut rig);
+    assert_eq!(rig.chrome.load_flow_phase(), LoadPhase::Loading);
+
+    // NEW replaces the whole chain, so the replace cannot land in it.
+    rig.chrome.reset().expect("reset");
+    assert_eq!(
+        rig.chrome.load_flow_phase(),
+        LoadPhase::Cancelled,
+        "the switch ends the load"
+    );
+
+    rig.routes.release(PUBLIC_FILE);
+    let_tasks_finish();
+    rig.chrome.poll_community();
+    let_tasks_finish();
+
+    assert_eq!(rig.chrome.toast(), None, "no failure toast");
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Loading);
+    assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Failed);
+    assert!(
+        !rig.inner.actions().iter().any(|action| matches!(
+            action,
+            UiAction::ReplaceTone { tone, .. } if tone.id == ToneId(5)
+        )),
+        "the late download reached no backend"
+    );
+}
+
+#[test]
+fn a_catalog_replace_that_an_undo_took_away_ends_quietly() {
+    let mut rig = DetailRig::new();
+    let original = block_tone(&rig).expect("the fixture tone");
+    // An earlier replace is one undo step, so one undo restores the fixture tone.
+    let mut local = DetailRig::other_tone();
+    local.local = true;
+    rig.chrome.replace_tone(BLOCK, local);
+    assert_eq!(block_tone(&rig), Some(ToneId(900)));
+
+    // A catalog replace of the same block downloads tone 5 while the block holds tone 900.
+    start_held_replace(&mut rig);
+    rig.chrome.undo().expect("undo");
+    assert_eq!(
+        block_tone(&rig),
+        Some(original),
+        "the undo restored the tone"
+    );
+    let revision = rig.inner.chain_state(0).revision;
+
+    // The held download publishes late. The restored tone wins, and the load ends with nothing
+    // to tell the user.
+    rig.routes.release(PUBLIC_FILE);
+    let_tasks_finish();
+    rig.chrome.poll_community();
+    let_tasks_finish();
+    rig.chrome.poll_community();
+
+    assert_eq!(rig.chrome.toast(), None, "no failure toast");
+    assert_eq!(block_tone(&rig), Some(original), "the undo stays");
     assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Failed);
     assert_ne!(rig.chrome.load_flow_phase(), LoadPhase::Loading);
     assert_eq!(

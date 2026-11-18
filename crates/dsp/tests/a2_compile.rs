@@ -1,8 +1,8 @@
 //! A2 shape and weight compilation tests.
 
-use ronie_core::{DspError, NamArchitecture, NamDocument};
-use ronie_dsp::{A2Channels, compile_a2, detect_a2};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::{DspError, NamArchitecture, NamDocument};
+use ronnie_dsp::{A2Channels, compile_a2, detect_a2};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json::{Value, json};
 
 fn document(channels: usize) -> NamDocument {

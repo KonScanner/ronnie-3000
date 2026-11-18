@@ -4,10 +4,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use ronie_core::{
+use ronnie_core::{
     OAuthConfig, OriginPolicy, RecordedTransport, SettingsStore, UI_PREFERENCES_SETTINGS,
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::MockBackend,
     default::{ChromeController, SessionStatus},
     driver::UiDriver,

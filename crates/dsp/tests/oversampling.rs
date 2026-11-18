@@ -6,13 +6,13 @@ use std::{
     sync::{Mutex, MutexGuard, PoisonError},
 };
 
-use ronie_core::InputMode;
-use ronie_dsp::{
+use ronnie_core::InputMode;
+use ronnie_dsp::{
     ChainError, PlanarBuffer,
     oversampling::ChainOversampler,
     rate::halfband::{COEFFICIENTS_A, COEFFICIENTS_B},
 };
-use ronie_oracle::{ChainOracle, ChainScenario, OracleError};
+use ronnie_oracle::{ChainOracle, ChainScenario, OracleError};
 use serde_json::json;
 
 static TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -186,9 +186,9 @@ fn invalid_calls_are_atomic_and_prepared_callbacks_do_not_allocate() {
 
 #[test]
 fn phase_slots_have_independent_checked_views() {
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("document");
-    let compiled = ronie_dsp::compile_model(&document).expect("compiled model");
-    let mut engine = ronie_dsp::PhaseEngine::new(
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("document");
+    let compiled = ronnie_dsp::compile_model(&document).expect("compiled model");
+    let mut engine = ronnie_dsp::PhaseEngine::new(
         &compiled,
         std::num::NonZeroU8::new(2).expect("factor"),
         std::num::NonZeroU8::new(2).expect("voices"),
@@ -245,7 +245,7 @@ fn scenario(factor: u8, callbacks: Vec<usize>, probe: &str) -> ChainScenario {
     let frames: usize = callbacks.iter().sum();
     ChainScenario {
         schema_version: 1,
-        spec: ronie_dsp::PrepareSpec {
+        spec: ronnie_dsp::PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 64,
             oversampling: factor,

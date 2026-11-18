@@ -1,13 +1,13 @@
 //! NAM CLI integration tests.
 
-use ronie_core as _;
-use ronie_dsp as _;
-use ronie_oracle as _;
+use ronnie_core as _;
+use ronnie_dsp as _;
+use ronnie_oracle as _;
 use serde_json as _;
 use std::{path::PathBuf, process::Command};
 
 fn temporary_path(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("ronie-cli-{}-{name}", std::process::id()))
+    std::env::temp_dir().join(format!("ronnie-cli-{}-{name}", std::process::id()))
 }
 
 fn render(
@@ -15,7 +15,7 @@ fn render(
     output: &std::path::Path,
     block_size: usize,
 ) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_ronie-nam"))
+    Command::new(env!("CARGO_BIN_EXE_ronnie-nam"))
         .args([
             "render",
             "--model",
@@ -40,7 +40,7 @@ fn render_writes_finite_little_endian_f64_and_is_repeatable() {
     let second = temporary_path("second.raw");
     std::fs::write(
         &model,
-        ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic JSON"),
+        ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic JSON"),
     )
     .expect("write model");
 
@@ -74,7 +74,7 @@ fn render_rejects_zero_block_size() {
     let output = temporary_path("invalid.raw");
     std::fs::write(
         &model,
-        ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic JSON"),
+        ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic JSON"),
     )
     .expect("write model");
 

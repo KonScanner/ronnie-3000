@@ -2,13 +2,13 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use ronie_core::{AudioDocument, InputMode, ModelBytes, decode_wav};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, InputMode, ModelBytes, decode_wav};
+use ronnie_dsp::{
     PlanarBuffer,
     ir::{CompiledIr, IrEngineKind, IrKind, PreparedIr, compile_ir},
     oversampling::ChainOversampler,
 };
-use ronie_oracle::{ChainOracle, ChainScenario, OracleError, reference_paths};
+use ronnie_oracle::{ChainOracle, ChainScenario, OracleError, reference_paths};
 use serde_json::json;
 
 fn document(kernel: &[f32], sample_rate: f64) -> AudioDocument {
@@ -295,7 +295,7 @@ fn official_scenario(
     }
     ChainScenario {
         schema_version: 1,
-        spec: ronie_dsp::PrepareSpec {
+        spec: ronnie_dsp::PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 256,
             oversampling: factor,

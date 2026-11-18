@@ -18,8 +18,8 @@ command -v pipewire >/dev/null && command -v pw-link >/dev/null && command -v pw
 }
 
 # An optimized build, because a debug build of the sound server client runs too slowly for audio.
-cargo test --release --locked -p ronie-app --test system_route --no-run
-test_binary="$(cargo test --release --locked -p ronie-app --test system_route --no-run --message-format=json 2>/dev/null |
+cargo test --release --locked -p ronnie-app --test system_route --no-run
+test_binary="$(cargo test --release --locked -p ronnie-app --test system_route --no-run --message-format=json 2>/dev/null |
   jq -r 'select(.executable != null and .target.name == "system_route") | .executable' | tail -1)"
 
 buffers=("$@")

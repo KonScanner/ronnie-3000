@@ -1,4 +1,4 @@
-use ronie_core::{NamArchitecture, NamDocument, NamMetadata, VersionSupport};
+use ronnie_core::{NamArchitecture, NamDocument, NamMetadata, VersionSupport};
 use serde_json::{Value, json};
 use thiserror::Error;
 

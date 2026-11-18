@@ -1,7 +1,13 @@
 //! Tone and insert tile rendering with loading, failure, meter, and drop states.
 
 use eframe::egui::{self, Color32, CornerRadius, Pos2, Rect, Sense, Stroke, TextureHandle};
-use ronie_core::ChainBlock;
+use ronnie_core::{
+    ChainBlock, Tone, ToneModel,
+    gear::{
+        GearCategory, GearFamily, GearHints, GearIdentity, MatchSource, block_identity,
+        identify_tone,
+    },
+};
 
 use crate::{
     backend::BlockMeter,
@@ -69,7 +75,7 @@ pub enum GearGlyph {
     /// Unknown equipment.
     Generic,
     /// A recognised gear family, such as a chime combo or a vintage 4x12.
-    Family(ronie_core::gear::GearFamily),
+    Family(GearFamily),
 }
 
 /// Resolves a persisted gear string to its fallback glyph.
@@ -91,52 +97,47 @@ pub fn gear_glyph(gear: &str) -> GearGlyph {
 /// A capture recognised by name or metadata shows its gear family. Anything else keeps the
 /// category glyph from the tone's `gear` value.
 #[must_use]
-pub fn tone_glyph(tone: &ronie_core::Tone, model: Option<&ronie_core::ToneModel>) -> GearGlyph {
-    use ronie_core::gear::{GearFamily as F, GearHints, MatchSource, identify};
+pub fn tone_glyph(tone: &Tone, model: Option<&ToneModel>) -> GearGlyph {
+    let (hints, identity) = identify_tone(tone, model);
+    identified_glyph(&hints, &identity)
+}
 
-    let hints = GearHints::from_tone(tone, model);
-    let identity = identify(&hints);
+/// The glyph of an identified tone: its family when that family has a drawing, and otherwise
+/// the glyph of the identified category, so that the glyph names the same gear as the skin.
+fn identified_glyph(hints: &GearHints, identity: &GearIdentity) -> GearGlyph {
     let recognised = matches!(
         identity.source,
         MatchSource::NamMetadata | MatchSource::Catalog | MatchSource::Title
     );
-    let has_icon = matches!(
-        identity.family,
-        F::OdGreen
-            | F::OdGold
-            | F::Distortion
-            | F::Fuzz
-            | F::Boost
-            | F::Compressor
-            | F::HeadHighGain
-            | F::HeadModernUs
-            | F::HeadBritish
-            | F::ComboChime
-            | F::ComboClean
-            | F::HeadBass
-            | F::Cab412Modern
-            | F::Cab412Vintage
-            | F::Cab212
-            | F::Cab112
-            | F::Cab810
-    );
-    if recognised && has_icon {
+    if recognised && GearFamily::DRAWN.contains(&identity.family) {
         GearGlyph::Family(identity.family)
+    } else if let Some(glyph) = category_glyph(identity.category) {
+        glyph
     } else {
+        // The category did not parse, so keep any fallback that the raw gear string names.
         gear_glyph(hints.gear.as_deref().unwrap_or_default())
     }
+}
+
+/// The glyph of a gear category, or `None` when the category says nothing.
+fn category_glyph(category: GearCategory) -> Option<GearGlyph> {
+    Some(match category {
+        GearCategory::Pedal => GearGlyph::Pedal,
+        GearCategory::Amp => GearGlyph::Amp,
+        GearCategory::Cab => GearGlyph::Cabinet,
+        GearCategory::FullRig => GearGlyph::FullRig,
+        GearCategory::Outboard => GearGlyph::Outboard,
+        GearCategory::Space => GearGlyph::Space,
+        GearCategory::Unknown => return None,
+    })
 }
 
 /// Resolves a chain block to its glyph, using the block's active model.
 #[must_use]
 pub fn block_glyph(block: &ChainBlock) -> GearGlyph {
-    let Some(tone) = block.tone.as_ref() else {
-        return GearGlyph::Generic;
-    };
-    let model = block
-        .active_model_id
-        .and_then(|id| tone.models.iter().find(|model| model.id == id));
-    tone_glyph(tone, model)
+    block_identity(block).map_or(GearGlyph::Generic, |(hints, identity)| {
+        identified_glyph(&hints, &identity)
+    })
 }
 
 /// Maps dB from the -60 floor to a bounded linear meter fraction.

@@ -1,7 +1,7 @@
 //! Host bus, latency, and tail contract tests.
 
-use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec,
     block::BlockModel,
     host::{BusLayout, HostCapabilities},
@@ -83,7 +83,7 @@ fn every_pitch_window_reports_delay_and_oversampling_does_not_change_it() {
         }
         assert!(reports.windows(2).all(|pair| pair[0] == pair[1]));
         let input = InputStage::new(48_000.0, 64).expect("input stage");
-        let mut controls = ronie_dsp::input::InputControls {
+        let mut controls = ronnie_dsp::input::InputControls {
             pitch_enabled: true,
             ..Default::default()
         };

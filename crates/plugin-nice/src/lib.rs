@@ -27,10 +27,10 @@ use nice_plug::{
 use nice_plug_egui::{
     EguiEditor, EguiEditorState, EguiNiceSettings, NiceEguiApp, RepaintNotifier, create_egui_editor,
 };
-use ronie_core::InputMode;
-use ronie_dsp::{PlanarBuffer, PrepareSpec, rt_chain::RtChain};
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_core::InputMode;
+use ronnie_dsp::{PlanarBuffer, PrepareSpec, rt_chain::RtChain};
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     UiBackend,
     shell::{DESIGN_HEIGHT, DESIGN_WIDTH, NativeShellOptions},
     shell_view::ShellView,
@@ -272,7 +272,7 @@ impl Editor for RonnieWindow {
 
 impl Default for Ronnie {
     fn default() -> Self {
-        let backend = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let backend = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 1_024,
             oversampling: 1,

@@ -1,8 +1,8 @@
 //! Prepared IR allocation and failed-preparation atomicity tests.
 #![allow(unsafe_code)]
 
-use ronie_core::AudioDocument;
-use ronie_dsp::{
+use ronnie_core::AudioDocument;
+use ronnie_dsp::{
     PlanarBuffer,
     ir::{PreparedIr, compile_ir},
     oversampling::ChainOversampler,

@@ -2,7 +2,7 @@
 
 use std::{fs, path::Path};
 
-use ronie_core::{
+use ronnie_core::{
     AudioError, DspError, DspResult, LocalError, ModelKind, NamDocument, decode_wav,
     discover_local, inspect_local_model, load_local_path, local_file_name_from_url,
 };
@@ -58,16 +58,16 @@ fn local_load_keeps_nam_metadata_for_gear_identification() {
     let temp = TempDir::new().expect("temp dir");
     let input = temp.path().join("lead.nam");
     fs::write(&input, nam_with_metadata()).expect("NAM");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
     let loaded = load_local_path(&input, &stash, &accept_nam).expect("model should load");
     let model = loaded.tone.models.first().expect("one model");
-    let hints = ronie_core::gear::GearHints::from_tone(&loaded.tone, Some(model));
-    let identity = ronie_core::gear::identify(&hints);
+    let hints = ronnie_core::gear::GearHints::from_tone(&loaded.tone, Some(model));
+    let identity = ronnie_core::gear::identify(&hints);
 
     assert_eq!(model.raw["gear_make"], "Marshall");
     assert_eq!(model.raw["tone_type"], "crunch");
-    assert_eq!(identity.family, ronie_core::gear::GearFamily::HeadBritish);
+    assert_eq!(identity.family, ronnie_core::gear::GearFamily::HeadBritish);
 }
 
 fn accept_nam(_: &NamDocument) -> DspResult<()> {
@@ -224,7 +224,7 @@ fn local_load_stashes_valid_survivors_and_skips_bad_files() {
     fs::write(input.join("also good.wav"), wav_pcm16(&[4, 5, 6], true)).expect("WAV");
     fs::write(input.join("bad.wav"), b"not wave").expect("bad WAV");
     fs::write(input.join("bad.nam"), b"not json").expect("bad NAM");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
     let loaded = load_local_path(&input, &stash, &accept_nam).expect("survivors should load");
 
@@ -241,7 +241,7 @@ fn local_load_returns_the_first_error_when_nothing_survives() {
     let input = temp.path().join("pack");
     fs::create_dir(&input).expect("input dir");
     fs::write(input.join("bad.nam"), b"not json").expect("bad NAM");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
     let result = load_local_path(&input, &stash, &accept_nam);
 
@@ -282,9 +282,9 @@ fn inspection_rejects_empty_and_unsupported_inputs() {
 #[test]
 fn local_load_rejects_a_missing_single_file() {
     let temp = TempDir::new().expect("temp dir");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
-    let result = load_local_path(Path::new("/missing/ronie.nam"), &stash, &accept_nam);
+    let result = load_local_path(Path::new("/missing/ronnie.nam"), &stash, &accept_nam);
 
     assert!(matches!(result, Err(LocalError::Io(_))));
 }

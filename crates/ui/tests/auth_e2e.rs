@@ -8,11 +8,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ChainSide, HttpError, HttpResponse, OAuthConfig, OAuthError, OAuthFlow,
     RecordedTransport, SettingsStore, UI_PREFERENCES_SETTINGS,
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::MockBackend,
     default::{AuthPhase, AuthService, BrowserView, ChromeController, Overlay},
     driver::UiDriver,
@@ -329,7 +329,7 @@ fn hold_a_catalog_result(browser: &mut BrowserView) {
     let generation = browser.store_mut().begin_query();
     assert!(browser.store_mut().complete_query(
         generation,
-        ronie_core::Page {
+        ronnie_core::Page {
             data: Vec::new(),
             page: 1,
             page_size: 20,
@@ -656,11 +656,12 @@ fn a_closed_browser_drops_the_results_of_the_previous_session() {
 #[test]
 fn a_rejected_refresh_returns_the_real_browser_to_the_signed_out_preview() {
     let directory = tempfile::tempdir().expect("settings root");
-    let settings = SettingsStore::standalone(directory.path(), ronie_core::UI_PREFERENCES_SETTINGS);
-    ronie_core::SessionStore::new(settings.clone(), flow(Vec::new()))
-        .set_tokens(ronie_core::OAuthTokens {
-            access: ronie_core::SecretString::from("dead-access"),
-            refresh: ronie_core::SecretString::from("dead-refresh"),
+    let settings =
+        SettingsStore::standalone(directory.path(), ronnie_core::UI_PREFERENCES_SETTINGS);
+    ronnie_core::SessionStore::new(settings.clone(), flow(Vec::new()))
+        .set_tokens(ronnie_core::OAuthTokens {
+            access: ronnie_core::SecretString::from("dead-access"),
+            refresh: ronnie_core::SecretString::from("dead-refresh"),
             expires_at_ms: 0,
         })
         .expect("seed");
@@ -679,9 +680,9 @@ fn a_rejected_refresh_returns_the_real_browser_to_the_signed_out_preview() {
         )),
     ]);
     let origin = Url::parse("https://api.example").expect("origin");
-    let community = ronie_ui::services::community::CommunityService::new(
+    let community = ronnie_ui::services::community::CommunityService::new(
         OAuthConfig::new(origin.clone(), "public-client"),
-        ronie_core::OriginPolicy::new(origin, []),
+        ronnie_core::OriginPolicy::new(origin, []),
         transport.clone(),
         settings,
     );

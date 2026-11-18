@@ -9,11 +9,11 @@ use std::{
     time::Duration,
 };
 
-use ronie_core::{
+use ronnie_core::{
     ChainSide, ModelBytes, ModelId,
     params::{ParameterId, ParameterValue},
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{GesturePhase, MockBackend, UiAction, UiBackend, UiError},
     default::{LoadFlow, LoadPhase},
     testbed::{UiScenario, load_scenarios},
@@ -31,7 +31,7 @@ fn mock_backend(id: &str) -> Arc<MockBackend> {
     Arc::new(MockBackend::from_scenario(&scenario(id)))
 }
 
-fn tone() -> ronie_core::Tone {
+fn tone() -> ronnie_core::Tone {
     mock_backend("main-detail").chain_state(0).chain.left[0]
         .tone
         .clone()
@@ -171,7 +171,7 @@ fn loading_scenarios_keep_load_state_explicit() {
     for scenario in load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenarios")
         .into_iter()
-        .filter(|scenario| scenario.section == ronie_ui::testbed::UiSection::Loading)
+        .filter(|scenario| scenario.section == ronnie_ui::testbed::UiSection::Loading)
     {
         let backend = mock_backend(&scenario.id);
         let target = insert(&backend);
@@ -205,15 +205,15 @@ struct Probe {
 }
 
 impl UiBackend for Probe {
-    fn chain_state(&self, known_revision: u64) -> ronie_ui::backend::ChainViewState {
+    fn chain_state(&self, known_revision: u64) -> ronnie_ui::backend::ChainViewState {
         self.inner.chain_state(known_revision)
     }
 
-    fn meter_levels(&self) -> ronie_ui::backend::MeterSnapshot {
+    fn meter_levels(&self) -> ronnie_ui::backend::MeterSnapshot {
         self.inner.meter_levels()
     }
 
-    fn dispatch(&self, action: UiAction) -> Result<ronie_ui::backend::UiReceipt, UiError> {
+    fn dispatch(&self, action: UiAction) -> Result<ronnie_ui::backend::UiReceipt, UiError> {
         if let Some(hook) = &self.hooks.dispatch {
             hook();
         }
@@ -222,7 +222,7 @@ impl UiBackend for Probe {
 
     fn validate_model(
         &self,
-        _tone: &ronie_core::Tone,
+        _tone: &ronnie_core::Tone,
         _model_id: ModelId,
         _bytes: &ModelBytes,
     ) -> Result<(), UiError> {
@@ -253,8 +253,8 @@ impl UiBackend for Probe {
 /// One way to stop a load, with a name for the assertion text.
 type NamedCancel = (&'static str, fn(&mut LoadFlow));
 
-fn remote_tone() -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn remote_tone() -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": 5,
         "title": "Remote",
         "format": "nam",
@@ -606,7 +606,7 @@ fn a_compile_does_not_stop_a_close() {
 #[test]
 fn the_debug_text_of_a_byte_action_holds_no_model_content() {
     let action = UiAction::LoadToneWithBytes {
-        target_insert_id: ronie_core::BlockId("slot".to_owned()),
+        target_insert_id: ronnie_core::BlockId("slot".to_owned()),
         tone: remote_tone(),
         model_id: ModelId(7),
         bytes: ModelBytes::from(vec![201; 8]),
@@ -633,11 +633,174 @@ fn a_ticket_of_a_flow_that_no_longer_exists_publishes_nothing() {
     assert_eq!(publications(&backend), 0);
 }
 
+// ------------------------------------------------------------ The tone that a replace must hold
+
+/// A catalog tone whose one model is `model`, as the block of a finished replace holds it.
+fn catalog_tone(id: i64, model: i64) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
+        "id": id,
+        "title": format!("Tone {id}"),
+        "format": "nam",
+        "models": [{
+            "id": model,
+            "name": "Amp",
+            "model_url": format!("https://models.example/{model}.nam"),
+        }],
+    }))
+    .expect("tone")
+}
+
+/// The tone that `block` holds in the chain of `backend`.
+fn held_tone(backend: &MockBackend, block: &ronnie_core::BlockId) -> Option<ronnie_core::ToneId> {
+    backend
+        .chain_state(0)
+        .chain
+        .block(block)
+        .and_then(|block| block.tone.as_ref())
+        .map(|tone| tone.id)
+}
+
+/// A replace download that the user undid lands nowhere: the undo restored an earlier tone, so
+/// the target no longer holds the tone that the download started from.
+#[test]
+fn a_replace_download_that_loses_its_tone_to_undo_publishes_nothing() {
+    let backend = mock_backend("main-detail");
+    let block = ronnie_core::BlockId("blk-1".to_owned());
+    let original = held_tone(&backend, &block).expect("the fixture tone");
+    let replaced = catalog_tone(4242, 42420);
+    // The user replaced tone 104 with tone 4242, which is one undo step.
+    backend
+        .dispatch(UiAction::ReplaceTone {
+            target_block_id: block.clone(),
+            tone: replaced.clone(),
+            model_id: ModelId(42420),
+            replaces: original,
+            bytes: None,
+        })
+        .expect("the replace");
+    assert_eq!(held_tone(&backend, &block), Some(replaced.id));
+
+    let mut flow = LoadFlow::new(backend.clone());
+    // A replace download of tone 4343 starts from the tone that the block holds now.
+    flow.select_replace(ChainSide::Left, &block.0);
+    let landing = catalog_tone(4343, 43430);
+    let ticket = flow.begin_remote_load(landing.clone()).expect("load");
+    assert_eq!(
+        flow.pending_target().and_then(|target| target.replaces),
+        Some(replaced.id),
+        "the load starts from the tone that the block holds when it begins"
+    );
+
+    // The user undoes the replace, so the block holds the original tone again.
+    backend.dispatch(UiAction::Undo).expect("undo");
+    assert_eq!(held_tone(&backend, &block), Some(original));
+
+    // The held download publishes late. The restored tone wins, and the download reports that
+    // it did not land, with no error.
+    assert!(
+        !ticket
+            .publish(landing.clone(), ModelId(43430), bytes())
+            .expect("a stale replace is not an error"),
+        "the late download must not land"
+    );
+    assert_eq!(
+        held_tone(&backend, &block),
+        Some(original),
+        "the undo stays"
+    );
+    assert!(
+        !backend.actions().iter().any(|action| matches!(
+            action,
+            UiAction::ReplaceTone { tone, .. } if tone.id == landing.id
+        )),
+        "the stale tone reached no backend"
+    );
+
+    // The failure of this load ends it with nothing to say, so no error and no retry appear.
+    // It ends as cancelled, so tone selection closes and the dead target is forgotten.
+    assert!(!flow.fail_load(ticket.generation()));
+    assert_eq!(flow.phase(), LoadPhase::Cancelled);
+    assert!(!flow.browser_open());
+    assert!(flow.pending_target().is_none());
+    assert!(flow.take_landed().is_none());
+}
+
+/// A replace that the user picks after the block changed names the tone that the block holds
+/// when the load starts, not the tone that the replace menu showed.
+#[test]
+fn a_replace_that_starts_after_a_change_replaces_the_tone_that_the_block_holds() {
+    let backend = mock_backend("main-detail");
+    let block = ronnie_core::BlockId("blk-1".to_owned());
+    let original = held_tone(&backend, &block).expect("the fixture tone");
+    let replaced = catalog_tone(4242, 42420);
+    backend
+        .dispatch(UiAction::ReplaceTone {
+            target_block_id: block.clone(),
+            tone: replaced.clone(),
+            model_id: ModelId(42420),
+            replaces: original,
+            bytes: None,
+        })
+        .expect("the replace");
+    assert_eq!(held_tone(&backend, &block), Some(replaced.id));
+
+    let mut flow = LoadFlow::new(backend.clone());
+    // The replace menu opens while the block holds tone 4242.
+    flow.select_replace(ChainSide::Left, &block.0);
+    // The user undoes while the menu is open, so the block holds the original tone again.
+    backend.dispatch(UiAction::Undo).expect("undo");
+    assert_eq!(held_tone(&backend, &block), Some(original));
+
+    // The pick starts the load now, so it names the tone that the block holds now.
+    let landing = catalog_tone(4343, 43430);
+    let ticket = flow.begin_remote_load(landing.clone()).expect("load");
+    assert_eq!(
+        flow.pending_target().and_then(|target| target.replaces),
+        Some(original),
+        "the load starts from the current tone, not the tone that the menu showed"
+    );
+    assert!(
+        ticket
+            .publish(landing.clone(), ModelId(43430), bytes())
+            .expect("publish"),
+        "the pick replaces the tone that the block holds"
+    );
+    assert_eq!(held_tone(&backend, &block), Some(landing.id));
+}
+
+/// The same download of an unchanged target still lands.
+#[test]
+fn a_replace_download_of_an_unchanged_target_lands() {
+    let backend = mock_backend("main-detail");
+    let block = ronnie_core::BlockId("blk-1".to_owned());
+    let original = held_tone(&backend, &block).expect("the fixture tone");
+    let mut flow = LoadFlow::new(backend.clone());
+    flow.select_replace(ChainSide::Left, &block.0);
+    let landing = catalog_tone(4343, 43430);
+    let ticket = flow.begin_remote_load(landing.clone()).expect("load");
+
+    assert!(
+        ticket
+            .publish(landing.clone(), ModelId(43430), bytes())
+            .expect("publish"),
+        "an unchanged target lands"
+    );
+
+    assert_eq!(held_tone(&backend, &block), Some(landing.id));
+    assert!(matches!(
+        backend.actions().last(),
+        Some(UiAction::ReplaceTone { replaces, .. }) if *replaces == original
+    ));
+    assert!(flow.finish_remote(ticket.generation()));
+    assert_eq!(flow.phase(), LoadPhase::Ready);
+    assert_eq!(flow.take_landed(), Some(landing));
+}
+
 // ------------------------------------------------------------ The two IRs of a cab
 
 /// A catalog IR pack as a block stores it after a download of `model`: only that model.
-fn stored_cab(model: i64) -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn stored_cab(model: i64) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": 7,
         "title": "Cab",
         "format": "ir",
@@ -650,7 +813,7 @@ fn stored_cab(model: i64) -> ronie_core::Tone {
     .expect("cab")
 }
 
-fn cab_slots(backend: &MockBackend, block: &ronie_core::BlockId) -> (Option<i64>, Option<i64>) {
+fn cab_slots(backend: &MockBackend, block: &ronnie_core::BlockId) -> (Option<i64>, Option<i64>) {
     let chain = backend.chain_state(0).chain;
     let block = chain.block(block).expect("block");
     (
@@ -663,10 +826,10 @@ fn cab_slots(backend: &MockBackend, block: &ronie_core::BlockId) -> (Option<i64>
 /// other. A ticket still names its slot: A's bytes never land in B, nor B's in A.
 #[test]
 fn switching_a_while_b_downloads_lands_each_in_its_slot() {
-    use ronie_ui::services::{ModelSlot, ModelSwitchFlow};
+    use ronnie_ui::services::{ModelSlot, ModelSwitchFlow};
 
     let backend = mock_backend("main-empty");
-    let block = ronie_core::BlockId(insert(&backend));
+    let block = ronnie_core::BlockId(insert(&backend));
     backend
         .dispatch(UiAction::LoadTone {
             target_insert_id: block.clone(),

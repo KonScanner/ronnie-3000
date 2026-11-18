@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke};
-use ronie_core::params::{ParameterId, ParameterValue};
+use ronnie_core::params::{ParameterId, ParameterValue};
 
 use crate::{
     backend::{GesturePhase, HostControl, UiAction, UiBackend},
@@ -288,15 +288,15 @@ impl Faceplate {
             response
                 .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Input mode"));
             let routing_mode = self.backend.chain_state(0).session.input_mode;
-            if routing_mode != ronie_core::InputMode::Stereo {
+            if routing_mode != ronnie_core::InputMode::Stereo {
                 painter.rect_filled(mode_rect, 2.0, crate::theme::palette::PANEL_EDGE);
             }
             match routing_mode {
-                ronie_core::InputMode::Left | ronie_core::InputMode::Right => {
+                ronnie_core::InputMode::Left | ronnie_core::InputMode::Right => {
                     painter.text(
                         egui::pos2(mode_rect.left() + 10.0, mode_rect.center().y),
                         egui::Align2::CENTER_CENTER,
-                        if routing_mode == ronie_core::InputMode::Left {
+                        if routing_mode == ronnie_core::InputMode::Left {
                             "L"
                         } else {
                             "R"
@@ -305,7 +305,7 @@ impl Faceplate {
                         Color32::WHITE,
                     );
                 }
-                ronie_core::InputMode::Stereo | ronie_core::InputMode::DualMono => {
+                ronnie_core::InputMode::Stereo | ronnie_core::InputMode::DualMono => {
                     painter.circle_stroke(
                         mode_rect.center() + egui::vec2(-9.0, 0.0),
                         4.0,
@@ -632,24 +632,24 @@ impl Faceplate {
         }
         let current = self.backend.chain_state(0).session.input_mode;
         let options = [
-            (ronie_core::InputMode::Stereo, "Stereo SUM (L+R)"),
-            (ronie_core::InputMode::DualMono, "Stereo Dual Mono (L&R)"),
-            (ronie_core::InputMode::Left, "Left"),
-            (ronie_core::InputMode::Right, "Right"),
+            (ronnie_core::InputMode::Stereo, "Stereo SUM (L+R)"),
+            (ronnie_core::InputMode::DualMono, "Stereo Dual Mono (L&R)"),
+            (ronnie_core::InputMode::Left, "Left"),
+            (ronnie_core::InputMode::Right, "Right"),
         ]
         .into_iter()
         .filter(|(mode, _)| {
             !(branched
                 && matches!(
                     mode,
-                    ronie_core::InputMode::Stereo | ronie_core::InputMode::DualMono
+                    ronnie_core::InputMode::Stereo | ronnie_core::InputMode::DualMono
                 ))
-                && !(stereo_chains && *mode == ronie_core::InputMode::DualMono)
+                && !(stereo_chains && *mode == ronnie_core::InputMode::DualMono)
         })
         .map(|(mode, label)| {
             (
                 mode,
-                if stereo_chains && mode == ronie_core::InputMode::Stereo {
+                if stereo_chains && mode == ronnie_core::InputMode::Stereo {
                     "Stereo"
                 } else {
                     label
@@ -858,13 +858,13 @@ impl Faceplate {
 
 fn draw_input_mode_glyph(
     painter: &egui::Painter,
-    mode: ronie_core::InputMode,
+    mode: ronnie_core::InputMode,
     rect: Rect,
     colour: Color32,
 ) {
     if matches!(
         mode,
-        ronie_core::InputMode::Stereo | ronie_core::InputMode::DualMono
+        ronnie_core::InputMode::Stereo | ronnie_core::InputMode::DualMono
     ) {
         painter.circle_stroke(
             rect.center() + egui::vec2(-4.0, 0.0),
@@ -880,7 +880,7 @@ fn draw_input_mode_glyph(
         painter.text(
             rect.center(),
             egui::Align2::CENTER_CENTER,
-            if mode == ronie_core::InputMode::Left {
+            if mode == ronnie_core::InputMode::Left {
                 "L"
             } else {
                 "R"

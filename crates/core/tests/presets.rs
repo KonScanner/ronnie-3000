@@ -1,6 +1,6 @@
 //! File-backed preset store, ordering, migration, and host-program tests.
 
-use ronie_core::{
+use ronnie_core::{
     JuceCodec, JuceTree, JuceValue, PRESET_EXTENSION, PresetStore, read_preset,
     write_preset_v2_file,
 };
@@ -275,7 +275,7 @@ fn corrupt_order_file_falls_back_to_name_order() {
 #[test]
 #[ignore = "requires the official source fixture directory"]
 fn official_factory_presets_scan_and_load() {
-    let Some(root) = std::env::var_os("RONIE_REFERENCE_ROOT") else {
+    let Some(root) = std::env::var_os("RONNIE_REFERENCE_ROOT") else {
         return;
     };
     let factory = std::path::PathBuf::from(root).join("resources/factory-presets");

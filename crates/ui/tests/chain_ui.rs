@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::{ChainSide, params::ParameterId};
-use ronie_ui::{
+use ronnie_core::{ChainSide, params::ParameterId};
+use ronnie_ui::{
     backend::{MockBackend, UiBackend},
     default::{
         ChainGallery, ChromeController, TileVisualState,
@@ -239,7 +239,7 @@ fn local_file_drop_targets_one_insert_and_loads_real_bytes() {
 
 #[test]
 fn tile_activation_targets_detail_or_tone_selection() {
-    use ronie_ui::default::GallerySelection;
+    use ronnie_ui::default::GallerySelection;
 
     let (mut empty, _backend) = gallery("main-empty");
     let insert = empty
@@ -252,7 +252,7 @@ fn tile_activation_targets_detail_or_tone_selection() {
         empty.selection(),
         &GallerySelection::SelectTone {
             side: ChainSide::Left,
-            target_block_id: ronie_core::BlockId(insert),
+            target_block_id: ronnie_core::BlockId(insert),
         }
     );
 
@@ -260,13 +260,13 @@ fn tile_activation_targets_detail_or_tone_selection() {
     stereo.activate("blk-l1");
     assert_eq!(
         stereo.selection(),
-        &GallerySelection::BlockDetail(ronie_core::BlockId("blk-l1".to_owned()))
+        &GallerySelection::BlockDetail(ronnie_core::BlockId("blk-l1".to_owned()))
     );
 }
 
 #[test]
 fn lane_geometry_targets_insert_slots_and_routes_add_tiles() {
-    use ronie_ui::default::lane::{Routing, gap_center_x, lane_width, routing_for, slot_at};
+    use ronnie_ui::default::lane::{Routing, gap_center_x, lane_width, routing_for, slot_at};
 
     assert_eq!(lane_width(3, 160), 528);
     assert_eq!(gap_center_x(1, 160), 172.0);
@@ -282,7 +282,7 @@ fn lane_geometry_targets_insert_slots_and_routes_add_tiles() {
 
 #[test]
 fn the_tile_gain_shows_decibels_from_minus_to_plus_twenty_four() {
-    use ronie_ui::default::tile::{format_gain_db, gain_db};
+    use ronnie_ui::default::tile::{format_gain_db, gain_db};
 
     assert_eq!(gain_db(0.0), -24.0);
     assert_eq!(gain_db(0.5), 0.0);
@@ -300,13 +300,13 @@ fn the_tile_gain_shows_decibels_from_minus_to_plus_twenty_four() {
 
 #[test]
 fn a_tile_gain_gesture_writes_only_the_input_gain_of_its_tone() {
-    use ronie_ui::backend::{GesturePhase, UiAction};
+    use ronnie_ui::backend::{GesturePhase, UiAction};
 
     let (mut gallery, backend) = gallery("main-stereo");
     let before = backend
         .chain_state(0)
         .chain
-        .block(&ronie_core::BlockId("blk-l1".to_owned()))
+        .block(&ronnie_core::BlockId("blk-l1".to_owned()))
         .expect("tone")
         .params
         .clone();
@@ -319,13 +319,13 @@ fn a_tile_gain_gesture_writes_only_the_input_gain_of_its_tone() {
     let after = backend
         .chain_state(0)
         .chain
-        .block(&ronie_core::BlockId("blk-l1".to_owned()))
+        .block(&ronnie_core::BlockId("blk-l1".to_owned()))
         .expect("tone")
         .params
         .clone();
     assert_eq!(after.input_gain, 0.8);
     assert_eq!(
-        ronie_core::BlockParams {
+        ronnie_core::BlockParams {
             input_gain: before.input_gain,
             ..after
         },
@@ -353,7 +353,7 @@ fn a_tile_gain_gesture_writes_only_the_input_gain_of_its_tone() {
 
 #[test]
 fn meter_and_gear_fallbacks_cover_extremes_and_all_tone_families() {
-    use ronie_ui::default::tile::{GearGlyph, gear_glyph, meter_fraction};
+    use ronnie_ui::default::tile::{GearGlyph, gear_glyph, meter_fraction};
 
     assert_eq!(meter_fraction(-60.0), 0.0);
     assert_eq!(meter_fraction(-30.0), 0.5);
@@ -373,15 +373,15 @@ const CHAIN_RIGHT: f32 = 942.0;
 /// The width of the edge fade.
 const EDGE_FADE: f32 = 32.0;
 
-fn main_driver(id: &str) -> (ronie_ui::driver::UiDriver, Arc<MockBackend>) {
+fn main_driver(id: &str) -> (ronnie_ui::driver::UiDriver, Arc<MockBackend>) {
     let backend = Arc::new(MockBackend::from_scenario(&scenario(id)));
     let chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    let mut driver = ronie_ui::driver::UiDriver::new(chrome, (*backend).clone());
+    let mut driver = ronnie_ui::driver::UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
 }
 
-fn control_rect(driver: &ronie_ui::driver::UiDriver, label: &str) -> Option<eframe::egui::Rect> {
+fn control_rect(driver: &ronnie_ui::driver::UiDriver, label: &str) -> Option<eframe::egui::Rect> {
     driver
         .controls()
         .iter()
@@ -491,8 +491,8 @@ fn a_loaded_tone_scrolls_fully_into_view_where_it_lands() {
 #[test]
 fn a_moved_tone_scrolls_fully_into_view_where_it_lands() {
     use eframe::egui;
-    use ronie_core::BlockId;
-    use ronie_ui::backend::UiAction;
+    use ronnie_core::BlockId;
+    use ronnie_ui::backend::UiAction;
 
     // A long left lane, and a right lane with one tone and two open slots.
     let backend = Arc::new(MockBackend::from_scenario(&scenario("main-stereo")));
@@ -509,7 +509,7 @@ fn a_moved_tone_scrolls_fully_into_view_where_it_lands() {
             .expect("duplicate");
     }
     let chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    let mut driver = ronie_ui::driver::UiDriver::new(chrome, (*backend).clone());
+    let mut driver = ronnie_ui::driver::UiDriver::new(chrome, (*backend).clone());
     for _ in 0..8 {
         if driver.is_visible("Scroll chain right") {
             let _ = driver.click("Scroll chain right").expect("right arrow");
@@ -567,7 +567,7 @@ fn a_moved_tone_scrolls_fully_into_view_where_it_lands() {
     assert!(landed.max.x <= CHAIN_RIGHT - EDGE_FADE, "{landed:?}");
 }
 
-fn scenario_backend_tone() -> ronie_core::Tone {
+fn scenario_backend_tone() -> ronnie_core::Tone {
     MockBackend::from_scenario(&scenario("main-mono"))
         .chain_state(0)
         .chain

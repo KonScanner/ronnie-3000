@@ -2,13 +2,13 @@
 # Builds "Ronnie 3000.vst3" from the plugin library and zips it for a release. Runs on Linux,
 # macOS, and Windows (Git Bash).
 #
-#   VERSION=0.2.0 PLATFORM=linux-x86_64 LIBRARY=target/release/libronie_plugin_nice.so \
+#   VERSION=0.2.0 PLATFORM=linux-x86_64 LIBRARY=target/release/libronnie_plugin_nice.so \
 #     bash packaging/vst3/bundle.sh
 #
 # PLATFORM is linux-x86_64, linux-aarch64, macos-universal, macos-arm64, macos-x86_64, or
-# windows-x86_64. LIBRARY is the library that `cargo build -p ronie-plugin-nice` writes:
-# libronie_plugin_nice.so, libronie_plugin_nice.dylib (a lipo output for macos-universal), or
-# ronie_plugin_nice.dll. On macOS the bundle has an ad-hoc signature only.
+# windows-x86_64. LIBRARY is the library that `cargo build -p ronnie-plugin-nice` writes:
+# libronnie_plugin_nice.so, libronnie_plugin_nice.dylib (a lipo output for macos-universal), or
+# ronnie_plugin_nice.dll. On macOS the bundle has an ad-hoc signature only.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)

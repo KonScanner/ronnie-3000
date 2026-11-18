@@ -2,8 +2,8 @@
 #![allow(unsafe_code)]
 
 use proptest::prelude::*;
-use ronie_core::{BlockId, ChainSide, InputMode};
-use ronie_dsp::{
+use ronnie_core::{BlockId, ChainSide, InputMode};
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec, lane::LaneSnapshot, prepare::PreparedChainChange,
     rt_chain::RtChain,
 };

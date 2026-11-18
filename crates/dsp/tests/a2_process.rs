@@ -1,9 +1,9 @@
 //! Scalar A2 streaming and allocation tests.
 #![allow(unsafe_code)]
 
-use ronie_core::{DspError, NamDocument};
-use ronie_dsp::{A2Engine, A2Model, CompiledA2, compile_a2};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::{DspError, NamDocument};
+use ronnie_dsp::{A2Engine, A2Model, CompiledA2, compile_a2};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json as _;
 use std::{
     alloc::{GlobalAlloc, Layout, System},

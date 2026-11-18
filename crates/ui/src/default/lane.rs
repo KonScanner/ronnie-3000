@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use eframe::egui::{self, Color32, Rect, Sense, Stroke};
-use ronie_core::{ChainSide, params::ParameterId};
+use ronnie_core::{ChainSide, params::ParameterId};
 
 use super::chain::ChainGallery;
 use crate::widgets::KnobSpec;

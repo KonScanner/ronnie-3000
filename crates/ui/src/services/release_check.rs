@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 
-use ronie_core::{
+use ronnie_core::{
     HttpError, HttpRequest, HttpTransport, OriginPolicy, ReqwestTransport, ResponseKind,
     SettingsStore,
 };
@@ -355,7 +355,7 @@ impl UpdateSchedule {
         let settings = self.settings.clone();
         let previous = self.stored.clone();
         let spawned = std::thread::Builder::new()
-            .name("ronie-update-check".to_owned())
+            .name("ronnie-update-check".to_owned())
             .spawn(move || {
                 let answer = feed.fetch();
                 let stored = StoredCheck {
@@ -385,7 +385,7 @@ mod tests {
         time::Instant,
     };
 
-    use ronie_core::{HttpResponse, RecordedTransport};
+    use ronnie_core::{HttpResponse, RecordedTransport};
 
     use super::*;
 

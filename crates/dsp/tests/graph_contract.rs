@@ -1,7 +1,7 @@
 //! Planar layout and typed graph contract tests.
 
-use ronie_core::InputMode;
-use ronie_dsp::{
+use ronnie_core::InputMode;
+use ronnie_dsp::{
     ChainError, PlanarBuffer, PrepareSpec,
     block::BlockControls,
     lane::{Lane, LaneSnapshot},
@@ -52,7 +52,7 @@ fn planar_buffer_exposes_checked_channel_views() {
 
 #[test]
 fn preparation_contract_uses_typed_input_routing() {
-    let spec = ronie_dsp::PrepareSpec {
+    let spec = ronnie_dsp::PrepareSpec {
         host_sample_rate: 48_000.0,
         max_host_frames: 64,
         oversampling: 1,

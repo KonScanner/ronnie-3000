@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use ronie_core::{
+use ronnie_core::{
     DeviceAuthorization, HttpTransport, OAuthError, OAuthFlow, OAuthTokens, SessionStore,
     SettingsStore,
 };
@@ -417,7 +417,7 @@ pub(crate) fn now_ms() -> i64 {
 mod tests {
     use std::sync::Arc;
 
-    use ronie_core::{HttpError, HttpResponse, OAuthConfig, RecordedTransport, SecretString};
+    use ronnie_core::{HttpError, HttpResponse, OAuthConfig, RecordedTransport, SecretString};
     use tokio::sync::Notify;
 
     use super::*;

@@ -5,21 +5,21 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, PoisonError},
 };
 
-use ronie_core::{
+use ronnie_core::{
     InputMode, ModelBytes, ModelId, PresetStore, PropertiesFile, SettingsStore, Tone,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_ui::backend::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_ui::backend::{
     ChainViewState, GesturePhase, HostControl, MeterSnapshot, UiAction, UiError, UiReceipt,
 };
 
 use crate::{
     audio_session::{AudioSessionState, SessionChain, SessionRestore, StreamFormat},
-    processor::{RonieProcessor, SessionChainPlan},
+    processor::{RonnieProcessor, SessionChainPlan},
 };
 
-pub use ronie_ui::backend::UiBackend;
+pub use ronnie_ui::backend::UiBackend;
 
 /// Thread-safe control-state adapter; the active real-time graph remains callback-owned.
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ pub struct ProcessorBackend {
 
 #[derive(Debug)]
 struct BackendInner {
-    processor: Mutex<RonieProcessor>,
+    processor: Mutex<RonnieProcessor>,
     settings: Option<SettingsStore>,
     /// The settings file as the backend read it one time at its start.
     ///
@@ -47,7 +47,7 @@ struct BackendInner {
 impl ProcessorBackend {
     /// Wraps one control-side processor without machine persistence.
     #[must_use]
-    pub fn new(processor: RonieProcessor) -> Self {
+    pub fn new(processor: RonnieProcessor) -> Self {
         Self {
             inner: Arc::new(BackendInner {
                 processor: Mutex::new(processor),
@@ -64,7 +64,7 @@ impl ProcessorBackend {
     /// # Errors
     /// Returns settings or parameter restoration errors.
     pub fn with_settings(
-        processor: RonieProcessor,
+        processor: RonnieProcessor,
         settings: SettingsStore,
     ) -> Result<Self, UiError> {
         let root = settings
@@ -288,7 +288,7 @@ impl BackendInner {
         Ok(())
     }
 
-    fn lock(&self) -> Result<MutexGuard<'_, RonieProcessor>, UiError> {
+    fn lock(&self) -> Result<MutexGuard<'_, RonnieProcessor>, UiError> {
         self.processor
             .lock()
             .map_err(|error| UiError::Control(error.to_string()))
@@ -328,7 +328,7 @@ impl SettingWrite {
         }
     }
 
-    fn resolve(self, processor: &RonieProcessor) -> Result<(String, String), UiError> {
+    fn resolve(self, processor: &RonnieProcessor) -> Result<(String, String), UiError> {
         match self {
             Self::Value { key, value } => Ok((key, value)),
             Self::MachineDefault(id) => {
@@ -355,7 +355,7 @@ impl UiBackend for ProcessorBackend {
             Ok(processor) => processor.chain_state(known_revision),
             // This processor only gives a view and prepares no chain. The audio engine sets the
             // oversampling of each live chain from OPTIMIZE and the oversampling setting.
-            Err(_) => RonieProcessor::new(PrepareSpec {
+            Err(_) => RonnieProcessor::new(PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 64,
                 oversampling: 1,
@@ -381,9 +381,9 @@ impl UiBackend for ProcessorBackend {
         }
     }
 
-    fn midi_map(&self) -> ronie_ui::default::MidiMapSnapshot {
+    fn midi_map(&self) -> ronnie_ui::default::MidiMapSnapshot {
         self.inner.lock().map_or_else(
-            |_| ronie_ui::default::MidiMapSnapshot::default(),
+            |_| ronnie_ui::default::MidiMapSnapshot::default(),
             |processor| processor.midi_map(),
         )
     }
@@ -482,7 +482,7 @@ mod tests {
 
     #[test]
     fn a_chain_preparation_needs_no_lock_of_the_processor() {
-        let backend = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let backend = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
@@ -503,7 +503,7 @@ mod tests {
 
     #[test]
     fn a_plan_compiles_the_state_of_its_own_lock_and_not_a_later_edit() {
-        let backend = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let backend = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
@@ -538,7 +538,7 @@ mod tests {
 
     fn settings_backend(root: &Path) -> ProcessorBackend {
         ProcessorBackend::with_settings(
-            RonieProcessor::new(PrepareSpec {
+            RonnieProcessor::new(PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 128,
                 oversampling: 1,
@@ -546,7 +546,7 @@ mod tests {
                 stereo_input: false,
                 stereo_output: true,
             }),
-            SettingsStore::standalone(root, ronie_core::PREFERENCES_SETTINGS),
+            SettingsStore::standalone(root, ronnie_core::PREFERENCES_SETTINGS),
         )
         .expect("settings backend")
     }
@@ -576,7 +576,7 @@ mod tests {
         }
 
         let properties =
-            SettingsStore::standalone(directory.path(), ronie_core::PREFERENCES_SETTINGS)
+            SettingsStore::standalone(directory.path(), ronnie_core::PREFERENCES_SETTINGS)
                 .read()
                 .expect("stored properties");
         for key in [
@@ -594,7 +594,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("temporary standalone root");
         let backend = settings_backend(directory.path());
         let settings =
-            SettingsStore::standalone(directory.path(), ronie_core::PREFERENCES_SETTINGS);
+            SettingsStore::standalone(directory.path(), ronnie_core::PREFERENCES_SETTINGS);
         let lock = settings.path().with_extension("lock");
         let _ = std::fs::remove_file(&lock);
         // A folder in place of the lock file makes each settings write fail.
@@ -617,7 +617,7 @@ mod tests {
     fn a_started_backend_has_no_history() {
         let directory = tempfile::tempdir().expect("temporary standalone root");
         let settings =
-            SettingsStore::standalone(directory.path(), ronie_core::PREFERENCES_SETTINGS);
+            SettingsStore::standalone(directory.path(), ronnie_core::PREFERENCES_SETTINGS);
         for (key, value) in [
             ("multiCore", "false"),
             ("namSlimSizeDefault", "1.0"),
@@ -662,7 +662,7 @@ mod tests {
         drop(first);
 
         let properties =
-            SettingsStore::standalone(directory.path(), ronie_core::PREFERENCES_SETTINGS)
+            SettingsStore::standalone(directory.path(), ronnie_core::PREFERENCES_SETTINGS)
                 .read()
                 .expect("stored properties");
         assert_eq!(properties.get("pitchInstrument"), Some("bass5"));
@@ -677,7 +677,7 @@ mod tests {
     fn a_preference_read_does_not_read_the_settings_file() {
         let directory = tempfile::tempdir().expect("temporary standalone root");
         let settings =
-            SettingsStore::standalone(directory.path(), ronie_core::PREFERENCES_SETTINGS);
+            SettingsStore::standalone(directory.path(), ronnie_core::PREFERENCES_SETTINGS);
         settings
             .merge_key("t3k.showGateControl", "true")
             .expect("stored preference");
@@ -752,9 +752,9 @@ mod tests {
     fn concurrent_final_clones_cannot_both_skip_the_session_save() {
         let directory = tempfile::tempdir().expect("temporary standalone root");
         let root = directory.path();
-        let settings = SettingsStore::standalone(root, ronie_core::PREFERENCES_SETTINGS);
+        let settings = SettingsStore::standalone(root, ronnie_core::PREFERENCES_SETTINGS);
         let first = ProcessorBackend::with_settings(
-            RonieProcessor::new(PrepareSpec {
+            RonnieProcessor::new(PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 128,
                 oversampling: 1,

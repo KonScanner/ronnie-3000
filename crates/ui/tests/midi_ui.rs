@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::{MidiMapping, MidiSource};
-use ronie_ui::{
+use ronnie_core::{MidiMapping, MidiSource};
+use ronnie_ui::{
     backend::{DeviceAction, MidiAction, MockBackend, UiAction},
     default::{MidiMapController, SettingsController, SettingsTab},
     testbed::{UiScenario, load_scenarios},

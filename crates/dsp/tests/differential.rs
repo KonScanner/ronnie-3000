@@ -1,9 +1,9 @@
 //! Independent differential and comparison tests.
 
-use ronie_core::{NamDocument, parse_nam};
-use ronie_dsp as _;
-use ronie_oracle as _;
-use ronie_oracle::{
+use ronnie_core::{NamDocument, parse_nam};
+use ronnie_dsp as _;
+use ronnie_oracle as _;
+use ronnie_oracle::{
     DifferentialCase, DifferentialStream, FiniteEquivalence, NonFiniteEquivalence,
     PublicMathOracle, ReferenceOracle, compare_samples, reference_paths, run_differential,
 };
@@ -48,7 +48,7 @@ fn public_math_matches_all_streams_tiers_and_block_sizes() {
             DifferentialStream::Denormals,
         ] {
             for block_size in [1, 31, 64, 65, 256] {
-                let document = ronie_oracle::synthetic::synthetic_a2_document(channels)
+                let document = ronnie_oracle::synthetic::synthetic_a2_document(channels)
                     .expect("synthetic document");
                 let case = case(document, stream, block_size, block_size + 31);
                 let report = run_differential(&case, &mut PublicMathOracle::new())
@@ -59,7 +59,7 @@ fn public_math_matches_all_streams_tiers_and_block_sizes() {
         }
     }
 
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
     let case = case(document, DifferentialStream::Sines, 256, 4096);
     let report = run_differential(&case, &mut PublicMathOracle::new()).expect("long stream");
     assert_eq!(report.compared_samples, 4096);
@@ -68,7 +68,7 @@ fn public_math_matches_all_streams_tiers_and_block_sizes() {
 
 #[test]
 fn comparator_distinguishes_signed_zero_and_tolerance_boundaries() {
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
     let mut case = case(document, DifferentialStream::Silence, 1, 1);
     case.finite = FiniteEquivalence::ExactBits;
 
@@ -87,7 +87,7 @@ fn comparator_distinguishes_signed_zero_and_tolerance_boundaries() {
 
 #[test]
 fn comparator_applies_explicit_nonfinite_rules() {
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
     let mut case = case(document, DifferentialStream::NonFinite, 1, 1);
     let nan = f64::NAN;
     let other_nan = f64::from_bits(nan.to_bits() + 1);
@@ -117,7 +117,7 @@ fn comparator_applies_explicit_nonfinite_rules() {
 
 #[test]
 fn comparator_preserves_denormal_exactness() {
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
     let mut case = case(document, DifferentialStream::Denormals, 1, 1);
     case.finite = FiniteEquivalence::ExactBits;
     let denormal = f64::from_bits(1);

@@ -1,6 +1,6 @@
 //! OAuth PKCE, loopback, device, and token-exchange tests.
 
-use ronie_core::{
+use ronnie_core::{
     CallbackOutcome, HttpResponse, OAuthConfig, OAuthError, OAuthFlow, Pkce, RecordedTransport,
     parse_callback,
 };
@@ -8,7 +8,7 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, sync::watch};
 use url::Url;
 
 fn flow(
-    responses: Vec<Result<HttpResponse, ronie_core::HttpError>>,
+    responses: Vec<Result<HttpResponse, ronnie_core::HttpError>>,
 ) -> OAuthFlow<RecordedTransport> {
     OAuthFlow::new(
         OAuthConfig::new(
@@ -149,13 +149,13 @@ proptest::proptest! {
         code in "[a-zA-Z0-9]{1,16}",
     ) {
         // Any text from a local process must not panic.
-        let _ = ronie_core::parse_callback(&query, "expected");
+        let _ = ronnie_core::parse_callback(&query, "expected");
         let wrong_state = format!("code={code}&state=wrong");
         let right_state = format!("code={code}&state=expected");
-        let wrong = ronie_core::parse_callback(&wrong_state, "expected");
-        let right = ronie_core::parse_callback(&right_state, "expected");
+        let wrong = ronnie_core::parse_callback(&wrong_state, "expected");
+        let right = ronnie_core::parse_callback(&right_state, "expected");
         proptest::prop_assert!(matches!(wrong, Err(OAuthError::StateMismatch)));
-        proptest::prop_assert!(matches!(right, Ok(ronie_core::CallbackOutcome::Code(_))));
+        proptest::prop_assert!(matches!(right, Ok(ronnie_core::CallbackOutcome::Code(_))));
     }
 
     #[test]
@@ -291,7 +291,7 @@ async fn expired_device_code_and_exchange_failure_are_typed() {
     ]);
 
     let expired = oauth
-        .poll_device_token(&ronie_core::SecretString::from("device-secret"), 1000)
+        .poll_device_token(&ronnie_core::SecretString::from("device-secret"), 1000)
         .await;
     let exchange = oauth
         .exchange_code("code-secret", "verifier", "http://127.0.0.1:1/", 1000)
@@ -303,7 +303,7 @@ async fn expired_device_code_and_exchange_failure_are_typed() {
 
 #[tokio::test]
 async fn a_transient_status_on_refresh_says_nothing_about_the_refresh_token() {
-    let refresh = ronie_core::SecretString::from("refresh-secret");
+    let refresh = ronnie_core::SecretString::from("refresh-secret");
     for (status, body) in [
         (503, br#"{"error":"server_error"}"#.as_slice()),
         (500, br"{}".as_slice()),
@@ -323,7 +323,7 @@ async fn a_transient_status_on_refresh_says_nothing_about_the_refresh_token() {
 
 #[tokio::test]
 async fn a_client_rejection_of_a_refresh_stays_final() {
-    let refresh = ronie_core::SecretString::from("refresh-secret");
+    let refresh = ronnie_core::SecretString::from("refresh-secret");
     for status in [400, 401, 403] {
         let oauth = flow(vec![Ok(HttpResponse::json(
             status,
@@ -353,10 +353,10 @@ async fn device_pending_and_slow_down_responses_are_typed() {
     ]);
 
     let pending = oauth
-        .poll_device_token(&ronie_core::SecretString::from("device-secret"), 1000)
+        .poll_device_token(&ronnie_core::SecretString::from("device-secret"), 1000)
         .await;
     let slow_down = oauth
-        .poll_device_token(&ronie_core::SecretString::from("device-secret"), 1000)
+        .poll_device_token(&ronnie_core::SecretString::from("device-secret"), 1000)
         .await;
 
     assert!(matches!(pending, Err(OAuthError::AuthorizationPending)));
@@ -402,7 +402,7 @@ async fn device_and_token_requests_match_reference_and_never_log_secrets() {
     assert_eq!(tokens.expires_at_ms, 3_601_000);
     let requests = transport.requests();
     assert_eq!(requests[0].url.path(), "/api/v1/oauth/device_authorization");
-    assert_eq!(requests[0].method, ronie_core::HttpMethod::Post);
+    assert_eq!(requests[0].method, ronnie_core::HttpMethod::Post);
     assert_eq!(
         requests[0].content_type.as_deref(),
         Some("application/x-www-form-urlencoded")
@@ -426,7 +426,7 @@ async fn a_device_poll_reports_a_server_failure_with_or_without_json() {
             serde_json::json!({"error": "server_error"}),
         )),
     ]);
-    let code = ronie_core::SecretString::from("device-secret");
+    let code = ronnie_core::SecretString::from("device-secret");
 
     let gateway = oauth.poll_device_token(&code, 1000).await;
     let server = oauth.poll_device_token(&code, 1000).await;
@@ -447,7 +447,7 @@ async fn a_device_poll_reports_a_rate_limit_with_or_without_json() {
             body: b"Too Many Requests".to_vec(),
         }),
     ]);
-    let code = ronie_core::SecretString::from("device-secret");
+    let code = ronnie_core::SecretString::from("device-secret");
 
     let with_json = oauth.poll_device_token(&code, 1000).await;
     let without_json = oauth.poll_device_token(&code, 1000).await;

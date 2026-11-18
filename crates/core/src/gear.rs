@@ -4,9 +4,14 @@
 //! priority order: the `.nam` file's own make and model, the TONE3000 makes, then the tone title.
 //! When none matches, the family is the default for the category, tinted by the tone type.
 
+use std::sync::LazyLock;
+
 use serde_json::Value;
 
-use crate::tone::{Tone, ToneModel};
+use crate::{
+    chain::ChainBlock,
+    tone::{Tone, ToneModel},
+};
 
 /// Broad kind of gear a capture models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -193,6 +198,32 @@ impl GearFamily {
             Self::Unknown => "unknown",
         }
     }
+
+    /// The families that draw a distinct rendered glyph: the keyword-matchable families that
+    /// have a skin, in visual order.
+    ///
+    /// Every family here also has a skin from [`Self::skin_id`]. A family outside this list
+    /// draws the glyph of its identified category instead. The tile renderer and the glyph paint
+    /// test both read this one list.
+    pub const DRAWN: &[Self] = &[
+        Self::OdGreen,
+        Self::OdGold,
+        Self::Distortion,
+        Self::Fuzz,
+        Self::Boost,
+        Self::Compressor,
+        Self::HeadHighGain,
+        Self::HeadModernUs,
+        Self::HeadBritish,
+        Self::ComboChime,
+        Self::ComboClean,
+        Self::HeadBass,
+        Self::Cab412Modern,
+        Self::Cab412Vintage,
+        Self::Cab212,
+        Self::Cab112,
+        Self::Cab810,
+    ];
 
     /// Category this family belongs to.
     #[must_use]
@@ -463,6 +494,19 @@ const KEYWORDS: &[(GearFamily, &[&str])] = &[
     ),
 ];
 
+/// [`KEYWORDS`] with every keyword normalized once, so that a match builds no keyword strings.
+static KEYWORD_NEEDLES: LazyLock<Vec<(GearFamily, Vec<String>)>> = LazyLock::new(|| {
+    KEYWORDS
+        .iter()
+        .map(|(family, keywords)| {
+            (
+                *family,
+                keywords.iter().map(|keyword| words([*keyword])).collect(),
+            )
+        })
+        .collect()
+});
+
 /// Identifies the gear behind a capture.
 #[must_use]
 pub fn identify(hints: &GearHints) -> GearIdentity {
@@ -484,30 +528,18 @@ pub fn identify(hints: &GearHints) -> GearIdentity {
         .as_deref()
         .map_or(ToneType::Unknown, ToneType::from_nam);
 
-    let nam_text = [hints.nam_make.as_deref(), hints.nam_model.as_deref()]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let sources = [
-        (MatchSource::NamMetadata, nam_text),
-        (MatchSource::Catalog, hints.makes.join(" ")),
-        (MatchSource::Title, hints.title.clone()),
-    ];
-    for (source, text) in sources {
-        if let Some(family) = match_keywords(&text, declared) {
-            let category = if declared == GearCategory::Unknown {
-                family.category()
-            } else {
-                declared
-            };
-            return GearIdentity {
-                category,
-                family,
-                tone_type,
-                source,
-            };
-        }
+    if let Some((source, family)) = match_hints(hints, declared) {
+        let category = if declared == GearCategory::Unknown {
+            family.category()
+        } else {
+            declared
+        };
+        return GearIdentity {
+            category,
+            family,
+            tone_type,
+            source,
+        };
     }
 
     let family = default_family(declared, tone_type);
@@ -523,18 +555,61 @@ pub fn identify(hints: &GearHints) -> GearIdentity {
     }
 }
 
-fn match_keywords(text: &str, declared: GearCategory) -> Option<GearFamily> {
-    let haystack = words(text);
+/// Identifies a tone, with the model that the caller passes as its active one.
+///
+/// The hints are returned with the identity, so a caller that also needs them, such as the tile
+/// glyph fallback to the tone's declared gear, collects them only once.
+#[must_use]
+pub fn identify_tone(tone: &Tone, model: Option<&ToneModel>) -> (GearHints, GearIdentity) {
+    let hints = GearHints::from_tone(tone, model);
+    let identity = identify(&hints);
+    (hints, identity)
+}
+
+/// Identifies the gear of a chain block, using its active model for the `.nam` metadata.
+///
+/// `None` for an insert slot or a block with no tone.
+#[must_use]
+pub fn block_identity(block: &ChainBlock) -> Option<(GearHints, GearIdentity)> {
+    if block.is_insert {
+        return None;
+    }
+    let tone = block.tone.as_ref()?;
+    let model = block
+        .active_model_id
+        .and_then(|id| tone.models.iter().find(|model| model.id == id));
+    Some(identify_tone(tone, model))
+}
+
+/// Tries each hint source in priority order, building one normalized haystack per source that
+/// is reached.
+fn match_hints(hints: &GearHints, declared: GearCategory) -> Option<(MatchSource, GearFamily)> {
+    let source = |text: String| match_keywords(&text, declared);
+
+    source(words(
+        [hints.nam_make.as_deref(), hints.nam_model.as_deref()]
+            .into_iter()
+            .flatten(),
+    ))
+    .map(|family| (MatchSource::NamMetadata, family))
+    .or_else(|| {
+        source(words(hints.makes.iter().map(String::as_str)))
+            .map(|family| (MatchSource::Catalog, family))
+    })
+    .or_else(|| source(words([hints.title.as_str()])).map(|family| (MatchSource::Title, family)))
+}
+
+fn match_keywords(haystack: &str, declared: GearCategory) -> Option<GearFamily> {
     if haystack.trim().is_empty() {
         return None;
     }
-    KEYWORDS
+    KEYWORD_NEEDLES
         .iter()
         .filter(|(family, _)| declared == GearCategory::Unknown || family.category() == declared)
-        .find(|(_, keywords)| {
-            keywords
+        .find(|(_, needles)| {
+            needles
                 .iter()
-                .any(|keyword| haystack.contains(&words(keyword)))
+                .any(|needle| haystack.contains(needle.as_str()))
         })
         .map(|(family, _)| *family)
 }
@@ -558,24 +633,29 @@ const fn default_family(category: GearCategory, tone_type: ToneType) -> GearFami
     }
 }
 
-/// Lowercases, turns every non-alphanumeric run into one space, and pads with spaces so that
-/// `contains(" kw ")` matches whole words only.
-fn words(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 2);
-    out.push(' ');
-    let mut gap = false;
-    for ch in text.chars() {
-        if ch.is_alphanumeric() {
-            if gap && !out.ends_with(' ') {
-                out.push(' ');
+/// Normalizes several text parts into one lower-case, space-padded haystack, as if they were
+/// joined by spaces. Every non-alphanumeric run becomes one space, so `contains(" kw ")` matches
+/// whole words only.
+///
+/// An input with no alphanumeric character gives an empty string, which no keyword matches.
+fn words<'a>(parts: impl IntoIterator<Item = &'a str>) -> String {
+    let mut out = String::new();
+    for part in parts {
+        out.reserve(part.len() + 2);
+        let mut gap = true;
+        for ch in part.chars() {
+            if ch.is_alphanumeric() {
+                if gap {
+                    out.push(' ');
+                    gap = false;
+                }
+                out.extend(ch.to_lowercase());
+            } else {
+                gap = true;
             }
-            gap = false;
-            out.extend(ch.to_lowercase());
-        } else {
-            gap = true;
         }
     }
-    if !out.ends_with(' ') {
+    if !out.is_empty() {
         out.push(' ');
     }
     out
@@ -583,7 +663,7 @@ fn words(text: &str) -> String {
 
 /// Lowercases and joins words with underscores (`" Hi-Gain "` becomes `hi_gain`).
 fn normalize_word(value: &str) -> String {
-    words(value).trim().replace(' ', "_")
+    words([value]).trim().replace(' ', "_")
 }
 
 fn text_field(value: Option<&Value>) -> Option<String> {

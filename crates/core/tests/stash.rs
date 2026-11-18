@@ -5,7 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use ronie_core::{LocalStash, StashError};
+use ronnie_core::{LocalStash, StashError};
 use tempfile::TempDir;
 use url::Url;
 

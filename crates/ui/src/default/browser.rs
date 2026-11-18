@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eframe::egui::{self, Color32, TextureHandle};
-use ronie_core::{Taxonomy, Tone, ToneId};
+use ronnie_core::{Taxonomy, Tone, ToneId};
 
 use crate::services::{
     catalog::CatalogStatus,
@@ -514,7 +514,7 @@ impl BrowserView {
         &mut self,
         ui: &mut egui::Ui,
         layout: GridLayout,
-        result: Option<ronie_core::Page<ronie_core::Tone>>,
+        result: Option<ronnie_core::Page<ronnie_core::Tone>>,
         action: &mut Option<BrowserAction>,
         session: SessionStatus,
     ) {
@@ -725,7 +725,7 @@ impl BrowserView {
         body: egui::Rect,
         column_x: f32,
         column_width: f32,
-        page: &ronie_core::Page<ronie_core::Tone>,
+        page: &ronnie_core::Page<ronnie_core::Tone>,
         scale: f32,
     ) {
         #[derive(Clone, Copy)]
@@ -1126,7 +1126,7 @@ mod tests {
 
     use super::{BrowserView, SessionStatus};
     use eframe::egui::{self, Color32, emath::TSTransform};
-    use ronie_core::{Page, Tone};
+    use ronnie_core::{Page, Tone};
 
     fn page(rows: usize) -> Page<Tone> {
         Page {

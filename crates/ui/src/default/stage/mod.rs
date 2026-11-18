@@ -181,7 +181,7 @@ fn open_slot_menu(
     } else {
         let lane = match &request.placement {
             Placement::After(id) | Placement::Before(id) => header::lane_of(state, Some(id)),
-            Placement::End | Placement::Smart => ronie_core::ChainSide::Left,
+            Placement::End | Placement::Smart => ronnie_core::ChainSide::Left,
         };
         menu.open_at(request.category, request.placement, request.anchor, lane);
     }
@@ -194,7 +194,7 @@ fn open_slot_menu(
 fn open_replace_menu(
     ctx: &egui::Context,
     state: &crate::backend::ChainViewState,
-    id: ronie_core::BlockId,
+    id: ronnie_core::BlockId,
     anchor: egui::Rect,
     on_page: bool,
 ) {
@@ -229,7 +229,7 @@ fn show_block_menu(
     if !menu.is_open() {
         return;
     }
-    let block = |id: &ronie_core::BlockId| {
+    let block = |id: &ronnie_core::BlockId| {
         state
             .chain
             .left
@@ -262,7 +262,7 @@ fn show_block_menu(
 
 /// Removes block `id` as REMOVE of its page does: through the page when the block is open, so
 /// that the stage moves on to a neighbour, else from the chain.
-fn remove_block(chrome: &mut ChromeController, id: &ronie_core::BlockId) {
+fn remove_block(chrome: &mut ChromeController, id: &ronnie_core::BlockId) {
     match chrome.detail_mut().filter(|detail| detail.block_id() == id) {
         Some(detail) => {
             let _ = detail.remove();
@@ -304,9 +304,9 @@ fn delete_on_key(ctx: &egui::Context, chrome: &mut ChromeController) {
 }
 
 /// The kind of gear that a block models, when it is known.
-fn gear_of(block: &ronie_core::ChainBlock) -> Option<ronie_core::gear::GearCategory> {
+fn gear_of(block: &ronnie_core::ChainBlock) -> Option<ronnie_core::gear::GearCategory> {
     super::skins::gear_category(block)
-        .filter(|category| *category != ronie_core::gear::GearCategory::Unknown)
+        .filter(|category| *category != ronnie_core::gear::GearCategory::Unknown)
 }
 
 /// Keeps a replace menu under the REPLACE button that opened it when the page lays out again,
@@ -394,8 +394,8 @@ fn menu_placement(state: &crate::backend::ChainViewState, menu: &add_menu::AddMe
     match (&menu.placement, menu.view) {
         (Placement::End, add_menu::MenuView::Results(category)) if menu.replacing.is_none() => {
             let lane = match menu.lane {
-                ronie_core::ChainSide::Left => &state.chain.left,
-                ronie_core::ChainSide::Right => &state.chain.right,
+                ronnie_core::ChainSide::Left => &state.chain.left,
+                ronnie_core::ChainSide::Right => &state.chain.right,
             };
             super::header::smart_placement(lane, category, None)
         }
@@ -426,7 +426,7 @@ fn show_add_menu(
     }
     if !state.chain.stereo_enabled {
         // Mono has one lane; a lane B choice from before the switch no longer exists.
-        menu.lane = ronie_core::ChainSide::Left;
+        menu.lane = ronnie_core::ChainSide::Left;
     }
     let data = add_menu::MenuData {
         stereo: state.chain.stereo_enabled,
@@ -728,12 +728,12 @@ fn place_of(state: &crate::backend::ChainViewState, id: &str) -> Option<(bool, u
 /// unbroken run of tone blocks around it whose render is a pedal.
 pub(super) fn pedal_run(
     state: &crate::backend::ChainViewState,
-    id: &ronie_core::BlockId,
-) -> (Vec<ronie_core::ChainBlock>, Vec<ronie_core::ChainBlock>) {
-    let is_pedal = |block: &ronie_core::ChainBlock| {
+    id: &ronnie_core::BlockId,
+) -> (Vec<ronnie_core::ChainBlock>, Vec<ronnie_core::ChainBlock>) {
+    let is_pedal = |block: &ronnie_core::ChainBlock| {
         !block.is_insert
             && super::skins::skin_for(block)
-                .is_some_and(|skin| skin.category == ronie_core::gear::GearCategory::Pedal)
+                .is_some_and(|skin| skin.category == ronnie_core::gear::GearCategory::Pedal)
     };
     for lane in [&state.chain.left, &state.chain.right] {
         let Some(index) = lane.iter().position(|block| &block.id == id) else {
@@ -763,10 +763,10 @@ pub(super) fn pedal_run(
 /// gear is added from the + menu, which places it by its kind.
 pub(super) fn stage_slots(
     state: &crate::backend::ChainViewState,
-    id: &ronie_core::BlockId,
+    id: &ronnie_core::BlockId,
 ) -> super::block::StageSlots {
-    use ronie_core::gear::GearCategory::Pedal;
-    let category = |block: &ronie_core::ChainBlock| {
+    use ronnie_core::gear::GearCategory::Pedal;
+    let category = |block: &ronnie_core::ChainBlock| {
         if block.is_insert {
             return None;
         }
@@ -795,7 +795,7 @@ mod tests {
     use std::sync::Arc;
 
     use eframe::egui;
-    use ronie_core::BlockId;
+    use ronnie_core::BlockId;
 
     use crate::{
         backend::MockBackend,
@@ -816,7 +816,7 @@ mod tests {
     fn stage_driver(id: &str) -> (UiDriver, Arc<MockBackend>) {
         let backend = Arc::new(MockBackend::from_scenario(&scenario(id)));
         let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-        chrome.set_view_mode(ViewMode::RonieFlow);
+        chrome.set_view_mode(ViewMode::RonnieFlow);
         let mut driver = UiDriver::new(chrome, (*backend).clone());
         driver.settle();
         (driver, backend)

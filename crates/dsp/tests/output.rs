@@ -1,6 +1,6 @@
 //! Output image matrix, mono fold, DC blocker, tone stack, and gain tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     image::{ImageControls, ImageStage},
     output::{OutputControls, OutputStage},
@@ -143,7 +143,7 @@ fn mono_rig_keeps_spread_idle_but_runs_align_before_fold() {
         stereo_chains: false,
         stereo_rig: false,
         spread_enabled: true,
-        spread: ronie_dsp::image::SpreadParams::from_normalized(0.75, 0.0, 0.5, true, true, true),
+        spread: ronnie_dsp::image::SpreadParams::from_normalized(0.75, 0.0, 0.5, true, true, true),
         ..constant_controls()
     };
     let mut stage = ImageStage::new(FS, BLOCK).expect("image preparation");
@@ -164,7 +164,7 @@ fn mono_rig_keeps_spread_idle_but_runs_align_before_fold() {
     let controls = ImageControls {
         stereo_rig: false,
         align_enabled: true,
-        align: ronie_dsp::image::AlignParams::from_normalized(1.0, 0.0, 0.5, false, false, false),
+        align: ronnie_dsp::image::AlignParams::from_normalized(1.0, 0.0, 0.5, false, false, false),
         ..constant_controls()
     };
     let (left_out, right_out, _) = run_image(&left, &right, controls);

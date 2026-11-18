@@ -1,7 +1,7 @@
 //! System-browser and device sign-in views without an embedded webview.
 
 use eframe::egui;
-use ronie_core::{HttpTransport, OAuthError};
+use ronnie_core::{HttpTransport, OAuthError};
 
 use crate::services::{
     auth::AuthService,

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ronie_ui::{
+use ronnie_ui::{
     backend::{MockBackend, UiBackend},
     default::{ChromeController, DismissReason, Overlay, overlays::OverlayController},
     testbed::{UiScenario, load_scenarios},
@@ -101,7 +101,7 @@ fn overlay_focus_moves_into_the_surface_and_returns_to_its_anchor_with_the_reaso
 #[test]
 fn hints_and_toast_have_accessible_announcements() {
     assert_eq!(
-        ronie_ui::default::hints::HintController::new(true).current(),
+        ronnie_ui::default::hints::HintController::new(true).current(),
         ""
     );
     let (mut chrome, _backend) = controller("chrome-hints-off");

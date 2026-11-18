@@ -22,7 +22,7 @@ impl ReferenceOracle {
     pub fn new() -> Result<Self, OracleError> {
         let (_, build) = reference_paths()?.ok_or(OracleError::NotConfigured)?;
         Ok(Self {
-            executable: build.join("ronie-reference"),
+            executable: build.join("ronnie-reference"),
         })
     }
 }
@@ -35,7 +35,7 @@ impl ModelOracle for ReferenceOracle {
             .ok_or(OracleError::MissingModelFile)?;
         let id = OUTPUT_ID.fetch_add(1, Ordering::Relaxed);
         let output_file =
-            std::env::temp_dir().join(format!("ronie-reference-{}-{id}.raw", std::process::id()));
+            std::env::temp_dir().join(format!("ronnie-reference-{}-{id}.raw", std::process::id()));
         let output = Command::new(&self.executable)
             .arg(model_file)
             .arg(case.stream.name())

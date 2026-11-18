@@ -54,7 +54,7 @@ impl DiagnosticLog {
         let folder = directory.to_path_buf();
         // With no thread, the log stays empty, and the app has more important work to do.
         let _ = std::thread::Builder::new()
-            .name("ronie-diagnostic-log".to_owned())
+            .name("ronnie-diagnostic-log".to_owned())
             .spawn(move || write_messages(&folder, &messages));
         let log = Self {
             directory: directory.to_path_buf(),

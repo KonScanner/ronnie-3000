@@ -60,9 +60,9 @@ jobs:
         env:
           VERSION: ci
           PLATFORM: linux-x86_64
-          LIBRARY: target/ci/libronie_plugin_nice.so
+          LIBRARY: target/ci/libronnie_plugin_nice.so
         run: |
-          cargo build --locked --profile ci -p ronie-plugin-nice
+          cargo build --locked --profile ci -p ronnie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
       - name: Check the VST3 plugin with pluginval
         run: bash script/pluginval.sh "target/vst3-bundle/ronnie-3000-vst3-ci-linux-x86_64/Ronnie 3000.vst3"
@@ -76,11 +76,11 @@ jobs:
           - name: macOS
             os: macos-latest
             platform: macos-arm64
-            library: target/ci/libronie_plugin_nice.dylib
+            library: target/ci/libronnie_plugin_nice.dylib
           - name: Windows
             os: windows-2025
             platform: windows-x86_64
-            library: target/ci/ronie_plugin_nice.dll
+            library: target/ci/ronnie_plugin_nice.dll
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -111,7 +111,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           LIBRARY: ${{ matrix.library }}
         run: |
-          cargo build --locked --profile ci -p ronie-plugin-nice
+          cargo build --locked --profile ci -p ronnie-plugin-nice
           DIST_DIR=target/ci-dist bash packaging/vst3/bundle.sh
       - name: Check the VST3 plugin with pluginval
         shell: bash

@@ -1,6 +1,6 @@
 """Ronnie 3000 pedal skins, rendered in Blender.
 
-Run: Blender -b -P pedals.py -- <family> <out_dir> [samples]
+Run: Blender -b --python-exit-code 1 -P pedals.py -- <family> <out_dir> [samples]
 Families: od-green, od-gold, dist-black, fuzz, boost, comp, default-dark, default-light
 Units: 1 BU = 1 cm. Shared camera, lights and scale across every family.
 """
@@ -13,7 +13,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import finish, knob_rig, lcd_rig  # noqa: E402
+from common import finish, knob_rig, lcd_rig, load_font  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 FAMILY = argv[0] if argv else "od-green"
@@ -194,17 +194,7 @@ def cyl(name, r, depth, loc, mat, verts=64, rot=(0, 0, 0), bev=0.0):
     return o
 
 
-def load_font(paths):
-    for p in paths:
-        if os.path.exists(p):
-            try:
-                return bpy.data.fonts.load(p)
-            except Exception:
-                pass
-    return None
-
-
-FONT = load_font(["/System/Library/Fonts/Supplemental/Futura.ttc", "/System/Library/Fonts/Avenir Next.ttc"])
+FONT = load_font()
 
 
 def text(body, size, loc, mat, extrude=0.0, font=FONT, shear=0.0, bold=0.0):
@@ -216,8 +206,7 @@ def text(body, size, loc, mat, extrude=0.0, font=FONT, shear=0.0, bold=0.0):
     curve.extrude = extrude
     curve.shear = shear
     curve.offset = bold
-    if font:
-        curve.font = font
+    curve.font = font
     o = bpy.data.objects.new("txt " + body, curve)
     bpy.context.collection.objects.link(o)
     o.location = loc

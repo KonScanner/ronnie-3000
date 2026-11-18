@@ -34,8 +34,8 @@ pub use worker::{
 
 use std::time::Duration;
 
-use ronie_core::PropertiesError;
-use ronie_dsp::ChainError;
+use ronnie_core::PropertiesError;
+use ronnie_dsp::ChainError;
 use thiserror::Error;
 
 /// Audio backend selection, plus a deterministic test backend.

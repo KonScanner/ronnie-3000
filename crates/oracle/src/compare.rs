@@ -1,5 +1,5 @@
-use ronie_core::{DspError, NamDocument};
-use ronie_dsp::build_model;
+use ronnie_core::{DspError, NamDocument};
+use ronnie_dsp::build_model;
 use std::path::PathBuf;
 use thiserror::Error;
 

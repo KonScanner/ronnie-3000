@@ -4,7 +4,7 @@ use crate::{
     lane::{Lane, LaneSnapshot, unique_block_id},
     routing::{RoutingControls, RoutingState, Topology},
 };
-use ronie_core::{BlockId, ChainBlock, ChainSide, InputMode};
+use ronnie_core::{BlockId, ChainBlock, ChainSide, InputMode};
 
 /// One branch tap selection.
 #[derive(Debug, Clone, PartialEq, Eq)]

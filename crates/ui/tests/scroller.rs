@@ -1,6 +1,6 @@
 //! Common wheel, keyboard, focus-reveal, and drag-pan scrolling tests.
 
-use ronie_ui::scroller::{Axis, ClickOutcome, ScrollKey, Scroller};
+use ronnie_ui::scroller::{Axis, ClickOutcome, ScrollKey, Scroller};
 
 fn scroller() -> Scroller {
     Scroller::new(Axis::Vertical, 200, 1_000)

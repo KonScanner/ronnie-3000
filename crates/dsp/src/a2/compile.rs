@@ -1,4 +1,4 @@
-use ronie_core::{DspError, DspResult, NamArchitecture, NamDocument};
+use ronnie_core::{DspError, DspResult, NamArchitecture, NamDocument};
 
 use super::{CompiledA2, CompiledA2Layer, HEAD_KERNEL_SIZE, KERNEL_SIZES, NUM_LAYERS, detect_a2};
 

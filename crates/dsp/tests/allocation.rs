@@ -2,9 +2,9 @@
 #![allow(unsafe_code)]
 
 use proptest::prelude::*;
-use ronie_core::{NamArchitecture, NamDocument, NamMetadata, VersionSupport};
-use ronie_dsp::{A2Model, ModelEngine, PhaseEngine, compile_model};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::{NamArchitecture, NamDocument, NamMetadata, VersionSupport};
+use ronnie_dsp::{A2Model, ModelEngine, PhaseEngine, compile_model};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json::{Value, json};
 use std::{
     alloc::{GlobalAlloc, Layout, System},
@@ -86,7 +86,7 @@ fn prepared_single_callbacks_do_not_allocate() {
     let _guard = lock();
     let document = synthetic_a2_document(3).expect("synthetic document");
     let mut engine = A2Model::new(std::sync::Arc::new(
-        ronie_dsp::compile_a2(&document).expect("compiled model"),
+        ronnie_dsp::compile_a2(&document).expect("compiled model"),
     ))
     .expect("model engine");
     engine
@@ -179,7 +179,7 @@ proptest! {
     ) {
         let _guard = lock();
         let document = synthetic_a2_document(3).expect("synthetic document");
-        let compiled = std::sync::Arc::new(ronie_dsp::compile_a2(&document).expect("compiled model"));
+        let compiled = std::sync::Arc::new(ronnie_dsp::compile_a2(&document).expect("compiled model"));
         let input: Vec<f64> = (0..257)
             .map(|index| ((index * 37 % 257) as f64 - 128.0) / 128.0 + seed as f64 * 0.0)
             .collect();

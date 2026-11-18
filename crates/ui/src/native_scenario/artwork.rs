@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui;
-use ronie_core::{Page, Tone};
+use ronnie_core::{Page, Tone};
 
 use crate::{
     backend::UiBackend,

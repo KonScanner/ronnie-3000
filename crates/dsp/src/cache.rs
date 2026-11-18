@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use ronie_core::{ContentId, ContentPreparationKey, DspError, ModelBytes, parse_nam};
+use ronnie_core::{ContentId, ContentPreparationKey, DspError, ModelBytes, parse_nam};
 
 use crate::{CompiledModel, compile_model};
 

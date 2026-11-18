@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, InputMode, SessionSnapshot,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_dsp::{
+use ronnie_dsp::{
     block::BlockControls,
     image::{AlignParams, ImageControls, SpreadParams, chain_balance_gains},
     input::{GateParams, InputControls, PitchParams, PitchWindow},
@@ -16,7 +16,7 @@ use ronie_dsp::{
     rt_chain::ChainControls,
     tone_stack::ToneControls,
 };
-use ronie_ui::backend::ChainFault;
+use ronnie_ui::backend::ChainFault;
 
 /// Decibel span of a normalized level control, centered on unity at 0.5.
 const LEVEL_SPAN_DB: f32 = 48.0;

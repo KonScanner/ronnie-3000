@@ -2,7 +2,7 @@
 //! block, and the ways to load a file or open the tone browser.
 
 use eframe::egui::{self, Align, Color32, FontFamily, FontId, Layout, Rect, RichText, Stroke};
-use ronie_core::{BlockId, ChainSide, ModelKind, Tone, ToneId, gear::GearCategory};
+use ronnie_core::{BlockId, ChainSide, ModelKind, Tone, ToneId, gear::GearCategory};
 
 use crate::default::Placement;
 use crate::services::{

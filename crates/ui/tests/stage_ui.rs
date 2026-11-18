@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use ronie_ui::{
+use ronnie_ui::{
     backend::{MockBackend, UiBackend},
-    default::{ChromeController, Placement},
+    default::{ChromeController, Placement, popover},
     driver::UiDriver,
     shell::ViewMode,
     testbed::{UiScenario, load_scenarios},
@@ -25,7 +25,7 @@ fn scenario(id: &str) -> UiScenario {
 fn stage_driver(id: &str) -> (UiDriver, Arc<MockBackend>) {
     let backend = Arc::new(MockBackend::from_scenario(&scenario(id)));
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
@@ -79,8 +79,8 @@ fn the_global_panel_hides_while_the_browser_is_open() {
 
 // ---------------------------------------------------------------- Task 3: header
 
-use ronie_core::BlockId;
-use ronie_ui::default::GallerySelection;
+use ronnie_core::BlockId;
+use ronnie_ui::default::GallerySelection;
 
 /// The scenarios document with one scenario edited, loaded as a driver in Stage mode.
 fn edited_driver(
@@ -103,7 +103,7 @@ fn edited_driver(
         .expect("scenario exists");
     let backend = Arc::new(MockBackend::from_scenario(&scenario));
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
@@ -308,12 +308,12 @@ fn mono_menu_adds_to_the_end_of_the_chain() {
 }
 
 fn remembered_driver(tones: &[(i64, &str)]) -> UiDriver {
-    use ronie_core::gear::GearCategory;
-    use ronie_ui::{backend::UiAction, services::recent_tones::RecentTones};
+    use ronnie_core::gear::GearCategory;
+    use ronnie_ui::{backend::UiAction, services::recent_tones::RecentTones};
     let mut recent = RecentTones::default();
     for (id, gear) in tones {
         recent.remember(
-            ronie_core::Tone::from_value(serde_json::json!({
+            ronnie_core::Tone::from_value(serde_json::json!({
                 "id": id, "title": format!("Tone {id}"), "format": "nam", "gear": gear,
                 "models": [{"id": id * 10, "name": "m",
                     "model_url": format!("https://fixtures.invalid/m/{id}.nam")}]
@@ -330,7 +330,7 @@ fn remembered_driver(tones: &[(i64, &str)]) -> UiDriver {
         })
         .expect("seed");
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     driver
@@ -370,7 +370,7 @@ fn mono_falls_back_to_lane_a() {
         .pending_target()
         .cloned()
         .expect("a target");
-    assert_eq!(target.side, ronie_core::ChainSide::Left);
+    assert_eq!(target.side, ronnie_core::ChainSide::Left);
 }
 
 #[test]
@@ -388,7 +388,7 @@ fn open_the_tone_browser_opens_it_for_the_lane() {
         .pending_target()
         .cloned()
         .expect("a target");
-    assert_eq!(target.side, ronie_core::ChainSide::Right);
+    assert_eq!(target.side, ronnie_core::ChainSide::Right);
     assert!(!driver.is_visible("PEDAL"), "the menu closed");
 }
 
@@ -492,9 +492,9 @@ fn the_tuner_takes_the_stage() {
 fn faceplate_shapes(look: Look) -> String {
     use eframe::egui;
     let backend = Arc::new(MockBackend::from_scenario(&scenario("main-mono")));
-    let mut faceplate = ronie_ui::default::faceplate::Faceplate::new(backend);
+    let mut faceplate = ronnie_ui::default::faceplate::Faceplate::new(backend);
     let context = egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     Look::install(&context, look);
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
@@ -591,7 +591,7 @@ fn utility_undo_redo_follow_history() {
 
 #[test]
 fn disabled_controls_fade_into_the_light_panel() {
-    let veil = color_text(ronie_ui::theme::palette::KNOB_VEIL);
+    let veil = color_text(ronnie_ui::theme::palette::KNOB_VEIL);
     assert!(
         faceplate_shapes(Look::reference()).contains(&veil),
         "the reference dims with the dark veil"
@@ -608,7 +608,7 @@ fn disabled_controls_fade_into_the_light_panel() {
 fn window_shapes(chrome: &mut ChromeController, frames: usize) -> Vec<eframe::egui::Shape> {
     use eframe::egui;
     let context = egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let mut shapes = Vec::new();
     for _ in 0..frames {
         let input = egui::RawInput {
@@ -621,7 +621,7 @@ fn window_shapes(chrome: &mut ChromeController, frames: usize) -> Vec<eframe::eg
         let mut output = context.run_ui(input, |ui| {
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE)
-                .show(ui, |ui| ronie_ui::default::show(ui, chrome));
+                .show(ui, |ui| ronnie_ui::default::show(ui, chrome));
         });
         output.textures_delta.clear();
         shapes = output
@@ -650,8 +650,8 @@ fn the_background_leaves_the_banner_visible() {
     let fixture = scenario("banner-no-input");
     let backend = Arc::new(MockBackend::from_scenario(&fixture));
     let mut chrome = ChromeController::new(backend, Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
-    let device = ronie_ui::default::SystemDeviceState::from_ui_value(&fixture.state["device"])
+    chrome.set_view_mode(ViewMode::RonnieFlow);
+    let device = ronnie_ui::default::SystemDeviceState::from_ui_value(&fixture.state["device"])
         .expect("device settings")
         .banner;
     chrome.set_device_state(Some(device), 0);
@@ -715,7 +715,7 @@ fn removing_the_last_block_opens_the_previous_one() {
 
 #[test]
 fn a_second_click_on_the_preset_pill_closes_the_browser() {
-    use ronie_ui::default::Overlay;
+    use ronnie_ui::default::Overlay;
     let (mut driver, _) = stage_driver("main-mono");
     let _ = driver.click("Browse presets").expect("pill");
     driver.settle();
@@ -733,10 +733,10 @@ fn a_second_click_on_the_preset_pill_closes_the_browser() {
 fn deck_captions_stay_light_on_the_dark_deck() {
     use eframe::egui::{self, Shape};
     let backend = Arc::new(MockBackend::from_scenario(&scenario("main-mono")));
-    let mut faceplate = ronie_ui::default::faceplate::Faceplate::new(backend);
-    faceplate.open_deck(ronie_ui::default::DeckKind::Gate);
+    let mut faceplate = ronnie_ui::default::faceplate::Faceplate::new(backend);
+    faceplate.open_deck(ronnie_ui::default::DeckKind::Gate);
     let context = egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     Look::install(&context, Look::stage());
     let mut texts = Vec::new();
     for _ in 0..2 {
@@ -788,7 +788,7 @@ fn the_block_you_add_opens_on_the_stage() {
     driver.settle();
     let _ = driver.click("OPEN THE TONE BROWSER").expect("browser link");
     driver.settle();
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 4242, "title": "Freshly added amp", "format": "nam", "gear": "amp",
         "models": [{"id": 424201, "name": "One", "model_url": "https://fixtures.invalid/m/424201.nam"}]
     }))
@@ -818,13 +818,13 @@ fn the_block_you_add_opens_on_the_stage() {
 
 #[test]
 fn a_loaded_tone_joins_the_library() {
-    use ronie_ui::services::RecentTones;
+    use ronnie_ui::services::RecentTones;
     let (mut driver, backend) = stage_driver("main-mono");
     let _ = driver.click("Add a block").expect("plus");
     driver.settle();
     let _ = driver.click("OPEN THE TONE BROWSER").expect("browser link");
     driver.settle();
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 4343, "title": "Library amp", "format": "nam", "gear": "amp",
         "models": [{"id": 434301, "name": "One", "model_url": "https://fixtures.invalid/m/434301.nam"}]
     }))
@@ -862,11 +862,11 @@ fn the_utility_bar_holds_the_designed_items() {
 #[test]
 fn optimize_toggles_from_the_utility_bar() {
     let (mut driver, backend) = stage_driver("main-mono");
-    let before = ronie_ui::default::tuning::optimize(backend.as_ref());
+    let before = ronnie_ui::default::tuning::optimize(backend.as_ref());
     let _ = driver.click("Optimize").expect("optimize");
     driver.settle();
     assert_ne!(
-        ronie_ui::default::tuning::optimize(backend.as_ref()),
+        ronnie_ui::default::tuning::optimize(backend.as_ref()),
         before
     );
 }
@@ -923,14 +923,14 @@ fn plus_adds_to_the_lane_of_the_selected_block() {
         matches!(
             driver.chrome().gallery().selection(),
             GallerySelection::SelectTone {
-                side: ronie_core::ChainSide::Right,
+                side: ronnie_core::ChainSide::Right,
                 ..
             }
         ) || driver.chrome_mut().browser_mut().is_some()
             && !matches!(
                 driver.chrome().gallery().selection(),
                 GallerySelection::SelectTone {
-                    side: ronie_core::ChainSide::Left,
+                    side: ronnie_core::ChainSide::Left,
                     ..
                 }
             ),
@@ -1036,7 +1036,7 @@ fn first_tone_id(backend: &MockBackend) -> String {
 
 // ---------------------------------------------------------------- Light block page
 
-use ronie_ui::default::block::BlockView;
+use ronnie_ui::default::block::BlockView;
 
 fn amp_page() -> (UiDriver, Arc<MockBackend>) {
     let (mut driver, backend) = stage_driver("main-mono");
@@ -1045,7 +1045,7 @@ fn amp_page() -> (UiDriver, Arc<MockBackend>) {
     (driver, backend)
 }
 
-fn block_titled(backend: &MockBackend, needle: &str) -> Option<ronie_core::ChainBlock> {
+fn block_titled(backend: &MockBackend, needle: &str) -> Option<ronnie_core::ChainBlock> {
     let state = backend.chain_state(0);
     state
         .chain
@@ -1175,7 +1175,7 @@ fn a_cab_page_keeps_its_level_and_mix_trims() {
 fn normalize_toggles_from_the_gear_page() {
     let (mut driver, backend) = amp_page();
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetPreference {
+        .dispatch(ronnie_ui::backend::UiAction::SetPreference {
             key: "t3k.showBlockNormalizeControl".to_owned(),
             value: true,
         })
@@ -1216,14 +1216,14 @@ fn pedalboard_driver() -> (UiDriver, Arc<MockBackend>) {
     chain.insert(1, od);
     let backend = Arc::new(MockBackend::from_scenario(&scenario));
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
 }
 
 fn add_beside(
-    placement: impl FnOnce(&ronie_core::ChainSnapshot) -> Placement,
+    placement: impl FnOnce(&ronnie_core::ChainSnapshot) -> Placement,
 ) -> (Vec<String>, String) {
     let (mut driver, backend) = pedalboard_driver();
     let chain = backend.chain_state(0).chain;
@@ -1233,7 +1233,7 @@ fn add_beside(
         .find(|block| block.is_insert)
         .map(|block| block.id.0.clone())
         .expect("insert");
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 4243, "title": "Placed amp", "format": "nam", "gear": "amp",
         "models": [{"id": 424301, "name": "One", "model_url": "https://fixtures.invalid/m/424301.nam"}]
     }))
@@ -1241,7 +1241,7 @@ fn add_beside(
     let placement = placement(&chain);
     driver
         .chrome_mut()
-        .add_tone(ronie_core::ChainSide::Left, &insert, tone, placement);
+        .add_tone(ronnie_core::ChainSide::Left, &insert, tone, placement);
     for _ in 0..20 {
         driver.settle();
     }
@@ -1264,7 +1264,7 @@ fn a_tone_added_after_a_block_lands_after_it() {
 
 #[test]
 fn a_vanished_anchor_falls_back_to_the_end() {
-    let (titles, added) = add_beside(|_| Placement::After(ronie_core::BlockId("gone".to_owned())));
+    let (titles, added) = add_beside(|_| Placement::After(ronnie_core::BlockId("gone".to_owned())));
     assert_eq!(titles.len(), 5, "{titles:?}");
     assert_eq!(titles[4], added, "{titles:?}");
 }
@@ -1324,7 +1324,7 @@ fn crowded_pedalboard(extra: usize) -> UiDriver {
     }
     let backend = Arc::new(MockBackend::from_scenario(&scenario));
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     driver
@@ -1380,7 +1380,7 @@ fn slots_stay_visible_in_a_narrow_window() {
 
 // ---------------------------------------------------------------- Light EQ and INFO
 
-fn eq_block(backend: &MockBackend) -> ronie_core::EqParams {
+fn eq_block(backend: &MockBackend) -> ronnie_core::EqParams {
     block_titled(backend, "AC30").expect("amp").params.eq
 }
 
@@ -1435,7 +1435,7 @@ fn the_info_page_shows_the_tone_and_its_page_link() {
 fn the_size_toggle_keeps_one_name() {
     let (mut driver, backend) = amp_page();
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetPreference {
+        .dispatch(ronnie_ui::backend::UiAction::SetPreference {
             key: "t3k.showBlockSizeControl".to_owned(),
             value: true,
         })
@@ -1450,8 +1450,8 @@ fn the_size_toggle_keeps_one_name() {
 
 const AMP_SEARCH: &str = "Search amps in your library and on TONE3000";
 
-fn amp_tone(id: i64, title: &str) -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn amp_tone(id: i64, title: &str) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": id, "title": title, "format": "nam", "gear": "amp",
         "downloads_count": 3200, "user": {"username": "lowend_lab"},
         "models": [{"id": id * 10, "name": "m",
@@ -1464,9 +1464,9 @@ fn amp_tone(id: i64, title: &str) -> ronie_core::Tone {
 fn menu_driver(
     id: &str,
     signed_in: bool,
-    library: &[ronie_core::Tone],
+    library: &[ronnie_core::Tone],
 ) -> (UiDriver, Arc<MockBackend>) {
-    use ronie_ui::{backend::UiAction, services::recent_tones::RecentTones};
+    use ronnie_ui::{backend::UiAction, services::recent_tones::RecentTones};
     let mut recent = RecentTones::default();
     for tone in library.iter().rev() {
         recent.remember(tone.clone());
@@ -1479,7 +1479,7 @@ fn menu_driver(
         })
         .expect("seed");
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), signed_in, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
@@ -1492,12 +1492,12 @@ fn open_amp(driver: &mut UiDriver) {
 }
 
 /// Answers the query of the menu store with `tones`, out of `total` tones.
-fn answer_menu(driver: &mut UiDriver, tones: Vec<ronie_core::Tone>, total: u64) {
+fn answer_menu(driver: &mut UiDriver, tones: Vec<ronnie_core::Tone>, total: u64) {
     let store = driver.chrome_mut().add_store_mut().expect("the menu store");
     let generation = store.begin_query();
     let completed = store.complete_query(
         generation,
-        ronie_core::Page {
+        ronnie_core::Page {
             data: tones,
             page: 1,
             page_size: 12,
@@ -1638,7 +1638,7 @@ fn searching_filters_the_library() {
 /// A build with no key yet, whose sign-in opens the key page.
 struct NoKey;
 
-impl ronie_ui::services::key_setup::KeySetup for NoKey {
+impl ronnie_ui::services::key_setup::KeySetup for NoKey {
     fn origin(&self) -> String {
         "https://www.fixtures.invalid".to_owned()
     }
@@ -1651,8 +1651,8 @@ impl ronie_ui::services::key_setup::KeySetup for NoKey {
         &mut self,
         _key: &str,
     ) -> Result<
-        Option<ronie_ui::services::key_setup::CommunityParts>,
-        ronie_ui::services::key_setup::KeySetupError,
+        Option<ronnie_ui::services::key_setup::CommunityParts>,
+        ronnie_ui::services::key_setup::KeySetupError,
     > {
         Ok(None)
     }
@@ -1660,8 +1660,8 @@ impl ronie_ui::services::key_setup::KeySetup for NoKey {
     fn remove(
         &mut self,
     ) -> Result<
-        Option<ronie_ui::services::key_setup::CommunityParts>,
-        ronie_ui::services::key_setup::KeySetupError,
+        Option<ronnie_ui::services::key_setup::CommunityParts>,
+        ronnie_ui::services::key_setup::KeySetupError,
     > {
         Ok(None)
     }
@@ -1756,7 +1756,7 @@ fn a_second_add_takes_over_a_download_in_progress() {
         .map(|block| block.id.0.clone())
         .expect("insert");
     let flow = driver.chrome_mut().load_flow_mut();
-    flow.select(ronie_core::ChainSide::Left, &insert);
+    flow.select(ronnie_core::ChainSide::Left, &insert);
     let _ticket = flow
         .begin_remote_load(amp_tone(701, "Slow Download"))
         .expect("load");
@@ -1774,7 +1774,7 @@ fn a_second_add_takes_over_a_download_in_progress() {
 
 #[test]
 fn a_refused_library_load_shows_a_toast_and_keeps_the_menu_and_the_tone() {
-    let local = ronie_core::Tone::from_value(serde_json::json!({
+    let local = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 0, "title": "Collected Stash", "format": "nam", "gear": "amp", "local": true,
         "models": [{"id": 1, "name": "m", "model_url": common::file_url("/stash/collected.nam")}]
     }))
@@ -1908,8 +1908,8 @@ fn a_missing_file_shows_a_toast() {
 
 const PEDAL_SEARCH: &str = "Search pedals in your library";
 
-fn gear_tone(id: i64, title: &str, gear: &str) -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn gear_tone(id: i64, title: &str, gear: &str) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": id, "title": title, "format": "nam", "gear": gear,
         "downloads_count": 1200, "user": {"username": "lowend_lab"},
         "models": [{"id": id * 10, "name": "m",
@@ -1923,10 +1923,10 @@ fn gear_tone(id: i64, title: &str, gear: &str) -> ronie_core::Tone {
 fn slot_driver(
     id: &str,
     signed_in: bool,
-    library: &[ronie_core::Tone],
+    library: &[ronnie_core::Tone],
     edit: impl FnOnce(&mut Vec<serde_json::Value>),
 ) -> (UiDriver, Arc<MockBackend>) {
-    use ronie_ui::{backend::UiAction, services::recent_tones::RecentTones};
+    use ronnie_ui::{backend::UiAction, services::recent_tones::RecentTones};
     let mut scenario = scenario(id);
     edit(
         scenario.state["chain"]["chain"]
@@ -1945,7 +1945,7 @@ fn slot_driver(
         })
         .expect("seed");
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), signed_in, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
@@ -2040,7 +2040,7 @@ fn the_plus_takes_over_a_slot_menu() {
     assert!(plus_is_solid(&driver));
 }
 
-fn library_pedal() -> ronie_core::Tone {
+fn library_pedal() -> ronnie_core::Tone {
     gear_tone(801, "Library Drive", "pedal")
 }
 
@@ -2114,7 +2114,7 @@ fn a_slot_menu_takes_over_a_download_of_the_plus_menu() {
     // The + menu's pick is still downloading to the end of the lane.
     let insert = last_insert(&backend);
     let flow = driver.chrome_mut().load_flow_mut();
-    flow.select(ronie_core::ChainSide::Left, &insert);
+    flow.select(ronnie_core::ChainSide::Left, &insert);
     let _ticket = flow
         .begin_remote_load(gear_tone(701, "Slow Download", "pedal"))
         .expect("load");
@@ -2125,7 +2125,7 @@ fn a_slot_menu_takes_over_a_download_of_the_plus_menu() {
     driver.settle();
     assert_eq!(
         driver.chrome().loading_tone(),
-        Some(ronie_core::ToneId(701))
+        Some(ronnie_core::ToneId(701))
     );
 
     let _ = driver.click("Add a pedal after these").expect("slot");
@@ -2171,7 +2171,7 @@ fn a_slot_menu_closes_when_its_slot_leaves_the_stage() {
     // The + menu's pick is still downloading to the end of the lane.
     let insert = last_insert(&backend);
     let flow = driver.chrome_mut().load_flow_mut();
-    flow.select(ronie_core::ChainSide::Left, &insert);
+    flow.select(ronnie_core::ChainSide::Left, &insert);
     let ticket = flow.begin_remote_load(slow.clone()).expect("load");
     driver.settle();
     let _ = driver.press_key(eframe::egui::Key::Escape);
@@ -2185,7 +2185,7 @@ fn a_slot_menu_closes_when_its_slot_leaves_the_stage() {
     // The download lands and its pedal opens on the stage, whose own pedal slot sits after it.
     assert!(
         ticket
-            .publish(slow, ronie_core::ModelId(7010), vec![1, 2, 3].into())
+            .publish(slow, ronnie_core::ModelId(7010), vec![1, 2, 3].into())
             .expect("publish")
     );
     assert!(
@@ -2269,8 +2269,8 @@ fn a_file_from_a_slot_lands_at_the_slot() {
 }
 
 /// A local tone, which lands at once with or without a service.
-fn local_pedal(id: i64, title: &str) -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn local_pedal(id: i64, title: &str) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": id, "title": title, "format": "nam", "gear": "pedal", "local": true,
         "models": [{"id": id * 10, "name": "m", "model_url": common::file_url(&format!("/stash/{id}.nam"))}]
     }))
@@ -2291,11 +2291,11 @@ fn open_browser_from_the_slot(driver: &mut UiDriver) {
 
 /// Loads `tone` into insert `insert` of lane A through the browser of the chain, which no slot
 /// opened.
-fn load_through_the_browser(driver: &mut UiDriver, insert: &str, tone: ronie_core::Tone) {
+fn load_through_the_browser(driver: &mut UiDriver, insert: &str, tone: ronnie_core::Tone) {
     let chrome = driver.chrome_mut();
     chrome
         .gallery_mut()
-        .select_tone(ronie_core::ChainSide::Left, BlockId(insert.to_owned()));
+        .select_tone(ronnie_core::ChainSide::Left, BlockId(insert.to_owned()));
     chrome.sync_browser();
     chrome.pick_tone(tone);
     chrome.sync_browser();
@@ -2303,10 +2303,10 @@ fn load_through_the_browser(driver: &mut UiDriver, insert: &str, tone: ronie_cor
 }
 
 /// A key setup that starts a service over `transport` when a key is saved.
-struct KeyOnSave(tempfile::TempDir, ronie_core::RecordedTransport);
+struct KeyOnSave(tempfile::TempDir, ronnie_core::RecordedTransport);
 
 /// Saves a key, which starts a service over `transport` in place of none.
-fn start_a_service(driver: &mut UiDriver, transport: ronie_core::RecordedTransport) {
+fn start_a_service(driver: &mut UiDriver, transport: ronnie_core::RecordedTransport) {
     let chrome = driver.chrome_mut();
     chrome.use_key_setup(Box::new(KeyOnSave(
         tempfile::tempdir().expect("temporary settings"),
@@ -2320,7 +2320,7 @@ fn start_a_service(driver: &mut UiDriver, transport: ronie_core::RecordedTranspo
     chrome.save_key().expect("the key saves");
 }
 
-impl ronie_ui::services::key_setup::KeySetup for KeyOnSave {
+impl ronnie_ui::services::key_setup::KeySetup for KeyOnSave {
     fn origin(&self) -> String {
         "https://www.fixtures.invalid".to_owned()
     }
@@ -2333,18 +2333,18 @@ impl ronie_ui::services::key_setup::KeySetup for KeyOnSave {
         &mut self,
         key: &str,
     ) -> Result<
-        Option<ronie_ui::services::key_setup::CommunityParts>,
-        ronie_ui::services::key_setup::KeySetupError,
+        Option<ronnie_ui::services::key_setup::CommunityParts>,
+        ronnie_ui::services::key_setup::KeySetupError,
     > {
         let origin = url::Url::parse("https://api.example").expect("origin");
         Ok(Some(
-            ronie_ui::services::community::CommunityService::new(
-                ronie_core::OAuthConfig::new(origin.clone(), key.to_owned()),
-                ronie_core::OriginPolicy::new(origin, []),
+            ronnie_ui::services::community::CommunityService::new(
+                ronnie_core::OAuthConfig::new(origin.clone(), key.to_owned()),
+                ronnie_core::OriginPolicy::new(origin, []),
                 self.1.clone(),
-                ronie_core::SettingsStore::standalone(
+                ronnie_core::SettingsStore::standalone(
                     self.0.path(),
-                    ronie_core::UI_PREFERENCES_SETTINGS,
+                    ronnie_core::UI_PREFERENCES_SETTINGS,
                 ),
             )
             .into(),
@@ -2354,8 +2354,8 @@ impl ronie_ui::services::key_setup::KeySetup for KeyOnSave {
     fn remove(
         &mut self,
     ) -> Result<
-        Option<ronie_ui::services::key_setup::CommunityParts>,
-        ronie_ui::services::key_setup::KeySetupError,
+        Option<ronnie_ui::services::key_setup::CommunityParts>,
+        ronnie_ui::services::key_setup::KeySetupError,
     > {
         Ok(None)
     }
@@ -2367,7 +2367,7 @@ fn a_service_change_ends_the_place_of_a_browser_from_a_slot() {
     let insert = last_insert(&backend);
     open_browser_from_the_slot(&mut driver);
     // A saved key starts a service, whose views start again with no browser.
-    start_a_service(&mut driver, ronie_core::RecordedTransport::new(Vec::new()));
+    start_a_service(&mut driver, ronnie_core::RecordedTransport::new(Vec::new()));
     assert!(driver.chrome_mut().browser_mut().is_none());
 
     load_through_the_browser(&mut driver, &insert, local_pedal(901, "Later Drive"));
@@ -2411,7 +2411,7 @@ fn a_file_load_keeps_the_place_of_a_slot_download() {
     let held = Arc::new(tokio::sync::Notify::new());
     start_a_service(
         &mut driver,
-        ronie_core::RecordedTransport::gated(Vec::new(), held.clone(), held),
+        ronnie_core::RecordedTransport::gated(Vec::new(), held.clone(), held),
     );
     driver.chrome_mut().close_auth();
     let chain = backend.chain_state(0).chain;
@@ -2428,14 +2428,14 @@ fn a_file_load_keeps_the_place_of_a_slot_download() {
     // A slot download before the first block of lane A starts and is held.
     let pedal = gear_tone(704, "Slot Download", "pedal");
     driver.chrome_mut().add_tone(
-        ronie_core::ChainSide::Left,
+        ronnie_core::ChainSide::Left,
         &insert,
         pedal.clone(),
         Placement::Before(first.clone()),
     );
     assert_eq!(
         driver.chrome().loading_tone(),
-        Some(ronie_core::ToneId(704))
+        Some(ronnie_core::ToneId(704))
     );
 
     // A file lands at the end of lane B meanwhile.
@@ -2453,10 +2453,10 @@ fn a_file_load_keeps_the_place_of_a_slot_download() {
 
     // The download lands in its insert, as the worker publishes it.
     backend
-        .dispatch(ronie_ui::backend::UiAction::LoadTone {
+        .dispatch(ronnie_ui::backend::UiAction::LoadTone {
             target_insert_id: BlockId(insert.clone()),
             tone: pedal,
-            model_id: ronie_core::ModelId(7040),
+            model_id: ronnie_core::ModelId(7040),
         })
         .expect("publish");
     let flow = driver.chrome_mut().load_flow_mut();
@@ -2493,7 +2493,7 @@ fn cab_driver() -> (UiDriver, Arc<MockBackend>) {
     (driver, backend)
 }
 
-fn cab(backend: &MockBackend) -> ronie_core::ChainBlock {
+fn cab(backend: &MockBackend) -> ronnie_core::ChainBlock {
     block_titled(backend, "Greenback").expect("cab")
 }
 
@@ -2589,7 +2589,7 @@ fn removing_b_restores_a_alone() {
     driver.settle();
     let block = cab(&backend);
     assert_eq!(block.ir_b, None);
-    assert_eq!(block.active_model_id, Some(ronie_core::ModelId(1103)));
+    assert_eq!(block.active_model_id, Some(ronnie_core::ModelId(1103)));
     assert!(driver.shows_text("1 IR"));
     assert!(driver.is_visible("Add a second IR"));
     assert!(!driver.is_visible("IR B capture"));
@@ -2628,7 +2628,57 @@ fn picking_b_from_its_capture_list_changes_only_b() {
     driver.settle();
     let block = cab(&backend);
     assert_ne!(block.ir_b.expect("B").model_id, before);
-    assert_eq!(block.active_model_id, Some(ronie_core::ModelId(1103)));
+    assert_eq!(block.active_model_id, Some(ronnie_core::ModelId(1103)));
+}
+
+#[test]
+fn a_capture_list_widens_for_a_long_name_and_stays_inside_the_window() {
+    let (mut driver, _) = edited_driver("main-mono", |chain| {
+        let tone = &mut chain["chain"][2]["tone"];
+        tone["models"] = serde_json::json!([
+            {"id": 1103, "name": "TF ORANGE 4X12 V30 57 3 SM57 Cap Edge"},
+            {"id": 1203, "name": "SM57 Cap Edge"},
+        ]);
+        tone["models_count"] = 2.into();
+        tone["local"] = true.into();
+    });
+    let _ = driver.click(CAB).expect("cab");
+    driver.settle();
+    let _ = driver.click("IR A capture").expect("A picker");
+    driver.settle();
+    let list = popover::open_rects(driver.context())[0];
+    let trigger = rect_of(&driver, "IR A capture").expect("trigger");
+    assert!(
+        list.width() > trigger.width() + 20.0,
+        "the list is wider than its trigger: {list:?} vs {trigger:?}"
+    );
+    let window = driver.context().content_rect();
+    assert!(
+        list.left() >= window.left() + popover::EDGE - 0.5
+            && list.right() <= window.right() - popover::EDGE + 0.5,
+        "the list stays inside the window: {list:?} vs {window:?}"
+    );
+}
+
+#[test]
+fn a_capture_list_with_no_room_above_opens_below_its_capture() {
+    let (mut driver, _) = cab_driver();
+    driver.set_window_size(eframe::egui::vec2(1024.0, 400.0));
+    driver.settle();
+    let _ = driver.click("IR A capture").expect("A picker");
+    driver.settle();
+    let list = popover::open_rects(driver.context())[0];
+    let trigger = rect_of(&driver, "IR A capture").expect("trigger");
+    let window = driver.context().content_rect();
+    assert!(
+        list.top() >= trigger.bottom(),
+        "the list opens below the capture when the top has no room: {list:?} vs {trigger:?}"
+    );
+    assert!(
+        list.top() >= window.top() + popover::EDGE - 0.5
+            && list.bottom() <= window.bottom() - popover::EDGE + 0.5,
+        "the list stays inside the window: {list:?} vs {window:?}"
+    );
 }
 
 #[test]
@@ -2741,7 +2791,7 @@ fn crowded_capture_pedalboard(extra: usize) -> (UiDriver, Arc<MockBackend>) {
     chain.insert(1, od);
     let backend = Arc::new(MockBackend::from_scenario(&scenario));
     let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
-    chrome.set_view_mode(ViewMode::RonieFlow);
+    chrome.set_view_mode(ViewMode::RonnieFlow);
     let mut driver = UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
@@ -2830,19 +2880,19 @@ fn a_neighbour_lcd_is_shown_but_not_interactive() {
 
 /// The fuzz of main-detail on its own Stage page, attached to a service that lists
 /// captures 1104 to 1106. Clicks and frames go through `lcd_frame`.
-fn catalog_pedal(backend: &Arc<MockBackend>) -> ronie_ui::default::BlockDetail {
-    use ronie_ui::services::{ModelList, ModelSwitchFlow, session::SessionStatus::SignedIn};
+fn catalog_pedal(backend: &Arc<MockBackend>) -> ronnie_ui::default::BlockDetail {
+    use ronnie_ui::services::{ModelList, ModelSwitchFlow, session::SessionStatus::SignedIn};
 
     let shared: Arc<dyn UiBackend> = backend.clone();
     let mut detail =
-        ronie_ui::default::BlockDetail::new(shared.clone(), "blk-1", false).expect("detail");
-    detail.set_page(ronie_ui::default::block::BlockPage::Stage);
+        ronnie_ui::default::BlockDetail::new(shared.clone(), "blk-1", false).expect("detail");
+    detail.set_page(ronnie_ui::default::block::BlockPage::Stage);
     detail.attach_model_switching(ModelSwitchFlow::new(shared));
     let request = detail.take_models_request(SignedIn).expect("a list is due");
     let models = [1104, 1105, 1106]
         .into_iter()
         .map(|id| {
-            ronie_core::ToneModel::from_value(
+            ronnie_core::ToneModel::from_value(
                 &serde_json::json!({
                     "id": id,
                     "name": format!("Model {id}"),
@@ -2864,11 +2914,11 @@ fn catalog_pedal(backend: &Arc<MockBackend>) -> ronie_ui::default::BlockDetail {
 /// One frame of a lone detail. Returns its controls by label and its static texts.
 fn lcd_frame(
     context: &eframe::egui::Context,
-    detail: &mut ronie_ui::default::BlockDetail,
+    detail: &mut ronnie_ui::default::BlockDetail,
     events: Vec<eframe::egui::Event>,
 ) -> (Vec<(String, eframe::egui::Rect)>, Vec<String>) {
     use eframe::egui;
-    use ronie_ui::services::session::SessionStatus::SignedIn;
+    use ronnie_ui::services::session::SessionStatus::SignedIn;
 
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
@@ -2912,7 +2962,7 @@ fn lcd_frame(
 /// Clicks the control whose label starts with `prefix`.
 fn lcd_click(
     context: &eframe::egui::Context,
-    detail: &mut ronie_ui::default::BlockDetail,
+    detail: &mut ronnie_ui::default::BlockDetail,
     prefix: &str,
 ) {
     use eframe::egui;
@@ -2937,7 +2987,7 @@ fn lcd_click(
 fn lcd_context() -> eframe::egui::Context {
     let context = eframe::egui::Context::default();
     context.enable_accesskit();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     context
 }
 
@@ -2952,7 +3002,7 @@ fn the_lcd_shows_dots_while_the_capture_downloads() {
 
     lcd_click(&context, &mut detail, "Capture display: Model 1104");
     let request = detail.take_switch_request().expect("a download");
-    assert_eq!(request.model.id, ronie_core::ModelId(1105));
+    assert_eq!(request.model.id, ronnie_core::ModelId(1105));
     let (_, texts) = lcd_frame(&context, &mut detail, Vec::new());
     assert!(texts.iter().any(|text| text == "···"), "{texts:?}");
     assert!(
@@ -2963,7 +3013,7 @@ fn the_lcd_shows_dots_while_the_capture_downloads() {
 
 #[test]
 fn rapid_lcd_clicks_end_on_the_landed_capture() {
-    use ronie_core::{ModelId, Tone};
+    use ronnie_core::{ModelId, Tone};
 
     let backend = Arc::new(MockBackend::from_scenario(&scenario("main-detail")));
     let mut detail = catalog_pedal(&backend);
@@ -2985,7 +3035,7 @@ fn rapid_lcd_clicks_end_on_the_landed_capture() {
         "one switch at a time"
     );
 
-    let stored = |request: &ronie_ui::services::ModelSwitchRequest, id: i64| {
+    let stored = |request: &ronnie_ui::services::ModelSwitchRequest, id: i64| {
         Tone {
             models: vec![request.model.clone()],
             ..request.tone.clone()
@@ -3277,8 +3327,8 @@ fn the_active_light_follows_a_capture_change_from_the_picker() {
         .detail_mut()
         .expect("detail")
         .select_model(
-            ronie_core::ModelId(1103),
-            ronie_ui::services::session::SessionStatus::SignedIn,
+            ronnie_core::ModelId(1103),
+            ronnie_ui::services::session::SessionStatus::SignedIn,
         )
         .expect("picker select");
     driver.settle();
@@ -3363,11 +3413,11 @@ fn auto_shows_the_automatic_family_name() {
     pedal.settle();
     assert!(pedal.label_starting_with("Skin").is_some());
     assert!(
-        ronie_ui::default::skins::skins_in(ronie_core::gear::GearCategory::Pedal)
+        ronnie_ui::default::skins::skins_in(ronnie_core::gear::GearCategory::Pedal)
             .iter()
             .map(|id| format!(
                 "Auto \u{b7} {}",
-                ronie_ui::default::skins::friendly_name(id)
+                ronnie_ui::default::skins::friendly_name(id)
             ))
             .any(|text| pedal.shows_text(&text)),
         "a pedal's chip names a pedal family"
@@ -3559,12 +3609,12 @@ fn an_override_of_another_category_falls_back_to_auto() {
 const VOX_TITLE: &str = "'02 Vox AC30/6 Top Boost";
 
 /// The Vox block as the backend holds it.
-fn vox(backend: &MockBackend) -> ronie_core::ChainBlock {
+fn vox(backend: &MockBackend) -> ronnie_core::ChainBlock {
     block_titled(backend, "AC30").expect("the Vox block")
 }
 
 /// The Vox tone of the fixture chain.
-fn vox_tone() -> ronie_core::Tone {
+fn vox_tone() -> ronnie_core::Tone {
     vox(&MockBackend::from_scenario(&scenario("main-mono")))
         .tone
         .expect("the Vox tone")
@@ -3572,8 +3622,8 @@ fn vox_tone() -> ronie_core::Tone {
 
 /// A signed-out driver over `library` with the Vox page on the stage, whose params changed
 /// from the defaults: bypassed, more gain in, less mix, and its EQ on.
-fn tuned_vox_page(library: &[ronie_core::Tone]) -> (UiDriver, Arc<MockBackend>) {
-    use ronie_ui::backend::UiAction;
+fn tuned_vox_page(library: &[ronnie_core::Tone]) -> (UiDriver, Arc<MockBackend>) {
+    use ronnie_ui::backend::UiAction;
     let (mut driver, backend) = menu_driver("main-mono", false, library);
     let block = vox(&backend);
     let mut params = block.params.clone();
@@ -3713,7 +3763,7 @@ fn one_undo_restores_the_replaced_block() {
 
 #[test]
 fn the_current_tone_reads_current() {
-    use ronie_ui::backend::UiAction;
+    use ronnie_ui::backend::UiAction;
     let (mut driver, backend) = tuned_vox_page(&[vox_tone(), amp_tone(603, "Not Loaded")]);
     open_replace(&mut driver);
     assert!(driver.shows_text("CURRENT"));
@@ -3785,7 +3835,7 @@ fn replace_via_the_browser_and_a_file_keeps_settings() {
 
 #[test]
 fn a_replace_drops_the_skin_override_and_ir_b() {
-    use ronie_ui::backend::UiAction;
+    use ronnie_ui::backend::UiAction;
     let (mut driver, backend) = edited_driver("main-mono", |chain| {
         chain["chain"][2]["tone"]["models"] = serde_json::json!([
             { "id": 1103, "name": "M201" },
@@ -3796,7 +3846,7 @@ fn a_replace_drops_the_skin_override_and_ir_b() {
     for action in [
         UiAction::SelectSecondModel {
             block_id: cab.id.clone(),
-            model_id: Some(ronie_core::ModelId(1105)),
+            model_id: Some(ronnie_core::ModelId(1105)),
         },
         UiAction::SetBlockSkin {
             block_id: cab.id.clone(),
@@ -3819,7 +3869,7 @@ fn a_replace_drops_the_skin_override_and_ir_b() {
     driver.settle();
     open_replace(&mut driver);
     assert!(driver.shows_text("REPLACE \u{b7} CAB"));
-    let cab_tone = ronie_core::Tone::from_value(serde_json::json!({
+    let cab_tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 621, "title": "Closet 1x12", "format": "ir", "gear": "ir",
         "models": [{"id": 6210, "name": "m", "model_url": "https://fixtures.invalid/m/621.wav"}]
     }))
@@ -4308,7 +4358,7 @@ fn a_replace_never_moves_the_block() {
 // ---------------------------------------------------------------- Dark mode
 
 use eframe::egui::{Color32, Shape};
-use ronie_ui::shell::Appearance;
+use ronnie_ui::shell::Appearance;
 
 /// What the amp page of `main-mono` paints in Stage mode, in `appearance`, after `setup`
 /// ran on the driver.
@@ -4534,7 +4584,7 @@ fn painted_text(shapes: &[Shape]) -> Vec<String> {
         .collect()
 }
 
-fn dark_mode_toggle(driver: &UiDriver) -> ronie_ui::driver::Control {
+fn dark_mode_toggle(driver: &UiDriver) -> ronnie_ui::driver::Control {
     driver
         .controls()
         .iter()
@@ -4622,7 +4672,10 @@ fn system_dark_is_followed_until_the_player_chooses() {
 fn the_choice_survives_a_restart() {
     let directory = tempfile::tempdir().expect("settings root");
     let store = || {
-        ronie_core::SettingsStore::standalone(directory.path(), ronie_core::UI_PREFERENCES_SETTINGS)
+        ronnie_core::SettingsStore::standalone(
+            directory.path(),
+            ronnie_core::UI_PREFERENCES_SETTINGS,
+        )
     };
     let (mut driver, _) = stage_driver("main-mono");
     driver.chrome_mut().use_settings(store());
@@ -4646,16 +4699,41 @@ fn the_choice_survives_a_restart() {
 }
 
 #[test]
+fn the_choice_of_a_version_before_the_rename_still_applies() {
+    let directory = tempfile::tempdir().expect("settings root");
+    let store = || {
+        ronnie_core::SettingsStore::standalone(
+            directory.path(),
+            ronnie_core::UI_PREFERENCES_SETTINGS,
+        )
+    };
+    store()
+        .merge_key(Appearance::LEGACY_SETTINGS_KEY, "dark")
+        .expect("old choice");
+    let (mut driver, _) = stage_driver("main-mono");
+    driver.chrome_mut().use_settings(store());
+    driver.settle();
+    assert_eq!(driver.chrome().appearance(), Appearance::Dark);
+
+    // A new choice goes to the new key and wins over the old key.
+    let _ = driver.click("Dark mode").expect("toggle");
+    driver.settle();
+    let (mut restarted, _) = stage_driver("main-mono");
+    restarted.chrome_mut().use_settings(store());
+    assert_eq!(restarted.chrome().appearance(), Appearance::Light);
+}
+
+#[test]
 fn scenarios_do_not_read_the_host_theme() {
     use eframe::egui::Theme;
-    use ronie_ui::native_scenario::{NativeScenario, reach_scenario};
+    use ronnie_ui::native_scenario::{NativeScenario, reach_scenario};
     let light = NativeScenario::new(&scenario("main-detail"), None, None).expect("scenario");
     assert_eq!(light.options.appearance, Some(Appearance::Light));
     let dark = NativeScenario::new(&scenario("main-detail-dark"), None, None).expect("scenario");
     assert_eq!(dark.options.appearance, Some(Appearance::Dark));
 
     let mut driver = reach_scenario(&scenario("main-detail")).expect("reached");
-    driver.chrome_mut().set_view_mode(ViewMode::RonieFlow);
+    driver.chrome_mut().set_view_mode(ViewMode::RonnieFlow);
     driver.set_system_theme(Some(Theme::Dark));
     driver.settle();
     assert_eq!(
@@ -4664,7 +4742,7 @@ fn scenarios_do_not_read_the_host_theme() {
         "a dark host leaves a scenario light"
     );
     let mut driver = reach_scenario(&scenario("main-detail-dark")).expect("reached");
-    driver.chrome_mut().set_view_mode(ViewMode::RonieFlow);
+    driver.chrome_mut().set_view_mode(ViewMode::RonnieFlow);
     driver.set_system_theme(Some(Theme::Light));
     driver.settle();
     assert_eq!(Look::get(driver.context()), Look::stage_dark());
@@ -4672,10 +4750,10 @@ fn scenarios_do_not_read_the_host_theme() {
 
 #[test]
 fn main_detail_dark_draws_the_dark_stage_layout_without_a_flag() {
-    use ronie_ui::native_scenario::{NativeScenario, reach_scenario};
+    use ronnie_ui::native_scenario::{NativeScenario, reach_scenario};
     let dark = scenario("main-detail-dark");
     let run = NativeScenario::new(&dark, None, None).expect("scenario");
-    assert_eq!(run.options.view_mode, ViewMode::RonieFlow);
+    assert_eq!(run.options.view_mode, ViewMode::RonnieFlow);
     let mut driver = reach_scenario(&dark).expect("reached");
     driver.settle();
     assert_eq!(Look::get(driver.context()), Look::stage_dark());
@@ -4695,7 +4773,7 @@ fn main_detail_dark_draws_the_dark_stage_layout_without_a_flag() {
 
 #[test]
 fn a_scenario_rejects_an_unknown_appearance_or_layout() {
-    use ronie_ui::native_scenario::NativeScenario;
+    use ronnie_ui::native_scenario::NativeScenario;
     for (key, value) in [("appearance", "dusk"), ("layout", "sideways")] {
         let mut broken = scenario("main-detail-dark");
         broken.state[key] = serde_json::Value::String(value.to_owned());
@@ -4713,7 +4791,7 @@ fn a_dark_mode_choice_that_cannot_be_saved_says_so_and_still_applies() {
     // A directory at this path makes each read and each write fail.
     driver
         .chrome_mut()
-        .use_settings(ronie_core::SettingsStore::new(directory.path()));
+        .use_settings(ronnie_core::SettingsStore::new(directory.path()));
     driver.settle();
     let _ = driver.click("Dark mode").expect("toggle");
     driver.settle();

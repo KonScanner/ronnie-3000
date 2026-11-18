@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::params::{ParameterCatalog, ParameterId, ParameterValue};
-use ronie_ui::{
+use ronnie_core::params::{ParameterCatalog, ParameterId, ParameterValue};
+use ronnie_ui::{
     backend::{DeviceAction, MockBackend, NavigationAction, UiAction, UiBackend},
     default::{
         AudioDeviceState, BannerStore, FormRect, SettingsController, SettingsTab, SystemDeviceState,
@@ -88,11 +88,11 @@ fn all_eleven_settings_scenarios_mount_the_expected_takeover_and_sections() {
 #[test]
 fn settings_column_is_centered_and_capped_at_four_hundred_eighty_pixels() {
     assert_eq!(
-        ronie_ui::default::forms::column_bounds(1024.0),
+        ronnie_ui::default::forms::column_bounds(1024.0),
         (296.0, 432.0)
     );
     assert_eq!(
-        ronie_ui::default::forms::column_bounds(300.0),
+        ronnie_ui::default::forms::column_bounds(300.0),
         (24.0, 252.0)
     );
 }
@@ -136,7 +136,7 @@ fn explicit_machine_default_edits_are_separate_from_host_restores_and_presets() 
         .set_parameter(
             ParameterId("inputCalibrationLevel"),
             ParameterValue(10.0),
-            ronie_ui::backend::GesturePhase::Change,
+            ronnie_ui::backend::GesturePhase::Change,
         )
         .expect("host restore");
     assert!(!backend.actions().iter().any(|action| matches!(
@@ -172,7 +172,7 @@ fn explicit_machine_default_edits_are_separate_from_host_restores_and_presets() 
                 "calibrateInput" | "osEnabled" => ParameterValue(1.0),
                 _ => ParameterValue(2.0),
             },
-            gesture: ronie_ui::backend::GesturePhase::Change,
+            gesture: ronnie_ui::backend::GesturePhase::Change,
         }));
         assert!(actions.contains(&UiAction::PersistMachineDefault(ParameterId(id))));
     }
@@ -256,7 +256,7 @@ fn device_rate_buffer_and_device_changes_use_complete_typed_configs() {
     settings.system().set_backend("JACK").expect("backend");
     let actions = backend.actions();
     assert!(actions.contains(&UiAction::Device(DeviceAction::Configure(
-        ronie_ui::backend::AudioDeviceConfig {
+        ronnie_ui::backend::AudioDeviceConfig {
             sample_rate: Some(96_000.0),
             buffer_frames: Some(256),
             input: Some("Guitar Input".to_owned()),
@@ -278,7 +278,7 @@ fn input_channel_selection_is_ordered_bounded_and_switches_modes() {
     let mut device = settings.system().device().expect("device").clone();
     device
         .input_channels
-        .push(ronie_ui::default::AudioInputChannel {
+        .push(ronnie_ui::default::AudioInputChannel {
             index: 2,
             name: "Input 3".to_owned(),
             active: false,
@@ -359,7 +359,7 @@ fn preferences_and_preset_folder_use_typed_boundaries() {
 #[test]
 fn faceplate_effect_preferences_hide_and_reveal_controls() {
     let backend = backend("settings-plugin");
-    let faceplate = ronie_ui::default::Faceplate::new(backend.clone());
+    let faceplate = ronnie_ui::default::Faceplate::new(backend.clone());
     assert!(
         faceplate
             .visible_controls(false, false)
@@ -403,7 +403,7 @@ fn faceplate_effect_preferences_hide_and_reveal_controls() {
         .set_parameter(
             ParameterId("gateEnabled"),
             ParameterValue(0.0),
-            ronie_ui::backend::GesturePhase::Change,
+            ronnie_ui::backend::GesturePhase::Change,
         )
         .expect("gate off");
     assert!(
@@ -415,7 +415,7 @@ fn faceplate_effect_preferences_hide_and_reveal_controls() {
         .set_parameter(
             ParameterId("gateEnabled"),
             ParameterValue(1.0),
-            ronie_ui::backend::GesturePhase::Change,
+            ronnie_ui::backend::GesturePhase::Change,
         )
         .expect("gate on");
     assert!(
@@ -428,8 +428,8 @@ fn faceplate_effect_preferences_hide_and_reveal_controls() {
 #[test]
 fn block_size_and_normalization_preferences_control_visible_chips() {
     let backend = backend("main-detail");
-    let mut detail =
-        ronie_ui::default::BlockDetail::new(backend.clone(), "blk-1", false).expect("block detail");
+    let mut detail = ronnie_ui::default::BlockDetail::new(backend.clone(), "blk-1", false)
+        .expect("block detail");
     assert!(!detail.show_slim_size_control());
     assert!(!detail.show_normalize_control());
     backend
@@ -474,15 +474,15 @@ fn output_test_tone_and_pair_selection_use_typed_device_actions() {
     );
 }
 
-fn native_options(backend: Arc<MockBackend>, name: &str) -> ronie_ui::shell::NativeShellOptions {
+fn native_options(backend: Arc<MockBackend>, name: &str) -> ronnie_ui::shell::NativeShellOptions {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    ronie_ui::shell::NativeShellOptions {
+    ronnie_ui::shell::NativeShellOptions {
         selftest: true,
         capture: Some(root.join(format!(
-            ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-12-{name}.png"
+            ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-12-{name}.png"
         ))),
         report: Some(root.join(format!(
-            ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-12-{name}.json"
+            ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-12-{name}.json"
         ))),
         scale: Some(2.0),
         backend: Some(backend),
@@ -497,7 +497,7 @@ fn capture_plugin_settings_at_two_times_scale() {
     let backend = backend("settings-advanced");
     let options = native_options(backend, "plugin-settings");
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::Settings(SettingsTab::Plugin)]),
     )
@@ -514,7 +514,7 @@ fn capture_system_settings_at_two_times_scale() {
     let backend = backend("settings-system");
     let options = native_options(backend, "system-settings");
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::Settings(SettingsTab::System)]),
     )
@@ -526,13 +526,13 @@ fn capture_system_settings_at_two_times_scale() {
 }
 
 /// A driver on the system page of a device state that a test sets.
-fn system_page(device: SystemDeviceState) -> (ronie_ui::driver::UiDriver, Arc<MockBackend>) {
+fn system_page(device: SystemDeviceState) -> (ronnie_ui::driver::UiDriver, Arc<MockBackend>) {
     let backend = backend("settings-system");
     backend.set_device_settings(Some(device));
     let mut chrome =
-        ronie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
     chrome.open_system_settings();
-    let mut driver = ronie_ui::driver::UiDriver::new(chrome, (*backend).clone());
+    let mut driver = ronnie_ui::driver::UiDriver::new(chrome, (*backend).clone());
     driver.settle();
     (driver, backend)
 }
@@ -542,8 +542,8 @@ fn scenario_device() -> SystemDeviceState {
     backend.device_settings().expect("device")
 }
 
-fn row(id: &str, label: &str) -> ronie_ui::default::AudioDeviceOption {
-    ronie_ui::default::AudioDeviceOption {
+fn row(id: &str, label: &str) -> ronnie_ui::default::AudioDeviceOption {
+    ronnie_ui::default::AudioDeviceOption {
         id: id.to_owned(),
         label: label.to_owned(),
     }

@@ -86,11 +86,11 @@ void tokenMerge(const juce::File& input, const juce::File& output)
   const auto settings = output.getSiblingFile("token-merge.settings");
   settings.deleteFile();
   juce::PropertiesFile::Options options;
-  options.applicationName = "RonieStateOracle";
-  options.folderName = "RonieStateOracle";
+  options.applicationName = "RonnieStateOracle";
+  options.folderName = "RonnieStateOracle";
   options.filenameSuffix = "settings";
   options.osxLibrarySubFolder = "Application Support";
-  juce::InterProcessLock lock("RonieStateOracle-" + juce::Uuid().toString());
+  juce::InterProcessLock lock("RonnieStateOracle-" + juce::Uuid().toString());
   juce::PropertiesFile firstFile(settings, options);
   juce::PropertiesFile secondFile(settings, options);
   t3k::ui::UiPrefs first(&firstFile, &lock);
@@ -104,9 +104,9 @@ void tokenMerge(const juce::File& input, const juce::File& output)
 
 int localLoad(const juce::File& input, const juce::File& output)
 {
-  const auto* configured = std::getenv("RONIE_REFERENCE_TEST_EXE");
+  const auto* configured = std::getenv("RONNIE_REFERENCE_TEST_EXE");
   if (configured == nullptr || *configured == '\0')
-    throw std::runtime_error("set RONIE_REFERENCE_TEST_EXE for local-load probes");
+    throw std::runtime_error("set RONNIE_REFERENCE_TEST_EXE for local-load probes");
   juce::MemoryBlock bytes;
   if (!input.loadFileAsData(bytes))
     throw std::runtime_error("could not read state-oracle input");
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
   {
     if (argc != 4)
     {
-      std::cerr << "usage: ronie-reference-state <operation> <input> <output>\n";
+      std::cerr << "usage: ronnie-reference-state <operation> <input> <output>\n";
       return 2;
     }
     const juce::String operation = argv[1];

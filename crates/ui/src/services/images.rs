@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui::{ColorImage, TextureHandle};
-use ronie_core::{DownloadClient, HttpTransport};
+use ronnie_core::{DownloadClient, HttpTransport};
 use tokio::runtime::Handle;
 use url::Url;
 

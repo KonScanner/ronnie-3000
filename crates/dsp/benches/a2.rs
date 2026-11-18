@@ -4,8 +4,8 @@
 #![allow(missing_docs)]
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use ronie_dsp::{PhaseEngine, compile_model};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_dsp::{PhaseEngine, compile_model};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use std::num::{NonZeroU8, NonZeroUsize};
 
 fn a2_standard(c: &mut Criterion) {

@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::{AudioDocument, BlockParams, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, BlockParams, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec,
     block::{BlockControls, BlockModel, PreparedBlock, prepare_block},
     ir::{CompiledIr, compile_ir},

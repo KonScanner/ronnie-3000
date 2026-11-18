@@ -1,6 +1,6 @@
 //! Version notices with dismissed-version snooze memory.
 
-use ronie_core::{PropertiesError, SettingsStore};
+use ronnie_core::{PropertiesError, SettingsStore};
 
 use super::links::is_web_url;
 

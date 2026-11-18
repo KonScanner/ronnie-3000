@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use ronie_ui::{
+use ronnie_ui::{
     backend::{MockBackend, UiDrive, UiEffect, UiError, UiEvent},
     testbed::{BLOCKED_FIXTURES, UiScenario, UiSection, load_scenarios, selftest},
 };
@@ -28,8 +28,8 @@ fn official_scenarios_have_exact_section_counts() {
 
 #[test]
 fn each_fixture_parameter_is_a_number_in_its_range() {
-    use ronie_core::params::ParameterCatalog;
-    use ronie_ui::backend::UiBackend;
+    use ronnie_core::params::ParameterCatalog;
+    use ronnie_ui::backend::UiBackend;
 
     let scenarios = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("fixtures parse");
@@ -166,8 +166,8 @@ fn pixels_cannot_pass_without_expected_backend_effect() {
 
 #[test]
 fn a_parameter_action_is_logged_with_its_write_and_effect() {
-    use ronie_core::params::{ParameterId, ParameterValue};
-    use ronie_ui::backend::{GesturePhase, UiAction, UiBackend};
+    use ronnie_core::params::{ParameterId, ParameterValue};
+    use ronnie_ui::backend::{GesturePhase, UiAction, UiBackend};
 
     let scenarios = load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("fixtures parse");

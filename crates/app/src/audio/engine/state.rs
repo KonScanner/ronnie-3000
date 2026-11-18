@@ -10,20 +10,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams, ChainSide, OPTIMIZE_PREFERENCE, optimize_enabled,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::{
+use ronnie_dsp::{
     block::SpectrumTap,
     prepare::PreparedChainChange,
     rt_chain::{ChainCommand, ChainControls},
 };
-use ronie_plugin::{
+use ronnie_plugin::{
     AudioSessionState, ProcessorBackend, SessionChain, SessionChainPlan, SessionRestore,
     StreamFormat,
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{
         AudioDeviceConfig, BlockMeter, ChainFault, ChainFaultKind, DeviceAction, MeterSnapshot,
         UiBackend, UiError,
@@ -2288,11 +2288,11 @@ fn snapshot(input: SnapshotInput<'_>) -> SystemDeviceState {
 
 #[cfg(test)]
 mod tests {
-    use ronie_core::InputMode;
-    use ronie_dsp::{PrepareSpec, rt_chain::FailedBlocks};
-    use ronie_plugin::RonieProcessor;
+    use ronnie_core::InputMode;
+    use ronnie_dsp::{PrepareSpec, rt_chain::FailedBlocks};
+    use ronnie_plugin::RonnieProcessor;
 
-    use ronie_ui::backend::{UiAction, UiBackend};
+    use ronnie_ui::backend::{UiAction, UiBackend};
 
     use super::*;
 
@@ -2312,7 +2312,7 @@ mod tests {
     }
 
     fn session() -> ProcessorBackend {
-        ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: DEFAULT_BUFFER_FRAMES as usize,
             oversampling: 1,
@@ -2322,8 +2322,8 @@ mod tests {
         }))
     }
 
-    fn ir_tone() -> ronie_core::Tone {
-        ronie_core::Tone::from_value(serde_json::json!({
+    fn ir_tone() -> ronnie_core::Tone {
+        ronnie_core::Tone::from_value(serde_json::json!({
             "id": 6,
             "title": "Remote",
             "format": "ir",
@@ -2332,7 +2332,7 @@ mod tests {
         .expect("tone")
     }
 
-    fn ir_bytes() -> ronie_core::ModelBytes {
+    fn ir_bytes() -> ronnie_core::ModelBytes {
         let samples = [16_000_i16, 0, 0, 16_000];
         let mut bytes = b"RIFF".to_vec();
         bytes.extend_from_slice(&(36_u32 + samples.len() as u32 * 2).to_le_bytes());
@@ -2362,7 +2362,7 @@ mod tests {
             .dispatch(UiAction::LoadToneWithBytes {
                 target_insert_id: target,
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
                 bytes: ir_bytes(),
             })
             .expect("load");
@@ -2422,7 +2422,7 @@ mod tests {
             .dispatch(UiAction::LoadToneWithBytes {
                 target_insert_id: target,
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
                 bytes: ir_bytes(),
             })
             .expect("load");
@@ -2460,7 +2460,7 @@ mod tests {
             .dispatch(UiAction::LoadToneWithBytes {
                 target_insert_id: target.clone(),
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
                 bytes: ir_bytes(),
             })
             .expect("load");
@@ -2761,7 +2761,7 @@ mod tests {
     fn publish_report(
         engine: &EngineState,
         generation: u64,
-        block: Option<(ronie_core::ChainSide, usize)>,
+        block: Option<(ronnie_core::ChainSide, usize)>,
     ) {
         engine
             .running
@@ -3026,7 +3026,7 @@ mod tests {
             .set_parameter(
                 ParameterId(id),
                 ParameterValue(value),
-                ronie_ui::backend::GesturePhase::End,
+                ronnie_ui::backend::GesturePhase::End,
             )
             .expect(id);
     }
@@ -3310,7 +3310,7 @@ mod tests {
         engine.poll();
 
         let generation = engine.status().active_generation;
-        publish_report(&engine, generation, Some((ronie_core::ChainSide::Left, 0)));
+        publish_report(&engine, generation, Some((ronnie_core::ChainSide::Left, 0)));
         engine.poll();
 
         let block = session.chain_state(0).chain.left[0].clone();
@@ -3395,7 +3395,7 @@ mod tests {
             .dispatch(UiAction::LoadTone {
                 target_insert_id: target,
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
             })
             .expect("load");
         engine.sync().expect("sync");
@@ -3425,7 +3425,7 @@ mod tests {
             .dispatch(UiAction::LoadToneWithBytes {
                 target_insert_id: target,
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
                 bytes: ir_bytes(),
             })
             .expect("second load");
@@ -3582,7 +3582,7 @@ mod tests {
             .dispatch(UiAction::LoadTone {
                 target_insert_id: target,
                 tone: ir_tone(),
-                model_id: ronie_core::ModelId(8),
+                model_id: ronnie_core::ModelId(8),
             })
             .expect("load");
         engine.sync().expect("sync");

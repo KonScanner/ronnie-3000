@@ -73,10 +73,10 @@ ln -s ronnie-3000.png "$APPDIR/.DirIcon"
 cat >"$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 here=$(dirname "$(readlink -f "$0")")
-exec "$here/usr/bin/ronie" "$@"
+exec "$here/usr/bin/ronnie" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
-"$APPDIR/usr/bin/ronie" --help >/dev/null
+"$APPDIR/usr/bin/ronnie" --help >/dev/null
 
 rm -f "$OUT"
 # The extract-and-run mode needs no FUSE, so the tool also runs in a container or on CI.

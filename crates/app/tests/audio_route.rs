@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_app::{
+use ronnie_app::{
     audio::{
         AudioBackend, AudioBackendFactory, AudioBackendKind, AudioError, AudioStream, AudioWorker,
         DeviceCapabilities, DeviceConfig, DeviceDescriptor, DummyBackend, DummyLimits,
@@ -20,16 +20,16 @@ use ronie_app::{
     audio_settings::StandaloneAudioSettings,
     standalone_backend::StandaloneBackend,
 };
-use ronie_core::{InputMode, PREFERENCES_SETTINGS};
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::backend::{AudioDeviceConfig, DeviceAction, HostControl, UiAction, UiBackend};
+use ronnie_core::{InputMode, PREFERENCES_SETTINGS};
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::backend::{AudioDeviceConfig, DeviceAction, HostControl, UiAction, UiBackend};
 
 const RATE: usize = 48_000;
 const FRAMES: usize = 256;
 
 fn processor() -> ProcessorBackend {
-    ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+    ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
         host_sample_rate: 48_000.0,
         max_host_frames: FRAMES,
         oversampling: 1,
@@ -137,7 +137,7 @@ impl Rig {
         self.backend.settle_audio().expect("settle");
     }
 
-    fn state(&self) -> ronie_ui::default::SystemDeviceState {
+    fn state(&self) -> ronnie_ui::default::SystemDeviceState {
         self.backend.device_settings().expect("device state")
     }
 

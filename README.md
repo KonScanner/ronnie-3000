@@ -188,10 +188,10 @@ your DAW after the install. To remove Ronnie again, run `make uninstall` for the
 3. **Leave OPTIMIZE on.** It sits in the pitch panel and keeps the delay as low as your system
    allows. The readout under it shows the estimated delay.
 
-To try the Stage layout, a light window with the chain as gear icons in the header,
-start Ronnie with `ronie --layout stage`. There, each block's page shows a 3D render of its
-gear, and you can drag the GAIN IN, OUTPUT and MIX knobs on it. The renders come from the
-Blender scripts in [`tools/render`](tools/render/README.md).
+Ronnie opens the Stage layout, a light window with the chain as gear icons in the header.
+There, each block's page shows a 3D render of its gear, and you can drag the GAIN IN, OUTPUT and MIX knobs on it. The renders come from the
+Blender scripts in [`tools/render`](tools/render/README.md). For the classic layout, start
+Ronnie with `ronnie --layout reference`.
 
 ### Connect your TONE3000 account
 
@@ -230,8 +230,8 @@ work without an account and without the internet.
 **Is there a plugin for my DAW?** Yes, an experimental VST3 plugin. See
 [VST3 plugin](#vst3-plugin-experimental). A CLAP version comes later.
 
-**Where are my presets and settings?** In `~/.config/Ronie` on Linux,
-`~/Library/Application Support/Ronie` on macOS, and `%APPDATA%\Ronie` on Windows.
+**Where are my presets and settings?** In `~/.config/Ronnie` on Linux,
+`~/Library/Application Support/Ronnie` on macOS, and `%APPDATA%\Ronnie` on Windows.
 
 **Something sounds wrong or crackles.** Open an issue with the bug report form, and attach the
 diagnostic log from **Settings → Plugin Settings → Diagnostics → Copy Logs**.

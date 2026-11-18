@@ -7,7 +7,7 @@
 //!
 //! The key is a secret of the user. No error, log line, or view of this module holds the value.
 
-use ronie_core::HttpTransport;
+use ronnie_core::HttpTransport;
 
 use super::{
     community::{CommunityAccess, CommunityService},

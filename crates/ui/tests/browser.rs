@@ -1,7 +1,7 @@
 //! Browser query, filter, return-state, profile, and favorite tests.
 
-use ronie_core::{Page, Tone, ToneId};
-use ronie_ui::{
+use ronnie_core::{Page, Tone, ToneId};
+use ronnie_ui::{
     default::{BrowserController, CatalogSeed, CatalogStore, FilterMenu, Profile},
     native_scenario::{ScenarioScript, Step},
     testbed::{UiScenario, load_scenarios},
@@ -16,8 +16,8 @@ fn scenario(id: &str) -> UiScenario {
 }
 
 fn tone() -> Tone {
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario("main-detail"));
-    ronie_ui::backend::UiBackend::chain_state(&backend, 0)
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario("main-detail"));
+    ronnie_ui::backend::UiBackend::chain_state(&backend, 0)
         .chain
         .left[0]
         .tone
@@ -273,9 +273,9 @@ fn the_largest_server_page_has_no_next_page() {
 
 #[test]
 fn insert_selection_opens_browser_and_cached_tone_returns_to_gallery() {
-    use ronie_ui::{backend::UiBackend, default::ChromeController};
+    use ronnie_ui::{backend::UiBackend, default::ChromeController};
 
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "main-empty",
     )));
     let target = backend
@@ -316,7 +316,7 @@ fn every_browser_scenario_has_a_consistent_state_transition() {
     for scenario in load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenarios")
         .into_iter()
-        .filter(|scenario| scenario.section == ronie_ui::testbed::UiSection::Browser)
+        .filter(|scenario| scenario.section == ronnie_ui::testbed::UiSection::Browser)
     {
         let authenticated = scenario.state["auth"].as_bool().unwrap_or(false);
         let mut store = CatalogStore::new();
@@ -352,26 +352,25 @@ fn every_browser_scenario_has_a_consistent_state_transition() {
 fn capture_browser_at_two_times_scale() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let capture =
-        root.join(".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-9-browser.png");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+        root.join(".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-9-browser.png");
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "main-empty",
     )));
-    let options =
-        ronie_ui::shell::NativeShellOptions {
-            selftest: true,
-            capture: Some(capture.clone()),
-            report: Some(root.join(
-                ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-9-browser.json",
-            )),
-            scale: Some(2.0),
-            backend: Some(backend),
-            standalone: false,
-            presets: Vec::new(),
-            authenticated: true,
-            hints_enabled: true,
-            ..Default::default()
-        };
-    ronie_ui::shell::run_scripted(
+    let options = ronnie_ui::shell::NativeShellOptions {
+        selftest: true,
+        capture: Some(capture.clone()),
+        report: Some(root.join(
+            ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-9-browser.json",
+        )),
+        scale: Some(2.0),
+        backend: Some(backend),
+        standalone: false,
+        presets: Vec::new(),
+        authenticated: true,
+        hints_enabled: true,
+        ..Default::default()
+    };
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![
             Step::OpenBrowser,
@@ -385,10 +384,10 @@ fn capture_browser_at_two_times_scale() {
     assert!(capture.exists());
 }
 
-fn driver_on_empty_chain() -> ronie_ui::driver::UiDriver {
+fn driver_on_empty_chain() -> ronnie_ui::driver::UiDriver {
     let scenario = scenario("main-empty");
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario);
-    ronie_ui::native_scenario::driver_for_scenario(&scenario, backend).expect("driver")
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario);
+    ronnie_ui::native_scenario::driver_for_scenario(&scenario, backend).expect("driver")
 }
 
 #[test]
@@ -513,9 +512,9 @@ fn the_header_logo_returns_to_the_main_screen_from_the_browser() {
 #[test]
 fn the_header_logo_returns_to_the_main_screen_from_a_detail_and_keeps_the_chain() {
     let scenario = scenario("main-detail");
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario);
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario);
     let mut driver =
-        ronie_ui::native_scenario::driver_for_scenario(&scenario, backend).expect("driver");
+        ronnie_ui::native_scenario::driver_for_scenario(&scenario, backend).expect("driver");
     let title = tone().title;
     if driver.chrome_mut().detail().is_none() {
         let _ = driver.click(&title).expect("tile");

@@ -1,7 +1,7 @@
 //! Tone metadata expansion, signed-out prompts, and public links.
 
 use eframe::egui;
-use ronie_core::Tone;
+use ronnie_core::Tone;
 
 use crate::services::session::SessionStatus;
 

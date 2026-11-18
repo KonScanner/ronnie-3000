@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use ronie_app::{
+use ronnie_app::{
     audio::{
         AudioBackendKind, AudioDeviceManager, AudioError, AudioWorker, DeviceConfig, DummyBackend,
         choose_sample_rate, close_timeout,
@@ -149,7 +149,7 @@ fn audio_open_sentinel_falls_back_to_the_default_device() {
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("audio.settings");
     let settings =
-        ronie_app::audio_settings::StandaloneAudioSettings::load(path).expect("settings");
+        ronnie_app::audio_settings::StandaloneAudioSettings::load(path).expect("settings");
     settings.mark_open_attempt().expect("sentinel write");
     let mut manager = AudioDeviceManager::new(DummyBackend::connected());
     let mut stale = config();

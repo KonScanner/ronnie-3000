@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Rect, Sense, TextureHandle};
-use ronie_core::{BlockId, BlockParams, ChainBlock, IrB, ModelId, ModelKind, ToneId, ToneModel};
+use ronnie_core::{BlockId, BlockParams, ChainBlock, IrB, ModelId, ModelKind, ToneId, ToneModel};
 
 use crate::{
     backend::{GesturePhase, UiAction, UiBackend, UiError},
@@ -121,7 +121,7 @@ pub struct StageSlots {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SlotRequest {
     /// The kind of gear the slot adds.
-    pub category: ronie_core::gear::GearCategory,
+    pub category: ronnie_core::gear::GearCategory,
     /// Where the added block goes.
     pub placement: super::Placement,
     /// The slot on screen, for the menu to open beside.
@@ -130,7 +130,7 @@ pub struct SlotRequest {
 
 /// One slot as the stage lays it out.
 struct SlotSpec {
-    category: ronie_core::gear::GearCategory,
+    category: ronnie_core::gear::GearCategory,
     placement: super::Placement,
     label: &'static str,
     name: &'static str,
@@ -156,11 +156,11 @@ pub struct BlockDetail {
     /// Where the stage offers a slot to add gear.
     slots: StageSlots,
     /// The slot whose menu is open, drawn solid.
-    open_slot: Option<(ronie_core::gear::GearCategory, super::Placement)>,
+    open_slot: Option<(ronnie_core::gear::GearCategory, super::Placement)>,
     /// A slot that was clicked, for the layout to open its menu.
     slot_request: Option<SlotRequest>,
     /// Where each slot was drawn on the latest frame, for an open menu to stay beside it.
-    slot_rects: Vec<(ronie_core::gear::GearCategory, super::Placement, Rect)>,
+    slot_rects: Vec<(ronnie_core::gear::GearCategory, super::Placement, Rect)>,
     block_id: BlockId,
     block: ChainBlock,
     calibrate_input: bool,
@@ -1645,7 +1645,7 @@ impl BlockDetail {
     #[must_use]
     pub fn slot_rect(
         &self,
-        category: ronie_core::gear::GearCategory,
+        category: ronnie_core::gear::GearCategory,
         placement: &super::Placement,
     ) -> Option<Rect> {
         self.slot_rects
@@ -1662,7 +1662,7 @@ impl BlockDetail {
     /// Draws the slot of a kind of gear and a placement solid while its menu is open.
     pub fn set_open_slot(
         &mut self,
-        slot: Option<(ronie_core::gear::GearCategory, super::Placement)>,
+        slot: Option<(ronnie_core::gear::GearCategory, super::Placement)>,
     ) {
         self.open_slot = slot;
     }
@@ -2123,7 +2123,8 @@ impl BlockDetail {
         let skin = super::skins::skin_for(&self.block)
             .and_then(|skin| Some((skin, super::skins::textures(ui.ctx(), skin.id)?)));
         let lights = skin.as_ref().is_some_and(|(skin, _)| {
-            skin.category == ronie_core::gear::GearCategory::Amp && self.models.options().len() >= 2
+            skin.category == ronnie_core::gear::GearCategory::Amp
+                && self.models.options().len() >= 2
         });
         // The SKIN chip sits at the bottom left of the stage, level with the lights. When the
         // pill of lights does not fit between it and the right of the stage, the pill drops
@@ -2158,7 +2159,7 @@ impl BlockDetail {
                 );
                 let body = if matches!(
                     skin.category,
-                    ronie_core::gear::GearCategory::Pedal | ronie_core::gear::GearCategory::Amp
+                    ronnie_core::gear::GearCategory::Pedal | ronnie_core::gear::GearCategory::Amp
                 ) {
                     self.show_pedalboard(ui, render_stage, textures, skin.category)
                 } else {
@@ -2516,7 +2517,8 @@ impl BlockDetail {
             return false;
         };
         if tone.kind != ModelKind::Ir
-            || super::skins::gear_category(&self.block) != Some(ronie_core::gear::GearCategory::Cab)
+            || super::skins::gear_category(&self.block)
+                != Some(ronnie_core::gear::GearCategory::Cab)
         {
             return false;
         }
@@ -3007,9 +3009,9 @@ impl BlockDetail {
     /// The slots this stage offers, leading and trailing the renders.
     fn stage_slots(
         &self,
-        category: ronie_core::gear::GearCategory,
+        category: ronnie_core::gear::GearCategory,
     ) -> (Option<SlotSpec>, Option<SlotSpec>) {
-        use ronie_core::gear::GearCategory::Pedal;
+        use ronnie_core::gear::GearCategory::Pedal;
 
         use super::Placement::After;
         match category {
@@ -3035,7 +3037,7 @@ impl BlockDetail {
         ui: &mut egui::Ui,
         stage: Rect,
         textures: &super::skins::SkinTextures,
-        category: ronie_core::gear::GearCategory,
+        category: ronnie_core::gear::GearCategory,
     ) -> Rect {
         let neighbour = |block: &ChainBlock| {
             let skin = super::skins::skin_for(block)?;
@@ -4115,7 +4117,7 @@ fn page_toggle(
 
 /// The category word of the light page title, from the gear the block models.
 fn page_category(block: &ChainBlock) -> &'static str {
-    use ronie_core::gear::GearCategory;
+    use ronnie_core::gear::GearCategory;
     match super::skins::gear_category(block) {
         Some(GearCategory::Pedal) => "PEDAL",
         Some(GearCategory::Amp) => "AMP",
@@ -4520,7 +4522,7 @@ fn dot_meter(ui: &mut egui::Ui, rect: Rect, db: f32) {
     }
 }
 
-fn gear_label(tone: &ronie_core::Tone) -> &'static str {
+fn gear_label(tone: &ronnie_core::Tone) -> &'static str {
     match tone
         .raw
         .get("gear")

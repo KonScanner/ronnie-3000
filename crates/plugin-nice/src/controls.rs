@@ -7,12 +7,12 @@
 
 use std::sync::atomic::{AtomicU8, AtomicU32, Ordering};
 
-use ronie_core::{
+use ronnie_core::{
     InputMode,
     params::{ParameterCatalog, ParameterId},
 };
-use ronie_dsp::rt_chain::ChainControls;
-use ronie_plugin::{ProcessorBackend, UiBackend, catalog_default, chain_controls_from};
+use ronnie_dsp::rt_chain::ChainControls;
+use ronnie_plugin::{ProcessorBackend, UiBackend, catalog_default, chain_controls_from};
 
 use crate::params::{RonnieParams, is_host_parameter};
 
@@ -186,8 +186,8 @@ mod tests {
 
     #[test]
     fn each_catalog_id_finds_its_source() {
-        let backend = Arc::new(ProcessorBackend::new(ronie_plugin::RonieProcessor::new(
-            ronie_dsp::PrepareSpec {
+        let backend = Arc::new(ProcessorBackend::new(ronnie_plugin::RonnieProcessor::new(
+            ronnie_dsp::PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 256,
                 oversampling: 1,

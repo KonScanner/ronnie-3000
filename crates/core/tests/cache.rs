@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ByteCacheKey, ChainBlock, ModelByteCache, ModelBytes, ModelId, ModelNamespace, Tone,
 };
 use serde_json::json;
@@ -179,6 +179,6 @@ fn stale_restore_batch_cannot_replace_a_newer_generation() {
         vec![(key.clone(), ModelBytes::from(b"old".as_slice()))],
     );
 
-    assert!(matches!(result, Err(ronie_core::CacheError::Superseded)));
+    assert!(matches!(result, Err(ronnie_core::CacheError::Superseded)));
     assert_eq!(cache.get(&key).expect("new bytes").as_ref(), b"new");
 }

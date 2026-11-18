@@ -6,12 +6,13 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot, EqParams, InputMode,
     LocalStash, MidiMapping, MidiSource, ModelBytes, ModelId, PresetInfo, SessionSnapshot, Tone,
+    ToneId,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
+use ronnie_dsp::PrepareSpec;
 use thiserror::Error;
 
 use crate::session_edit::{
@@ -297,6 +298,9 @@ pub enum UiAction {
     },
     /// Replace the tone of a tone block in place, as one undo step. The block keeps its id, its
     /// place, and its params, and loses the second IR and the skin of the old tone.
+    ///
+    /// The action fails with no change unless the block still holds `replaces` as its tone, so a
+    /// late completion cannot overwrite a newer change of the block.
     ReplaceTone {
         /// The tone block to replace.
         target_block_id: BlockId,
@@ -304,6 +308,8 @@ pub enum UiAction {
         tone: Tone,
         /// Selected model.
         model_id: ModelId,
+        /// Tone that the block held when the replace started.
+        replaces: ToneId,
         /// Complete model bytes that a background worker downloaded, or `None` for a tone whose
         /// bytes the backend already holds. With bytes, the running audio chain follows when the
         /// same thread calls [`UiBackend::settle_audio`], as for [`UiAction::LoadToneWithBytes`].
@@ -614,8 +620,8 @@ pub trait UiBackend: Send + Sync {
         [-100.0; 64]
     }
     /// Returns the latest raw-input tuner reading, or silence when unavailable.
-    fn tuner_reading(&self) -> ronie_dsp::analysis::TunerReading {
-        ronie_dsp::analysis::TunerReading {
+    fn tuner_reading(&self) -> ronnie_dsp::analysis::TunerReading {
+        ronnie_dsp::analysis::TunerReading {
             frequency_hz: 0.0,
             confidence: 0.0,
             level_db: -60.0,
@@ -857,7 +863,7 @@ impl SessionStorage for MockStorage {
             .stash
             .as_ref()
             .ok_or_else(|| UiError::Control("local stash is unavailable".to_owned()))?;
-        ronie_core::load_local_path(path, stash, &ronie_dsp::validate_a2_document)
+        ronnie_core::load_local_path(path, stash, &ronnie_dsp::validate_a2_document)
             .map(|loaded| loaded.tone)
             .map_err(|error| UiError::Control(error.to_string()))
     }
@@ -905,7 +911,7 @@ impl SessionStorage for MockStorage {
 struct MockState {
     editor: SessionEditor,
     storage: MockStorage,
-    tuner: ronie_dsp::analysis::TunerReading,
+    tuner: ronnie_dsp::analysis::TunerReading,
     events: Vec<UiEvent>,
     actions: Vec<UiAction>,
     effect_override: Option<UiEffect>,
@@ -1166,10 +1172,10 @@ impl MockBackend {
             state: Arc::new(Mutex::new(MockState {
                 editor,
                 storage: MockStorage {
-                    stash: LocalStash::new(std::env::temp_dir().join("ronie-mock-stash")).ok(),
+                    stash: LocalStash::new(std::env::temp_dir().join("ronnie-mock-stash")).ok(),
                     saved_presets: Vec::new(),
                 },
-                tuner: ronie_dsp::analysis::TunerReading {
+                tuner: ronnie_dsp::analysis::TunerReading {
                     frequency_hz: fixture["tuner"]["frequency"].as_f64().unwrap_or(0.0),
                     confidence: fixture["tuner"]["confidence"].as_f64().unwrap_or(0.0),
                     level_db: fixture["tuner"]["level"].as_f64().unwrap_or(-60.0),
@@ -1335,9 +1341,9 @@ impl UiBackend for MockBackend {
         self.lock()?.dispatch(action)
     }
 
-    fn tuner_reading(&self) -> ronie_dsp::analysis::TunerReading {
+    fn tuner_reading(&self) -> ronnie_dsp::analysis::TunerReading {
         self.state.lock().map_or(
-            ronie_dsp::analysis::TunerReading {
+            ronnie_dsp::analysis::TunerReading {
                 frequency_hz: 0.0,
                 confidence: 0.0,
                 level_db: -60.0,

@@ -24,7 +24,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::{
+use ronnie_core::{
     ApiError, DownloadError, FetchRequest, HttpError, HttpTransport, ModelBytes, ModelKind,
     ModelSource, Page, SecretString, Taxonomy, TaxonomyEntry, TokenProvider, Tone, ToneId,
     ToneModel, ToneQuery,
@@ -857,7 +857,7 @@ const fn model_architecture(kind: ModelKind) -> i32 {
 async fn download_catalog_model<T: HttpTransport + Send + Sync + 'static>(
     handle: &CommunityHandle<T>,
     model: &ToneModel,
-    tokens: &OffThreadTokens<ronie_core::SessionStore<ronie_core::OAuthFlow<T>>>,
+    tokens: &OffThreadTokens<ronnie_core::SessionStore<ronnie_core::OAuthFlow<T>>>,
 ) -> Result<ModelBytes, CommunityFailure> {
     let source = match &model.source {
         Some(source @ ModelSource::Catalog { .. }) => source.clone(),
@@ -1022,7 +1022,7 @@ mod tests {
         time::Duration,
     };
 
-    use ronie_core::{
+    use ronnie_core::{
         ApiError, OAuthConfig, OriginPolicy, RecordedTransport, SecretString, SettingsStore,
         TokenProvider,
     };
@@ -1108,7 +1108,7 @@ mod tests {
                 runtime.handle(),
                 QueryRequest {
                     generation,
-                    query: ronie_core::ToneQuery::default(),
+                    query: ronnie_core::ToneQuery::default(),
                     page: 1,
                     signed_in: false,
                     scope,

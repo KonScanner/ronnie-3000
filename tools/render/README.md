@@ -13,6 +13,9 @@ filmstrips and the manifest.
 
 ## Build
 
+A render needs a label font. On a machine without the macOS fonts, set `RONNIE_RENDER_FONT` first:
+the build stops before it writes anything when no font loads (see below).
+
 ```sh
 tools/render/build_skins.sh            # every skin
 tools/render/build_skins.sh british    # one skin
@@ -20,6 +23,18 @@ tools/render/build_skins.sh british    # one skin
 
 You need Blender 5.x (set `BLENDER` if it is not at the macOS default path), `cwebp` and ImageMagick. `SAMPLES` sets
 the Cycles samples for the body (default 256). The knob frames use half that number.
+
+Every label uses macOS Futura, or Avenir Next when Futura is absent. On another system, set `RONNIE_RENDER_FONT`
+to a font file. A font that is set but cannot load stops the render before it starts, and so does a machine with
+neither macOS font.
+
+The committed skins were rendered with those macOS fonts on a macOS GPU, so a render on another system is not
+pixel-reproducible: the labels use the font above, and Cycles runs on the CPU when no Metal device exists (the
+scripts say `GPU unavailable` and continue). The Blender and denoiser versions change the pixels too.
+`skin.json` geometry does not depend on the font.
+
+A failed render keeps the committed files: `build_skins.sh` replaces a skin's folder only after Blender exits
+with 0, so a missing font or a stopped render leaves the last good images in place.
 
 Each skin gets a folder under `crates/ui/assets/skins/<skin>/`:
 

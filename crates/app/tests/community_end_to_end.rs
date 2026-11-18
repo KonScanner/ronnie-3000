@@ -11,15 +11,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_app::standalone_backend::{StandaloneBackend, standalone_processor};
-use ronie_core::{
+use ronnie_app::standalone_backend::{StandaloneBackend, standalone_processor};
+use ronnie_core::{
     BlockId, ChainBlock, ChainSide, HttpError, HttpRequest, HttpResponse, HttpTransport, ModelId,
     OAuthConfig, OAuthFlow, OAuthTokens, OriginPolicy, PREFERENCES_SETTINGS, Pkce,
     RecordedTransport, SecretString, SessionStore, SettingsStore, StateCodec, Tone, ToneId,
     UI_PREFERENCES_SETTINGS,
     params::{ParameterId, ParameterValue},
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{GesturePhase, MockBackend, UiAction, UiBackend},
     default::ChromeController,
     driver::UiDriver,
@@ -122,7 +122,7 @@ fn backend(root: &Path) -> Arc<StandaloneBackend> {
 }
 
 fn synthetic_nam() -> Vec<u8> {
-    ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM")
+    ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM")
 }
 
 /// A two-tap comb, which an amplitude measurement at 1 kHz can tell from the dry signal.

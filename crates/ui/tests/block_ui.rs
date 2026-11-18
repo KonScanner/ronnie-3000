@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::{BlockId, ModelId, Tone, ToneId, ToneModel};
-use ronie_ui::{
+use ronnie_core::{BlockId, ModelId, Tone, ToneId, ToneModel};
+use ronnie_ui::{
     backend::{MockBackend, UiAction, UiBackend},
     default::{
         BlockDetail, BlockInfoPanel, BlockView, ChromeController, InfoPrompt, ModelOption,
@@ -461,7 +461,7 @@ fn a_local_tone_on_an_attached_detail_asks_for_nothing_and_switches_at_once() {
 
 #[test]
 fn detail_controls_write_each_block_parameter_once() {
-    use ronie_ui::backend::UiBackend;
+    use ronnie_ui::backend::UiBackend;
 
     let backend = mock_backend(&scenario("main-detail"));
     let mut detail = BlockDetail::new(backend.clone(), "blk-1", false).expect("detail");
@@ -535,7 +535,7 @@ fn metadata_expands_and_signed_out_info_offers_a_login_and_public_link() {
 
 #[test]
 fn detail_view_switch_share_and_remove_follow_the_same_backend() {
-    use ronie_ui::backend::UiBackend;
+    use ronnie_ui::backend::UiBackend;
 
     let backend = mock_backend(&scenario("main-detail"));
     let mut detail = BlockDetail::new(backend.clone(), "blk-1", false).expect("detail");
@@ -550,7 +550,7 @@ fn detail_view_switch_share_and_remove_follow_the_same_backend() {
     let chain = backend.chain_state(0).chain;
     assert!(
         chain
-            .block(&ronie_core::BlockId("blk-1".to_owned()))
+            .block(&ronnie_core::BlockId("blk-1".to_owned()))
             .is_none()
     );
     assert_eq!(chain.left[0].id.0, "blk-2", "the later tones move left");
@@ -624,7 +624,7 @@ fn gallery_selection_opens_and_closes_the_detail_takeover() {
 
 #[test]
 fn direct_open_detail_survives_the_next_sync() {
-    use ronie_ui::default::ChromeController;
+    use ronnie_ui::default::ChromeController;
 
     let backend = mock_backend(&scenario("main-detail"));
     let mut chrome = ChromeController::new(backend, Vec::new(), true, true);
@@ -653,7 +653,7 @@ fn gear_overlays(scenario_id: &str, block: &str) -> usize {
     let backend = mock_backend(&scenario(scenario_id));
     let mut detail = BlockDetail::new(backend, block, false).expect("detail");
     let context = egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
@@ -687,14 +687,14 @@ fn a_gear_icon_stays_dark_behind_a_failed_or_loading_message() {
 fn capture_detail_at_two_times_scale() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let capture =
-        root.join(".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-8-detail.png");
+        root.join(".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-8-detail.png");
     let backend = mock_backend(&scenario("main-detail"));
     let options =
-        ronie_ui::shell::NativeShellOptions {
+        ronnie_ui::shell::NativeShellOptions {
             selftest: true,
             capture: Some(capture.clone()),
             report: Some(root.join(
-                ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-8-detail.json",
+                ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-8-detail.json",
             )),
             scale: Some(2.0),
             backend: Some(backend),
@@ -704,7 +704,7 @@ fn capture_detail_at_two_times_scale() {
             hints_enabled: true,
             ..Default::default()
         };
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::OpenDetail("blk-1".to_owned())]),
     )
@@ -717,13 +717,13 @@ fn capture_detail_at_two_times_scale() {
 fn capture_eq_at_two_times_scale() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let capture =
-        root.join(".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-8-eq.png");
+        root.join(".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-8-eq.png");
     let backend = mock_backend(&scenario("main-detail-eq-sliders"));
-    let options = ronie_ui::shell::NativeShellOptions {
+    let options = ronnie_ui::shell::NativeShellOptions {
         selftest: true,
         capture: Some(capture.clone()),
         report: Some(
-            root.join(".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-8-eq.json"),
+            root.join(".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-8-eq.json"),
         ),
         scale: Some(2.0),
         backend: Some(backend),
@@ -733,7 +733,7 @@ fn capture_eq_at_two_times_scale() {
         hints_enabled: true,
         ..Default::default()
     };
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![
             Step::OpenDetail("blk-1".to_owned()),
@@ -793,7 +793,7 @@ fn a_catalog_b_waits_for_its_bytes_and_lands_in_b() {
         .select_second_model(Some(ModelId(72)), SignedIn)
         .expect("B");
     let request = detail.take_switch_request().expect("a download of B");
-    assert_eq!(request.ticket.slot(), ronie_ui::services::ModelSlot::B);
+    assert_eq!(request.ticket.slot(), ronnie_ui::services::ModelSlot::B);
     assert_eq!(request.ticket.replaces(), None);
     assert_eq!(request.model.id, ModelId(72));
     assert_eq!(backend.chain_state(0).revision, revision, "no change yet");
@@ -857,7 +857,7 @@ fn re_picking_the_current_b_keeps_a_download_of_a() {
 
     detail.select_model(ModelId(73), SignedIn).expect("A");
     let a = detail.take_switch_request().expect("a download of A");
-    assert_eq!(a.ticket.slot(), ronie_ui::services::ModelSlot::A);
+    assert_eq!(a.ticket.slot(), ronnie_ui::services::ModelSlot::A);
 
     detail
         .select_second_model(Some(ModelId(72)), SignedIn)
@@ -935,7 +935,7 @@ fn the_blend_waits_for_b_to_land() {
 
     let backend = mock_backend(&scenario("main-detail"));
     let mut detail = cab_detail(&backend);
-    detail.set_page(ronie_ui::default::block::BlockPage::Stage);
+    detail.set_page(ronnie_ui::default::block::BlockPage::Stage);
     detail
         .select_second_model(Some(ModelId(72)), SignedIn)
         .expect("B");
@@ -944,7 +944,7 @@ fn the_blend_waits_for_b_to_land() {
 
     let context = egui::Context::default();
     context.enable_accesskit();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let mut controls = Vec::new();
     for _ in 0..3 {
         controls = light_frame(&context, &mut detail, Vec::new());

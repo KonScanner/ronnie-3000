@@ -30,7 +30,7 @@
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Sense, Stroke, Vec2};
-use ronie_core::params::{ParameterCatalog, ParameterId, ParameterSpec, ParameterValue};
+use ronnie_core::params::{ParameterCatalog, ParameterId, ParameterSpec, ParameterValue};
 
 use crate::backend::{GesturePhase, UiAction, UiBackend, UiError};
 
@@ -304,7 +304,7 @@ impl KnobSpec {
             }
             Scale::Tone => format!("{:.1}", position * 10.0),
             Scale::GateDb => format!("{:.0} dB", -100.0 + position * 100.0),
-            Scale::Semitones => ronie_core::tuning::format_semitones(-24.0 + position * 48.0),
+            Scale::Semitones => ronnie_core::tuning::format_semitones(-24.0 + position * 48.0),
             Scale::SidedMs => sided(
                 (position - 0.5) * 48.0,
                 |magnitude| format!("{magnitude:.1} ms"),
@@ -438,7 +438,7 @@ fn sided(value: f64, magnitude: impl Fn(f64) -> String, centre: &str) -> String 
 
 /// The crossover frequency that the engine uses for a position.
 fn crossover_hz(position: f64) -> f64 {
-    f64::from(ronie_dsp::image::deck_crossover_hz(position as f32))
+    f64::from(ronnie_dsp::image::deck_crossover_hz(position as f32))
 }
 
 /// The number at the start of a text, and the rest of the text.

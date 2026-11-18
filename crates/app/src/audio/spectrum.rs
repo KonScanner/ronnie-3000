@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_dsp::block::{SpectrumAnalyzer, SpectrumTap};
+use ronnie_dsp::block::{SpectrumAnalyzer, SpectrumTap};
 
 /// A gap this long between reads means that the page closed, so that the smoothed bins are old.
 /// The UI reads at 30 Hz, and at 4 Hz while the window hides, and this gap is longer.

@@ -11,7 +11,7 @@ use eframe::egui::{
     FontFamily, FontId, Frame, Key, Modifiers, Pos2, Rect, RichText, Role, Sense, Stroke,
     TouchDeviceId, TouchId, TouchPhase, Vec2, ViewportBuilder, ViewportCommand, WidgetInfo,
 };
-use ronie_app::platform::{WindowProbe, embedded_parent, native_picker, probe_window};
+use ronnie_app::platform::{WindowProbe, embedded_parent, native_picker, probe_window};
 use serde_json::json;
 
 const BACKGROUND: Color32 = Color32::from_rgb(10, 10, 12);
@@ -195,7 +195,7 @@ impl SpikeApp {
                 ui.horizontal_centered(|ui| {
                     ui.add_space(14.0);
                     ui.label(
-                        RichText::new("RONIE 3000")
+                        RichText::new("RONNIE 3000")
                             .size(19.0)
                             .color(ACCENT)
                             .family(mono_family()),
@@ -497,7 +497,7 @@ fn knob(
 }
 
 fn mono_family() -> FontFamily {
-    FontFamily::Name("ronie-mono".into())
+    FontFamily::Name("ronnie-mono".into())
 }
 
 fn install_fonts(ctx: &egui::Context) {

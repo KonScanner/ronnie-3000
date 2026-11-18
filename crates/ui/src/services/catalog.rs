@@ -2,9 +2,9 @@
 
 use std::collections::BTreeMap;
 
-use ronie_core::{Page, Taxonomy, TaxonomyEntry, Tone, ToneId, ToneQuery};
+use ronnie_core::{Page, Taxonomy, TaxonomyEntry, Tone, ToneId, ToneQuery};
 
-pub use ronie_core::Profile;
+pub use ronnie_core::Profile;
 
 use super::community_worker::TaxonomyRequest;
 

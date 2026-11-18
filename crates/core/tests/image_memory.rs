@@ -15,7 +15,7 @@ use image::{
     ColorType, ExtendedColorType, ImageEncoder, ImageFormat, RgbImage, RgbaImage,
     codecs::{jpeg::JpegEncoder, webp::WebPEncoder},
 };
-use ronie_core::{
+use ronnie_core::{
     DecodedImage, DownloadClient, DownloadError, HttpResponse, OriginPolicy, RecordedTransport,
 };
 use url::Url;

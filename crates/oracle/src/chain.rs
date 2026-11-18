@@ -5,7 +5,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use ronie_dsp::{LatencyReport, PrepareSpec};
+use ronnie_dsp::{LatencyReport, PrepareSpec};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -145,7 +145,7 @@ impl ChainOracle {
     /// Returns configuration errors when either path is absent or incomplete.
     pub fn new() -> Result<Self, OracleError> {
         let (_, build) = reference_paths()?.ok_or(OracleError::NotConfigured)?;
-        Ok(Self::from_executable(build.join("ronie-reference-chain")))
+        Ok(Self::from_executable(build.join("ronnie-reference-chain")))
     }
 
     /// Creates an adapter for a selected development runner.

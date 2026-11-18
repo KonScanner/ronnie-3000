@@ -4,7 +4,7 @@ use super::pool::{Shared, worker_main};
 
 pub(crate) fn spawn(shared: Arc<Shared>) -> Result<std::thread::JoinHandle<()>, &'static str> {
     std::thread::Builder::new()
-        .name("ronie-audio-worker".into())
+        .name("ronnie-audio-worker".into())
         .spawn(move || {
             configure_worker_thread();
             worker_main(shared);

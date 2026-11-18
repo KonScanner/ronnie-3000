@@ -1,7 +1,7 @@
 //! All nine popovers through real input: real clicks, real Escape, and no wall clock.
 
 use eframe::egui::{self, Key};
-use ronie_ui::{
+use ronnie_ui::{
     backend::{MockBackend, UiEffect},
     default::{
         DeckKind, DismissReason, Overlay,
@@ -451,7 +451,7 @@ fn a_press_just_beside_the_account_menu_closes_it_at_once() {
 }
 
 #[test]
-fn a_panel_past_the_window_edge_keeps_its_own_area() {
+fn a_panel_past_the_window_edge_moves_inside() {
     let context = egui::Context::default();
     let frame = |events| {
         let input = egui::RawInput {
@@ -480,7 +480,10 @@ fn a_panel_past_the_window_edge_keeps_its_own_area() {
     for _ in 0..40 {
         let _ = frame(Vec::new());
     }
-    let expected = egui::Rect::from_min_size(egui::pos2(350.0, 10.0), egui::vec2(100.0, 50.0));
+    let expected = egui::Rect::from_min_size(
+        egui::pos2(400.0 - popover::EDGE - 100.0, 10.0),
+        egui::vec2(100.0, 50.0),
+    );
     assert_eq!(popover::open_rects(&context), vec![expected]);
     let pos = egui::pos2(100.0, 30.0);
     let shown = frame(vec![
@@ -493,6 +496,128 @@ fn a_panel_past_the_window_edge_keeps_its_own_area() {
         },
     ]);
     assert_eq!(shown.dismissed, Some(DismissReason::Outside));
+}
+
+/// Shows one bare popover in a 400 by 400 window for a few frames, and returns its area.
+fn placed(placement: Placement, size: egui::Vec2) -> egui::Rect {
+    let context = egui::Context::default();
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(400.0, 400.0),
+            )),
+            ..Default::default()
+        };
+        let mut output = context.run_ui(input, |ui| {
+            let _ = Popover::new(
+                egui::Id::unique("placed-popover"),
+                placement,
+                size,
+                Surface::edged(4.0),
+            )
+            .show(ui, |_, _| None::<()>);
+        });
+        output.textures_delta.clear();
+    }
+    popover::open_rects(&context)[0]
+}
+
+#[test]
+fn an_above_panel_with_no_room_above_opens_below_its_anchor() {
+    let anchor = egui::Rect::from_min_size(egui::pos2(100.0, 50.0), egui::vec2(80.0, 24.0));
+    let panel = placed(
+        Placement::Above { anchor, gap: 4.0 },
+        egui::vec2(100.0, 80.0),
+    );
+    assert_eq!(panel.top(), anchor.bottom() + 4.0);
+}
+
+#[test]
+fn a_below_panel_with_no_room_below_opens_above_its_anchor() {
+    let anchor = egui::Rect::from_min_size(egui::pos2(100.0, 320.0), egui::vec2(80.0, 24.0));
+    let panel = placed(
+        Placement::Below { anchor, gap: 4.0 },
+        egui::vec2(100.0, 80.0),
+    );
+    assert_eq!(panel.bottom(), anchor.top() - 4.0);
+}
+
+#[test]
+fn a_panel_that_fits_on_neither_side_keeps_the_preferred_side_and_clamps() {
+    // An anchor at the right edge and a panel that is wider and taller than the room.
+    let anchor = egui::Rect::from_min_size(egui::pos2(360.0, 200.0), egui::vec2(30.0, 24.0));
+    let panel = placed(
+        Placement::Above { anchor, gap: 4.0 },
+        egui::vec2(200.0, 500.0),
+    );
+    assert_eq!(
+        panel.top(),
+        popover::EDGE,
+        "the preferred side keeps its top"
+    );
+    assert_eq!(
+        panel.right(),
+        400.0 - popover::EDGE,
+        "the panel moves inside the right edge"
+    );
+}
+
+#[test]
+fn a_panel_never_leaves_the_window_on_the_left() {
+    let anchor = egui::Rect::from_min_size(egui::pos2(4.0, 200.0), egui::vec2(80.0, 24.0));
+    let panel = placed(
+        Placement::Below { anchor, gap: 4.0 },
+        egui::vec2(200.0, 80.0),
+    );
+    assert_eq!(panel.left(), popover::EDGE);
+}
+
+#[test]
+fn a_panel_in_a_zoomed_layer_clamps_in_the_units_of_that_layer() {
+    let context = egui::Context::default();
+    let parent = egui::LayerId::new(egui::Order::Background, egui::Id::unique("zoomed-parent"));
+    let transform = egui::emath::TSTransform {
+        translation: egui::vec2(12.0, 28.0),
+        scaling: 0.625,
+    };
+    context.set_transform_layer(parent, transform);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
+    for _ in 0..3 {
+        let input = egui::RawInput {
+            screen_rect: Some(screen),
+            ..Default::default()
+        };
+        let mut output = context.run_ui(input, |ui| {
+            egui::Area::new(parent.id)
+                .order(parent.order)
+                .fixed_pos(egui::Pos2::ZERO)
+                .show(ui.ctx(), |ui| {
+                    // The layer is about 1260 by 915 points, so this panel crosses both edges.
+                    let _ = Popover::new(
+                        egui::Id::unique("zoomed-popover"),
+                        Placement::At(egui::pos2(1200.0, 900.0)),
+                        egui::vec2(200.0, 100.0),
+                        Surface::edged(4.0),
+                    )
+                    .show(ui, |_, _| None::<()>);
+                });
+        });
+        output.textures_delta.clear();
+    }
+    // The panel area is in window units, so it needs no transform here.
+    let panel = popover::open_rects(&context)[0];
+    assert!(
+        panel.left() >= screen.left() + 4.0
+            && panel.right() <= screen.right() - 4.0
+            && panel.top() >= screen.top() + 4.0
+            && panel.bottom() <= screen.bottom() - 4.0,
+        "the panel stays inside the window in window units: {panel:?} vs {screen:?}"
+    );
+    assert!(
+        panel.right() > screen.right() - 10.0,
+        "the panel is clamped against the window edge: {panel:?}"
+    );
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! Prepared input-stage allocation tests.
 #![allow(unsafe_code)]
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     input::{InputControls, InputStage, NoiseGate, PitchParams, PitchShifter, PitchWindow},
 };

@@ -1,6 +1,6 @@
 //! Tone knob changes keep the filter history and do not click.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     tone_stack::{ToneControls, ToneStack},
 };

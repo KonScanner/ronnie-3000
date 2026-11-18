@@ -35,13 +35,17 @@ for skin in "$@"; do
   script="$(script_for "$skin")"
   raw="$WORK/$skin"
   out="$ASSETS/$skin"
-  rm -rf "$raw" "$out"
-  mkdir -p "$raw" "$out"
+  rm -rf "$raw"
+  mkdir -p "$raw"
   echo "== $skin ($script)"
   "$BLENDER" -b --python-exit-code 1 -P "$HERE/$script" -- "$skin" "$raw" "$SAMPLES" > "$raw.log" 2>&1 || {
     tail -20 "$raw.log" >&2
     exit 1
   }
+  # The committed renders stay until the new ones are ready, so a failed render (a missing
+  # font, for example) keeps them.
+  rm -rf "$out"
+  mkdir -p "$out"
   cwebp -quiet -q 90 -alpha_q 100 -exact "$raw/body.png" -o "$out/body.webp"
   for control in gain output mix; do
     frames=("$raw"/knob-"$control"-*.png)

@@ -23,7 +23,7 @@ make -s -C "$ROOT" install DESTDIR="$STAGE" PREFIX=/usr
 if command -v desktop-file-validate >/dev/null 2>&1; then
   desktop-file-validate "$STAGE/usr/share/applications/ronnie-3000.desktop"
 fi
-"$STAGE/usr/bin/ronie" --help >/dev/null
+"$STAGE/usr/bin/ronnie" --help >/dev/null
 
 mkdir -p "$WORK/tar/$BASENAME"
 cp -R "$STAGE/usr" "$WORK/tar/$BASENAME/"

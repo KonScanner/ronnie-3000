@@ -2,8 +2,8 @@
 
 use clap::{Parser, Subcommand};
 use eyre::{Result, WrapErr, eyre};
-use ronie_core::{NamDocument, parse_nam};
-use ronie_dsp::{
+use ronnie_core::{NamDocument, parse_nam};
+use ronnie_dsp::{
     bench::{BenchmarkConfig, BenchmarkEvidence, measure_benchmark},
     build_model,
 };
@@ -16,7 +16,7 @@ use std::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = "ronie-nam", about = "Render and benchmark NAM models")]
+#[command(name = "ronnie-nam", about = "Render and benchmark NAM models")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

@@ -1,6 +1,6 @@
 //! Correlation-spliced pitch shifting and input-stage compatibility tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     input::{InputControls, InputStage, PitchParams, PitchShifter, PitchWindow},
 };
@@ -197,7 +197,7 @@ fn shifted_chord_holds_a_steady_level() {
 
 #[test]
 fn default_window_is_the_lowest_delay() {
-    use ronie_core::params::{ParameterCatalog, ParameterId};
+    use ronnie_core::params::{ParameterCatalog, ParameterId};
 
     assert_eq!(PitchWindow::default(), PitchWindow::Ms20);
     assert_eq!(PitchParams::default().window, PitchWindow::Ms20);
@@ -680,9 +680,9 @@ fn duplicated_stereo_input_matches_mono_processing() {
 fn private_pitch_matches_reference_frequency_and_latency() {
     use std::collections::BTreeMap;
 
-    use ronie_core::InputMode;
-    use ronie_dsp::PrepareSpec;
-    use ronie_oracle::{ChainOracle, ChainScenario, OracleError};
+    use ronnie_core::InputMode;
+    use ronnie_dsp::PrepareSpec;
+    use ronnie_oracle::{ChainOracle, ChainScenario, OracleError};
 
     let oracle = match ChainOracle::new() {
         Ok(oracle) => oracle,

@@ -1,7 +1,7 @@
 //! Duplication, clipboard snapshots, independent histories, and undo tests.
 
-use ronie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::BlockModel,
     ir::compile_ir,
@@ -209,7 +209,7 @@ fn reordering_to_the_current_order_does_not_dip_audio() {
 #[test]
 fn invalid_restore_does_not_replace_the_active_lanes() {
     let mut lanes = self::lanes(vec![block("source")], true);
-    let invalid = ronie_dsp::topology::LaneSetSnapshot {
+    let invalid = ronnie_dsp::topology::LaneSetSnapshot {
         left: snapshot(vec![block("same")]),
         right: snapshot(vec![block("same")]),
         ..lanes.snapshot()

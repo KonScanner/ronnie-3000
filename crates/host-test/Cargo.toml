@@ -1,5 +1,5 @@
 [package]
-name = "ronie-host-test"
+name = "ronnie-host-test"
 description = "Tests the Ronnie 3000 plugin in REAPER on a private X display."
 version.workspace = true
 edition.workspace = true
@@ -17,8 +17,8 @@ path = "src/main.rs"
 [dependencies]
 eyre.workspace = true
 image.workspace = true
-ronie-core.workspace = true
-ronie-ui.workspace = true
+ronnie-core.workspace = true
+ronnie-ui.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 x11rb = { workspace = true, features = ["xtest"] }

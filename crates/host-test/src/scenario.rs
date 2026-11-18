@@ -8,8 +8,8 @@ use std::{
 };
 
 use eyre::{Result, WrapErr, bail, eyre};
-use ronie_core::params::{ParameterCatalog, ParameterSpec};
-use ronie_ui::shell::{DESIGN_WIDTH, NativeShellOptions};
+use ronnie_core::params::{ParameterCatalog, ParameterSpec};
+use ronnie_ui::shell::{DESIGN_WIDTH, NativeShellOptions};
 
 use crate::{
     reaper::{Reaper, Setup},
@@ -21,7 +21,7 @@ pub(crate) const USAGE: &str = "\
 usage: ronnie-host-test [options]
   --reaper DIR    the folder with the reaper program
                   (default target/host-test/reaper/reaper_linux_x86_64/REAPER)
-  --plugin FILE   the plugin library (default target/debug/libronie_plugin_nice.so)
+  --plugin FILE   the plugin library (default target/debug/libronnie_plugin_nice.so)
   --work DIR      the folder for this run (default target/host-test/work)
   --dpi N         the Xft.dpi of the private display (default 144, a scale of 1.5)
   --format F      clap or vst3 (default clap)
@@ -52,7 +52,7 @@ impl Options {
     pub(crate) fn parse(mut args: impl Iterator<Item = String>) -> Result<Self> {
         let mut options = Self {
             reaper: "target/host-test/reaper/reaper_linux_x86_64/REAPER".into(),
-            plugin: "target/debug/libronie_plugin_nice.so".into(),
+            plugin: "target/debug/libronnie_plugin_nice.so".into(),
             work: "target/host-test/work".into(),
             dpi: 144,
             reset: Vec::new(),

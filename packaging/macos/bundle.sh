@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Builds "Ronnie 3000.app" from a macOS binary and zips it for a release. Runs on macOS.
 #
-#   VERSION=0.1.0 BINARY=target/universal/ronie bash packaging/macos/bundle.sh
+#   VERSION=0.1.0 BINARY=target/universal/ronnie bash packaging/macos/bundle.sh
 #
 # The bundle has an ad-hoc signature only. macOS asks the user to confirm the first start.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 VERSION=${VERSION:?set VERSION to the application version}
-BINARY=${BINARY:?set BINARY to the macOS ronie binary}
+BINARY=${BINARY:?set BINARY to the macOS ronnie binary}
 DIST_DIR=${DIST_DIR:-$ROOT/dist}
 if [[ $DIST_DIR != /* ]]; then
   DIST_DIR="$ROOT/$DIST_DIR"
@@ -24,7 +24,7 @@ fi
 rm -rf "$WORK"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$DIST_DIR"
 
-install -m 755 "$BINARY" "$APP/Contents/MacOS/ronie"
+install -m 755 "$BINARY" "$APP/Contents/MacOS/ronnie"
 sed "s/@VERSION@/$VERSION/g" "$ROOT/packaging/macos/Info.plist" >"$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE"
@@ -43,7 +43,7 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Ronnie3000.icns"
 
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
-"$APP/Contents/MacOS/ronie" --help >/dev/null
+"$APP/Contents/MacOS/ronnie" --help >/dev/null
 
 rm -f "$ZIP"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"

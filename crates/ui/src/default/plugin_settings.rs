@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::params::{ParameterCatalog, ParameterId, ParameterValue};
+use ronnie_core::params::{ParameterCatalog, ParameterId, ParameterValue};
 
 use crate::backend::{GesturePhase, NavigationAction, UiAction, UiBackend, UiError};
 

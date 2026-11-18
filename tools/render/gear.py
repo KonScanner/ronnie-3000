@@ -1,6 +1,6 @@
 """Ronnie 3000 amp and cab skins, rendered in Blender.
 
-Run: Blender -b -P gear.py -- <skin> <out_dir> [samples]
+Run: Blender -b --python-exit-code 1 -P gear.py -- <skin> <out_dir> [samples]
 Amps: highgain, modern-us, british, chime, clean, bass, default-clean, default-crunch, default-hi-gain
 Cabs: cab-412-modern, cab-412-vintage, cab-212-chime, cab-112-clean, cab-810-bass, cab-default
 Units: 1 BU = 1 cm. Front view with a slight high angle, shared lighting.
@@ -14,7 +14,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import finish, knob_rig  # noqa: E402
+from common import finish, knob_rig, load_font  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 SKIN = argv[0] if argv else "highgain"
@@ -277,18 +277,7 @@ def cyl(name, r, depth, loc, mat, verts=64, rot=(0, 0, 0), bev=0.0, parent=None)
     return o
 
 
-def load_font(paths):
-    for p in paths:
-        if os.path.exists(p):
-            try:
-                return bpy.data.fonts.load(p)
-            except Exception:
-                pass
-    return None
-
-
-FONT = load_font(["/System/Library/Fonts/Supplemental/Futura.ttc", "/System/Library/Fonts/Avenir Next.ttc"])
-SCRIPT_FONT = load_font(["/System/Library/Fonts/Supplemental/Futura.ttc"])
+FONT = load_font()
 
 
 def text(body, size, loc, mat, parent=None, extrude=0.0, shear=0.0, bold=0.0, font=FONT, align="CENTER"):
@@ -300,8 +289,7 @@ def text(body, size, loc, mat, parent=None, extrude=0.0, shear=0.0, bold=0.0, fo
     curve.extrude = extrude
     curve.shear = shear
     curve.offset = bold
-    if font:
-        curve.font = font
+    curve.font = font
     o = bpy.data.objects.new("txt " + body, curve)
     bpy.context.collection.objects.link(o)
     o.location = loc

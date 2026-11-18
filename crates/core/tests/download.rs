@@ -3,7 +3,7 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use std::time::Duration;
 
-use ronie_core::{
+use ronnie_core::{
     DownloadClient, DownloadError, FetchRequest, HttpError, HttpRequest, HttpResponse,
     HttpTransport, ModelSource, OAuthConfig, OAuthError, OAuthFlow, OAuthTokens, OriginPolicy,
     RecordedTransport, ReqwestTransport, ResponseKind, SecretString, SessionError, SessionStore,
@@ -349,11 +349,11 @@ struct RefreshTokens {
     forced: std::sync::Arc<std::sync::Mutex<Vec<bool>>>,
 }
 
-impl ronie_core::TokenProvider for RefreshTokens {
+impl ronnie_core::TokenProvider for RefreshTokens {
     async fn access_token(
         &self,
         force_refresh: bool,
-    ) -> Result<Option<SecretString>, ronie_core::ApiError> {
+    ) -> Result<Option<SecretString>, ronnie_core::ApiError> {
         self.forced.lock().expect("force calls").push(force_refresh);
         Ok(Some(SecretString::from(if force_refresh {
             "fresh-token"
@@ -410,11 +410,11 @@ async fn unauthorized_download_has_a_typed_outcome() {
 #[derive(Clone)]
 struct AnonymousTokens;
 
-impl ronie_core::TokenProvider for AnonymousTokens {
+impl ronnie_core::TokenProvider for AnonymousTokens {
     async fn access_token(
         &self,
         _force_refresh: bool,
-    ) -> Result<Option<SecretString>, ronie_core::ApiError> {
+    ) -> Result<Option<SecretString>, ronnie_core::ApiError> {
         Ok(None)
     }
 }

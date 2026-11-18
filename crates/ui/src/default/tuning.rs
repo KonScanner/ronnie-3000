@@ -1,10 +1,10 @@
 //! The tuning picker of the pitch shift: the instrument choice, the knob caption, and the edits
 //! of one picked tuning.
 //!
-//! The names come from [`ronie_core::tuning`], so the picker, the caption, and the tuner use one
+//! The names come from [`ronnie_core::tuning`], so the picker, the caption, and the tuner use one
 //! catalog.
 
-use ronie_core::{
+use ronnie_core::{
     Instrument, Tuning,
     optimize::{OPTIMIZE_PREFERENCE, optimize_enabled, optimized_pitch},
     params::{ParameterId, ParameterValue},

@@ -73,4 +73,4 @@ use eyre as _;
 #[cfg(test)]
 use criterion as _;
 #[cfg(test)]
-use ronie_oracle as _;
+use ronnie_oracle as _;

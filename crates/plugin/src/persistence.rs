@@ -1,14 +1,14 @@
 //! Conversion between control-side processor frames and compatible preset documents.
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ByteCacheKey, ChainBlock, ChainBranch, ChainSnapshot, EqBandType, JuceTree, JuceValue,
     LocalStash, ModelByteCache, ModelBytes, ModelId, ModelSource, SessionDocument, SessionSnapshot,
     Tone, ToneModel,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_ui::backend::{ChainFault, ChainFaultKind, UiError};
+use ronnie_ui::backend::{ChainFault, ChainFaultKind, UiError};
 
-use ronie_ui::session_edit::SessionFrame;
+use ronnie_ui::session_edit::SessionFrame;
 
 pub(crate) fn encode_preset(
     frame: &SessionFrame,
@@ -19,7 +19,7 @@ pub(crate) fn encode_preset(
     let migrated = previous.map(|document| {
         let mut document = document.clone();
         if let Some(mut parameters) = child(&document, "Params").cloned() {
-            let _ = ronie_core::migrate_param_ids(&mut parameters, "id");
+            let _ = ronnie_core::migrate_param_ids(&mut parameters, "id");
             upsert_child(&mut document, "Params", parameters);
         }
         document
@@ -129,8 +129,8 @@ pub(crate) fn encode_session(
 ) -> Result<Vec<u8>, UiError> {
     let mut output = previous
         .cloned()
-        .unwrap_or_else(|| tree("RonieState", Vec::new(), Vec::new()));
-    output.identifier = "RonieState".to_owned();
+        .unwrap_or_else(|| tree("RonnieState", Vec::new(), Vec::new()));
+    output.identifier = "RonnieState".to_owned();
     set_property(&mut output, "schemaVersion", JuceValue::Int(1));
     set_property(
         &mut output,
@@ -181,7 +181,7 @@ pub(crate) fn encode_session(
     upsert_child(&mut output, "ChainSnapshot", chain);
     let mut bytes = b"T3KB".to_vec();
     bytes.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&output)
             .map_err(|error| UiError::Control(error.to_string()))?,
     );
@@ -216,8 +216,8 @@ fn encode_midi(frame: &SessionFrame, channel: u8, previous: Option<&JuceTree>) -
                 "source",
                 JuceValue::String(
                     match mapping.source {
-                        ronie_core::MidiSource::Cc => "cc",
-                        ronie_core::MidiSource::Note => "note",
+                        ronnie_core::MidiSource::Cc => "cc",
+                        ronnie_core::MidiSource::Note => "note",
                     }
                     .to_owned(),
                 ),
@@ -247,7 +247,7 @@ pub(crate) fn decode_session(
     input: &[u8],
     current: &SessionFrame,
 ) -> Result<DecodedSession, UiError> {
-    let document = ronie_core::StateCodec::new()
+    let document = ronnie_core::StateCodec::new()
         .decode_session(input)
         .map_err(|error| UiError::Control(error.to_string()))?;
     let mut parameters = current.parameters.clone();
@@ -294,11 +294,11 @@ pub(crate) fn decode_preset(
     }
     let mut state_bytes = b"T3KB".to_vec();
     state_bytes.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(document)
             .map_err(|error| UiError::Control(error.to_string()))?,
     );
-    let mut document = ronie_core::StateCodec::new()
+    let mut document = ronnie_core::StateCodec::new()
         .decode_session(&state_bytes)
         .map_err(|error| UiError::Control(error.to_string()))?;
     let mut session = document.snapshot.clone();
@@ -316,7 +316,7 @@ pub(crate) fn decode_preset(
         .find(|child| child.identifier == "Params")
         .cloned()
         .unwrap_or_else(|| tree("Params", Vec::new(), Vec::new()));
-    let _ = ronie_core::migrate_param_ids(&mut parameter_document, "id");
+    let _ = ronnie_core::migrate_param_ids(&mut parameter_document, "id");
     upsert_child(&mut document.raw, "Params", parameter_document.clone());
     let mut parameters = current.parameters.clone();
     for spec in ParameterCatalog::v1()
@@ -455,8 +455,8 @@ fn encode_block(
         .tone
         .as_ref()
         .map(|tone| match tone.kind {
-            ronie_core::ModelKind::Nam => "NAM",
-            ronie_core::ModelKind::Ir => "IR",
+            ronnie_core::ModelKind::Nam => "NAM",
+            ronnie_core::ModelKind::Ir => "IR",
         })
         .unwrap_or("INSERT");
     let mut output = previous
@@ -528,12 +528,12 @@ fn encode_block(
             "toneId",
             "toneJson",
             "activeModelId",
-            ronie_core::IR_B_MODEL_ID,
+            ronnie_core::IR_B_MODEL_ID,
             "irBlend",
             "irALevel",
             "irBLevel",
             "irBInvert",
-            ronie_core::SKIN_OVERRIDE,
+            ronnie_core::SKIN_OVERRIDE,
         ] {
             remove_property(&mut output, name);
         }
@@ -609,7 +609,7 @@ fn encode_model_cache(
     for model in tone
         .models
         .iter()
-        .filter(|model| ronie_core::references_model(block, model.id))
+        .filter(|model| ronnie_core::references_model(block, model.id))
     {
         let previous_model = previous.and_then(|cache| {
             cache.children.iter().find(|cached| {
@@ -674,7 +674,7 @@ fn encode_model_cache(
         } else if let Some(bytes) = bytes_cache.get(&ByteCacheKey {
             block_id: block.id.clone(),
             model_id: model.id,
-            namespace: ronie_core::model_namespace(block, model.id),
+            namespace: ronnie_core::model_namespace(block, model.id),
         }) {
             // A catalog model must restore with no network, so its bytes travel with the state.
             set_property(&mut cached_model, "data", JuceValue::Binary(bytes.to_vec()));
@@ -800,10 +800,10 @@ fn plan_restore(
     document: &SessionDocument,
     current: &SessionFrame,
     cache: &ModelByteCache,
-) -> Result<ronie_core::RestorePlan, UiError> {
-    ronie_core::restore_offline(
+) -> Result<ronnie_core::RestorePlan, UiError> {
+    ronnie_core::restore_offline(
         document,
-        ronie_core::RestoreCaches {
+        ronnie_core::RestoreCaches {
             bytes: cache,
             current: Some(&current.session),
         },
@@ -817,10 +817,10 @@ fn plan_restore(
 pub(crate) fn prepare_session_restore(
     document: &SessionDocument,
     current: &SessionFrame,
-    spec: ronie_dsp::PrepareSpec,
+    spec: ronnie_dsp::PrepareSpec,
     generation: u64,
     cache: &ModelByteCache,
-) -> Result<Option<ronie_dsp::prepare::PreparedChainChange>, UiError> {
+) -> Result<Option<ronnie_dsp::prepare::PreparedChainChange>, UiError> {
     let lanes = prepare_restored_lanes(document, current, cache)?;
     let usable = lanes.compile_error.is_none();
     let change = prepare_change(
@@ -835,8 +835,8 @@ pub(crate) fn prepare_session_restore(
 
 /// Lanes of a restore, where a block whose model cannot compile runs as bypass.
 struct RestoredLanes {
-    left: ronie_dsp::lane::LaneSnapshot,
-    right: ronie_dsp::lane::LaneSnapshot,
+    left: ronnie_dsp::lane::LaneSnapshot,
+    right: ronnie_dsp::lane::LaneSnapshot,
     /// The first model compile failure.
     compile_error: Option<UiError>,
 }
@@ -919,7 +919,7 @@ pub(crate) struct ModelSources<'a> {
 /// missing model cannot stop every other edit from reaching audio.
 pub(crate) fn prepare_session_chain(
     session: &SessionSnapshot,
-    spec: ronie_dsp::PrepareSpec,
+    spec: ronnie_dsp::PrepareSpec,
     generation: u64,
     sources: &ModelSources<'_>,
 ) -> Result<crate::audio_session::SessionChain, UiError> {
@@ -935,22 +935,22 @@ pub(crate) fn prepare_session_chain(
 
 fn prepare_change(
     session: &SessionSnapshot,
-    spec: ronie_dsp::PrepareSpec,
+    spec: ronnie_dsp::PrepareSpec,
     generation: u64,
-    left: ronie_dsp::lane::LaneSnapshot,
-    right: ronie_dsp::lane::LaneSnapshot,
-) -> Result<ronie_dsp::prepare::PreparedChainChange, UiError> {
-    let spec = ronie_dsp::PrepareSpec {
+    left: ronnie_dsp::lane::LaneSnapshot,
+    right: ronnie_dsp::lane::LaneSnapshot,
+) -> Result<ronnie_dsp::prepare::PreparedChainChange, UiError> {
+    let spec = ronnie_dsp::PrepareSpec {
         input_mode: session.input_mode,
         ..spec
     };
-    let mut change = ronie_dsp::prepare::PreparedChainChange::new(
+    let mut change = ronnie_dsp::prepare::PreparedChainChange::new(
         generation,
         spec,
         left,
         right,
         session.chain.stereo_enabled,
-        ronie_dsp::LatencyReport {
+        ronnie_dsp::LatencyReport {
             samples: 0,
             tail_seconds: 0.0,
         },
@@ -973,8 +973,8 @@ fn live_lane(
     blocks: &[ChainBlock],
     sources: &ModelSources<'_>,
     unavailable: &mut Vec<(BlockId, ChainFault)>,
-) -> ronie_dsp::lane::LaneSnapshot {
-    let mut snapshot = ronie_dsp::lane::LaneSnapshot {
+) -> ronnie_dsp::lane::LaneSnapshot {
+    let mut snapshot = ronnie_dsp::lane::LaneSnapshot {
         blocks: Vec::with_capacity(blocks.len()),
         models: Vec::with_capacity(blocks.len()),
     };
@@ -1002,7 +1002,7 @@ fn live_lane(
 fn live_model(
     block: &ChainBlock,
     sources: &ModelSources<'_>,
-) -> Result<ronie_dsp::block::BlockModel, ChainFaultKind> {
+) -> Result<ronnie_dsp::block::BlockModel, ChainFaultKind> {
     let (Some(tone), Some(active)) = (block.tone.as_ref(), block.active_model_id) else {
         return Err(ChainFaultKind::MissingModel);
     };
@@ -1028,10 +1028,10 @@ fn live_model(
 /// Blends `b` into `a` when both are cab IRs. Any other pair plays `a` alone, because the block
 /// takes its cab pad and default mix from one IR kind.
 fn with_ir_b(
-    a: ronie_dsp::block::BlockModel,
-    b: Option<ronie_dsp::block::BlockModel>,
-) -> ronie_dsp::block::BlockModel {
-    use ronie_dsp::{block::BlockModel, ir::IrKind};
+    a: ronnie_dsp::block::BlockModel,
+    b: Option<ronnie_dsp::block::BlockModel>,
+) -> ronnie_dsp::block::BlockModel {
+    use ronnie_dsp::{block::BlockModel, ir::IrKind};
     match (a, b) {
         (BlockModel::Ir(a), Some(BlockModel::Ir(b)))
             if a.kind == IrKind::Cab && b.kind == IrKind::Cab =>
@@ -1095,7 +1095,7 @@ fn resolve_model_bytes(
         .get(&ByteCacheKey {
             block_id: block.id.clone(),
             model_id: model.id,
-            namespace: ronie_core::model_namespace(block, model.id),
+            namespace: ronnie_core::model_namespace(block, model.id),
         })
         .or_else(|| embedded_model_bytes(sources.document, &block.id, tone, model.id))
         .or_else(|| stashed.map(|bytes| ModelBytes(bytes.into())))
@@ -1133,10 +1133,10 @@ fn embedded_model_bytes(
 /// later fault of the document stays an error and does not hide behind that model.
 fn prepare_lane(
     blocks: &[ChainBlock],
-    jobs: &[ronie_core::PreparationJob],
+    jobs: &[ronnie_core::PreparationJob],
     compile_error: &mut Option<UiError>,
-) -> Result<ronie_dsp::lane::LaneSnapshot, UiError> {
-    let mut snapshot = ronie_dsp::lane::LaneSnapshot {
+) -> Result<ronnie_dsp::lane::LaneSnapshot, UiError> {
+    let mut snapshot = ronnie_dsp::lane::LaneSnapshot {
         blocks: Vec::with_capacity(blocks.len()),
         models: Vec::with_capacity(blocks.len()),
     };
@@ -1169,7 +1169,7 @@ fn prepare_lane(
 /// compile. An insert has none.
 fn restored_model<'a>(
     block: &'a ChainBlock,
-    jobs: &'a [ronie_core::PreparationJob],
+    jobs: &'a [ronnie_core::PreparationJob],
 ) -> Result<Option<(&'a Tone, &'a ToneModel, &'a ModelBytes)>, UiError> {
     if block.is_insert {
         return Ok(None);
@@ -1212,7 +1212,7 @@ fn restored_model<'a>(
 fn restored_ir_b<'a>(
     block: &ChainBlock,
     tone: &'a Tone,
-    jobs: &'a [ronie_core::PreparationJob],
+    jobs: &'a [ronnie_core::PreparationJob],
 ) -> Option<(&'a ToneModel, &'a ModelBytes)> {
     let model_id = ir_b_model_id(block)?;
     let bytes = jobs
@@ -1229,32 +1229,32 @@ fn compile_block_model(
     tone: &Tone,
     model: &ToneModel,
     bytes: &ModelBytes,
-) -> Result<ronie_dsp::block::BlockModel, UiError> {
+) -> Result<ronnie_dsp::block::BlockModel, UiError> {
     match tone.kind {
-        ronie_core::ModelKind::Nam => {
-            let document = ronie_core::parse_nam(bytes.as_ref()).map_err(|error| {
+        ronnie_core::ModelKind::Nam => {
+            let document = ronnie_core::parse_nam(bytes.as_ref()).map_err(|error| {
                 UiError::Control(format!(
                     "parsing NAM model {} in block {}: {error}",
                     model.id.0, block_id.0
                 ))
             })?;
-            let compiled = ronie_dsp::compile_model(&document).map_err(|error| {
+            let compiled = ronnie_dsp::compile_model(&document).map_err(|error| {
                 UiError::Control(format!(
                     "compiling NAM model {} in block {}: {error}",
                     model.id.0, block_id.0
                 ))
             })?;
-            Ok(ronie_dsp::block::BlockModel::Nam(compiled))
+            Ok(ronnie_dsp::block::BlockModel::Nam(compiled))
         }
-        ronie_core::ModelKind::Ir => {
+        ronnie_core::ModelKind::Ir => {
             let gear = model.raw.get("gear").and_then(|value| value.as_str());
-            let compiled = ronie_dsp::ir::compile_ir_bytes(bytes, gear).map_err(|error| {
+            let compiled = ronnie_dsp::ir::compile_ir_bytes(bytes, gear).map_err(|error| {
                 UiError::Control(format!(
                     "compiling WAV model {} in block {}: {error}",
                     model.id.0, block_id.0
                 ))
             })?;
-            Ok(ronie_dsp::block::BlockModel::Ir(compiled))
+            Ok(ronnie_dsp::block::BlockModel::Ir(compiled))
         }
     }
 }
@@ -1264,7 +1264,7 @@ mod tests {
     use super::*;
 
     const IR_PAIR_PROPERTIES: [&str; 5] = [
-        ronie_core::IR_B_MODEL_ID,
+        ronnie_core::IR_B_MODEL_ID,
         "irBlend",
         "irALevel",
         "irBLevel",
@@ -1283,7 +1283,7 @@ mod tests {
         }))
         .expect("tone");
         let mut block = ChainBlock::tone("cab", tone, ModelId(7));
-        block.ir_b = Some(ronie_core::IrB {
+        block.ir_b = Some(ronnie_core::IrB {
             model_id: ModelId(8),
         });
         block.params.ir_blend = 0.7;
@@ -1299,7 +1299,10 @@ mod tests {
         let cache = ModelByteCache::new(1024);
         let block = two_mic_block();
         let saved = encode_block(&block, None, None, &cache).expect("save with B");
-        assert_eq!(integer_property(&saved, ronie_core::IR_B_MODEL_ID), Some(8));
+        assert_eq!(
+            integer_property(&saved, ronnie_core::IR_B_MODEL_ID),
+            Some(8)
+        );
         assert_eq!(number_property(&saved, "irBlend"), Some(0.7));
         for name in IR_PAIR_PROPERTIES {
             assert!(has(&saved, name), "{name} is written");
@@ -1309,7 +1312,7 @@ mod tests {
         cleared.ir_b = None;
         let resaved = encode_block(&cleared, None, Some(&saved), &cache).expect("save");
         assert!(
-            !has(&resaved, ronie_core::IR_B_MODEL_ID),
+            !has(&resaved, ronnie_core::IR_B_MODEL_ID),
             "a cleared B is not kept"
         );
 
@@ -1330,7 +1333,7 @@ mod tests {
             saved
                 .properties
                 .iter()
-                .any(|(name, value)| name == ronie_core::SKIN_OVERRIDE
+                .any(|(name, value)| name == ronnie_core::SKIN_OVERRIDE
                     && *value == JuceValue::String("cab-112-clean".into())),
             "{:?}",
             saved.properties
@@ -1339,14 +1342,14 @@ mod tests {
         block.skin = None;
         let resaved = encode_block(&block, None, Some(&saved), &cache).expect("save Auto");
         assert!(
-            !has(&resaved, ronie_core::SKIN_OVERRIDE),
+            !has(&resaved, ronnie_core::SKIN_OVERRIDE),
             "Auto is not kept"
         );
 
         let insert = ChainBlock::insert("cab");
         let emptied = encode_block(&insert, None, Some(&saved), &cache).expect("save");
         assert!(
-            !has(&emptied, ronie_core::SKIN_OVERRIDE),
+            !has(&emptied, ronnie_core::SKIN_OVERRIDE),
             "an insert has no skin"
         );
     }
@@ -1355,23 +1358,23 @@ mod tests {
     fn a_b_outside_the_tone_is_not_saved() {
         let cache = ModelByteCache::new(1024);
         let mut block = two_mic_block();
-        block.ir_b = Some(ronie_core::IrB {
+        block.ir_b = Some(ronnie_core::IrB {
             model_id: ModelId(9),
         });
         let saved = encode_block(&block, None, None, &cache).expect("save without B");
         assert!(
-            !has(&saved, ronie_core::IR_B_MODEL_ID),
+            !has(&saved, ronnie_core::IR_B_MODEL_ID),
             "an absent B is not named"
         );
         assert_eq!(number_property(&saved, "irBlend"), Some(0.7));
     }
 
     fn empty_frame() -> SessionFrame {
-        ronie_ui::session_edit::SessionEditor::new(ronie_dsp::PrepareSpec {
+        ronnie_ui::session_edit::SessionEditor::new(ronnie_dsp::PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 64,
             oversampling: 1,
-            input_mode: ronie_core::InputMode::Stereo,
+            input_mode: ronnie_core::InputMode::Stereo,
             stereo_input: false,
             stereo_output: true,
         })
@@ -1394,7 +1397,7 @@ mod tests {
             let cache = ModelByteCache::new(1024);
             let mut frame = empty_frame();
             let mut block = two_mic_block();
-            block.ir_b = Some(ronie_core::IrB { model_id: ModelId(b) });
+            block.ir_b = Some(ronnie_core::IrB { model_id: ModelId(b) });
             frame.session.chain.left = vec![block];
             let bytes = encode_session(&frame, 0, None, None, &cache).expect("a B never stops a save");
             let decoded = decode_session(&bytes, &frame).expect("restore");
@@ -1419,7 +1422,7 @@ mod tests {
                     ByteCacheKey {
                         block_id: block.id.clone(),
                         model_id: ModelId(model),
-                        namespace: ronie_core::model_namespace(&block, ModelId(model)),
+                        namespace: ronnie_core::model_namespace(&block, ModelId(model)),
                     },
                     ModelBytes::from(bytes.as_slice()),
                 )

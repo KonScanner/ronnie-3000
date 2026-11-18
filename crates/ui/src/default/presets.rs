@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ronie_core::{ActivePreset, PresetInfo};
+use ronnie_core::{ActivePreset, PresetInfo};
 
 use crate::backend::{UiAction, UiBackend, UiError};
 

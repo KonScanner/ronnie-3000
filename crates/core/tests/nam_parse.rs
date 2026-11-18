@@ -1,6 +1,6 @@
 //! Bounded NAM parser integration tests.
 
-use ronie_core::{NamArchitecture, NamError, VersionSupport, parse_nam};
+use ronnie_core::{NamArchitecture, NamError, VersionSupport, parse_nam};
 use serde as _;
 use serde_json::json;
 use thiserror as _;

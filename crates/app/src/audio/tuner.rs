@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_dsp::analysis::{TunerDetector, TunerReading};
+use ronnie_dsp::analysis::{TunerDetector, TunerReading};
 
 use super::AudioTelemetry;
 

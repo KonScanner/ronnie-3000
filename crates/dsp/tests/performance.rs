@@ -5,12 +5,12 @@ use std::{
     time::Instant,
 };
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PhaseEngine,
     bench::{BenchmarkConfig, BenchmarkEvidence, measure_benchmark},
     compile_model,
 };
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_document;
 
 #[test]
 fn primary_a2_standard_meets_the_66_microsecond_gate() {
@@ -44,7 +44,7 @@ fn primary_a2_standard_meets_the_66_microsecond_gate() {
                 .iter()
                 .all(|run| !run.timing.callbacks.is_empty())
         );
-        if let Ok(path) = std::env::var("RONIE_BENCHMARK_EVIDENCE") {
+        if let Ok(path) = std::env::var("RONNIE_BENCHMARK_EVIDENCE") {
             let mut evidence = serde_json::to_value(BenchmarkEvidence::from_report(&report))
                 .expect("evidence serialization");
             evidence["contract"] = serde_json::json!({
@@ -86,7 +86,7 @@ fn environment_evidence() -> serde_json::Value {
     serde_json::json!({
         "os": std::env::consts::OS,
         "architecture": std::env::consts::ARCH,
-        "compiler": std::env::var("RONIE_RUSTC_VERSION").unwrap_or_else(|_| "unknown".into()),
+        "compiler": std::env::var("RONNIE_RUSTC_VERSION").unwrap_or_else(|_| "unknown".into()),
         "hardware": hardware,
         "resident_pages": resident_pages,
         "load_average": load_average,

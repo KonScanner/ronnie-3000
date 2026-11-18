@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::{OAuthError, Page, Tone};
-use ronie_ui::{
+use ronnie_core::{OAuthError, Page, Tone};
+use ronnie_ui::{
     backend::{MockBackend, UiBackend},
     default::{AuthPhase, CatalogStatus, ChromeController, popover},
     driver::UiDriver,
@@ -230,17 +230,17 @@ fn a_sign_in_call_with_no_service_names_no_environment_variable() {
     let mut driver = no_service("main-mono");
 
     let error = driver.chrome_mut().sign_in().expect_err("no flow");
-    assert!(!error.to_string().contains("RONIE_"), "{error}");
+    assert!(!error.to_string().contains("RONNIE_"), "{error}");
     let start = driver
         .chrome_mut()
         .start_device_sign_in()
         .expect_err("no flow");
-    assert!(!start.to_string().contains("RONIE_"), "{start}");
+    assert!(!start.to_string().contains("RONNIE_"), "{start}");
     assert!(
         !driver
             .chrome()
             .toast()
-            .is_some_and(|toast| toast.contains("RONIE_"))
+            .is_some_and(|toast| toast.contains("RONNIE_"))
     );
 }
 

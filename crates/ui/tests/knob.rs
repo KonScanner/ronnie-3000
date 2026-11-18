@@ -2,8 +2,8 @@
 //! events, and a value that each edit changes the same way that a backend does.
 
 use eframe::egui;
-use ronie_core::params::{ParameterCatalog, ParameterId, ParameterSpec};
-use ronie_ui::{
+use ronnie_core::params::{ParameterCatalog, ParameterId, ParameterSpec};
+use ronnie_ui::{
     backend::GesturePhase,
     widgets::{
         KnobEdit, KnobSpec,

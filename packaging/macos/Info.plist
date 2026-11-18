@@ -7,7 +7,7 @@
   <key>CFBundleDisplayName</key>
   <string>Ronnie 3000</string>
   <key>CFBundleExecutable</key>
-  <string>ronie</string>
+  <string>ronnie</string>
   <key>CFBundleIconFile</key>
   <string>Ronnie3000</string>
   <key>CFBundleIdentifier</key>
