@@ -188,6 +188,11 @@ your DAW after the install. To remove Ronnie again, run `make uninstall` for the
 3. **Leave OPTIMIZE on.** It sits in the pitch panel and keeps the delay as low as your system
    allows. The readout under it shows the estimated delay.
 
+To try the Stage layout, a light window with the chain as gear icons in the header,
+start Ronnie with `ronie --layout stage`. There, each block's page shows a 3D render of its
+gear, and you can drag the GAIN IN, OUTPUT and MIX knobs on it. The renders come from the
+Blender scripts in [`tools/render`](tools/render/README.md).
+
 ### Connect your TONE3000 account
 
 The community browser uses your own TONE3000 account. The first time you click **Sign in**,

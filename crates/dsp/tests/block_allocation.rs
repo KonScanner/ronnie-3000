@@ -176,3 +176,80 @@ fn nam_metadata_does_not_allocate_during_processing() {
     assert!(result.is_ok(), "{result:?}");
     assert_eq!(counts, (0, 0));
 }
+
+#[test]
+fn the_pair_path_does_not_allocate() {
+    let a = compile_ir(
+        &AudioDocument {
+            sample_rate: 44_100.0,
+            channels: vec![(0..700).map(|index| 0.99_f32.powi(index)).collect()],
+        },
+        None,
+    )
+    .expect("mono IR");
+    let b = compile_ir(
+        &AudioDocument {
+            sample_rate: 96_000.0,
+            channels: vec![
+                (0..3000).map(|index| 0.995_f32.powi(index)).collect(),
+                (0..3000).map(|index| -0.995_f32.powi(index)).collect(),
+            ],
+        },
+        None,
+    )
+    .expect("stereo IR");
+    for oversampling in [1, 2, 8] {
+        let spec = PrepareSpec {
+            host_sample_rate: 48_000.0,
+            max_host_frames: 64,
+            oversampling,
+            input_mode: InputMode::Stereo,
+            stereo_input: true,
+            stereo_output: true,
+        };
+        let mut block = prepare_block(
+            BlockModel::IrPair {
+                a: a.clone(),
+                b: b.clone(),
+            },
+            spec,
+            BlockParams::default(),
+        )
+        .expect("pair preparation");
+        let frames = 64 * usize::from(oversampling);
+        let mut stereo = vec![0.25; 2 * frames];
+        let mut mono = vec![0.25; frames];
+        let settings = [
+            BlockControls::default(),
+            BlockControls {
+                ir_blend: 0.9,
+                ir_a_level: 0.2,
+                ir_b_level: 0.8,
+                ..Default::default()
+            },
+            BlockControls {
+                ir_blend: 0.1,
+                ir_b_invert: true,
+                dual_mono: true,
+                ..Default::default()
+            },
+        ];
+        let mut results = Vec::with_capacity(2 * settings.len());
+
+        let counts = counts(|| {
+            for controls in settings {
+                results.push(block.process(
+                    &mut PlanarBuffer::new(&mut stereo, 2, frames).expect("stereo"),
+                    controls,
+                ));
+                results.push(block.process(
+                    &mut PlanarBuffer::new(&mut mono, 1, frames).expect("mono"),
+                    controls,
+                ));
+            }
+        });
+
+        assert!(results.iter().all(Result::is_ok), "{results:?}");
+        assert_eq!(counts, (0, 0), "{oversampling}x");
+    }
+}

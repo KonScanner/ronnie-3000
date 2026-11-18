@@ -593,7 +593,8 @@ impl EqEditor {
     pub fn show(&mut self, ui: &mut egui::Ui) {
         self.spectrum
             .set_bins(self.backend.spectrum_bins(&self.block_id));
-        let height = 275.0;
+        // The reference card gives the editor 275 points; the light page gives what fits.
+        let height = ui.available_height().clamp(160.0, 275.0);
         let (rect, _) = ui.allocate_exact_size(
             egui::vec2(ui.available_width().max(320.0), height),
             Sense::hover(),
@@ -756,6 +757,7 @@ impl EqEditor {
 
     fn show_curve(&mut self, ui: &mut egui::Ui, rect: Rect) {
         let pass = ui.ctx().cumulative_pass_nr();
+        let colors = EqColors::for_ctx(ui.ctx());
         paint_curve_grid(ui, rect);
         painter_band_caption(self, ui, rect);
         let painter = ui.painter_at(rect);
@@ -793,7 +795,7 @@ impl EqEditor {
                 area.vertices.push(egui::epaint::Vertex {
                     pos: point,
                     uv: egui::Pos2::ZERO,
-                    color: Color32::from_rgba_unmultiplied(142, 142, 147, 25),
+                    color: colors.area,
                 });
             }
             area.indices
@@ -803,7 +805,7 @@ impl EqEditor {
         for pair in points.windows(2) {
             painter.line_segment(
                 [pair[0], pair[1]],
-                Stroke::new(1.25, crate::theme::palette::TEXT_MUTED),
+                Stroke::new(colors.curve_width, colors.curve),
             );
         }
         for index in 0..self.params.bands.len() {
@@ -871,18 +873,18 @@ impl EqEditor {
                 }
             }
             if self.selected == index {
-                painter.circle_stroke(center, 9.0, Stroke::new(1.5, Color32::WHITE));
+                painter.circle_stroke(center, 9.0, Stroke::new(1.5, colors.ring));
             }
             painter.circle_filled(
                 center,
                 5.5,
                 if self.selected == index {
-                    Color32::WHITE
+                    colors.dot_selected
                 } else {
-                    Color32::from_rgb(184, 184, 190)
+                    colors.dot
                 },
             );
-            painter.circle_stroke(center, 5.5, Stroke::new(1.5, Color32::BLACK));
+            painter.circle_stroke(center, 5.5, Stroke::new(1.5, colors.dot_edge));
         }
         self.show_curve_chips(ui, rect);
     }
@@ -890,7 +892,7 @@ impl EqEditor {
     fn show_curve_chips(&mut self, ui: &mut egui::Ui, rect: Rect) {
         let pass = ui.ctx().cumulative_pass_nr();
         let chip_rect = Rect::from_min_size(
-            rect.left_top() + egui::vec2(16.0, 227.0),
+            egui::pos2(rect.left() + 16.0, rect.bottom() - 48.0),
             egui::vec2(450.0, 20.0),
         );
         let mut chip_ui = ui.new_child(egui::UiBuilder::new().max_rect(chip_rect));
@@ -904,8 +906,9 @@ impl EqEditor {
             .style_mut()
             .text_styles
             .insert(egui::TextStyle::Monospace, egui::FontId::monospace(12.0));
-        let track = crate::theme::palette::CONTROL_FILL;
-        let subtle = Color32::from_rgba_unmultiplied(235, 235, 245, 112);
+        let colors = EqColors::for_ctx(ui.ctx());
+        let track = colors.chip;
+        let subtle = colors.chip_subtle;
         {
             let style = chip_ui.style_mut();
             for visuals in [
@@ -915,7 +918,7 @@ impl EqEditor {
             ] {
                 visuals.bg_fill = track;
                 visuals.weak_bg_fill = track;
-                visuals.fg_stroke = Stroke::new(1.0, Color32::WHITE);
+                visuals.fg_stroke = Stroke::new(1.0, colors.chip_text);
                 visuals.corner_radius = egui::CornerRadius::same(2);
                 visuals.expansion = 0.0;
             }
@@ -1038,6 +1041,7 @@ impl EqEditor {
         if !self.spectrum.enabled() {
             return;
         }
+        let colors = EqColors::for_ctx(ui.ctx());
         let mut mesh = egui::epaint::Mesh::default();
         for index in 1..self.spectrum.bins().len() {
             let left_db = self.spectrum.bins()[index - 1];
@@ -1063,7 +1067,9 @@ impl EqEditor {
                         mesh.vertices.push(egui::epaint::Vertex {
                             pos: point,
                             uv: egui::Pos2::ZERO,
-                            color: spectrum_ramp((point.y - rect.top()) / rect.height()),
+                            color: colors.spectrum.unwrap_or_else(|| {
+                                spectrum_ramp((point.y - rect.top()) / rect.height())
+                            }),
                         });
                     }
                     mesh.indices.extend_from_slice(&[base, base + 1, base + 2]);
@@ -1120,11 +1126,12 @@ fn eq_type_button(ui: &mut egui::Ui, kind: EqBandType, active: bool) -> egui::Re
     let (rect, response) = ui.allocate_exact_size(egui::vec2(24.0, 20.0), Sense::click());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, type_label(kind)));
     let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, 2.0, crate::theme::palette::CONTROL_FILL);
+    let colors = EqColors::for_ctx(ui.ctx());
+    painter.rect_filled(rect, 2.0, colors.chip);
     let color = if active {
-        Color32::WHITE
+        colors.chip_text
     } else {
-        crate::theme::palette::TEXT_MUTED
+        colors.muted
     };
     paint_eq_kind_glyph(&painter, rect, kind, color);
     response
@@ -1265,6 +1272,7 @@ fn paint_gain_grid(ui: &egui::Ui, rect: Rect) {
 
 fn paint_curve_grid(ui: &egui::Ui, rect: Rect) {
     let painter = ui.painter_at(rect);
+    let colors = EqColors::for_ctx(ui.ctx());
     for (frequency, label) in [
         (50.0, "50"),
         (100.0, "100"),
@@ -1278,14 +1286,14 @@ fn paint_curve_grid(ui: &egui::Ui, rect: Rect) {
         let x = rect.left() + freq_to_norm(frequency) as f32 * rect.width();
         painter.line_segment(
             [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
-            Stroke::new(1.0, Color32::from_rgba_unmultiplied(235, 235, 245, 18)),
+            Stroke::new(1.0, colors.grid),
         );
         painter.text(
             egui::pos2(x + 4.0, rect.bottom() - 16.0),
             egui::Align2::LEFT_CENTER,
             label,
             egui::FontId::proportional(9.0),
-            crate::theme::palette::GRAPH_LABEL,
+            colors.label,
         );
     }
     for gain in [-7.5, 7.5, 0.0] {
@@ -1294,7 +1302,11 @@ fn paint_curve_grid(ui: &egui::Ui, rect: Rect) {
             [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
             Stroke::new(
                 1.0,
-                Color32::from_rgba_unmultiplied(235, 235, 245, if gain == 0.0 { 46 } else { 12 }),
+                if gain == 0.0 {
+                    colors.grid_zero
+                } else {
+                    colors.grid_minor
+                },
             ),
         );
     }
@@ -1305,6 +1317,7 @@ fn painter_band_caption(editor: &EqEditor, ui: &mut egui::Ui, rect: Rect) {
         return;
     };
     let painter = ui.painter_at(rect);
+    let colors = EqColors::for_ctx(ui.ctx());
     let position = rect.left_top() + egui::vec2(16.0, 16.0);
     let font = egui::FontId::proportional(11.0);
     let kind = band.kind;
@@ -1315,7 +1328,7 @@ fn painter_band_caption(editor: &EqEditor, ui: &mut egui::Ui, rect: Rect) {
         egui::Align2::LEFT_TOP,
         format!("{band}{rest}"),
         font.clone(),
-        Color32::from_black_alpha(230),
+        colors.caption_shadow,
     );
     let band_width = ui.ctx().fonts_mut(|fonts| {
         fonts
@@ -1328,14 +1341,14 @@ fn painter_band_caption(editor: &EqEditor, ui: &mut egui::Ui, rect: Rect) {
         egui::Align2::LEFT_TOP,
         band,
         font.clone(),
-        Color32::WHITE,
+        colors.caption,
     );
     painter.text(
         position + egui::vec2(band_width, 0.0),
         egui::Align2::LEFT_TOP,
         rest,
         font,
-        crate::theme::palette::TEXT_MUTED,
+        colors.muted,
     );
 }
 
@@ -1491,4 +1504,101 @@ pub fn reference_bands() -> Vec<EqBand> {
             q: 0.71,
         },
     ]
+}
+
+/// Colours of the curve view: dark in the reference layout, light on the Stage page.
+struct EqColors {
+    area: Color32,
+    curve: Color32,
+    curve_width: f32,
+    ring: Color32,
+    dot: Color32,
+    dot_selected: Color32,
+    dot_edge: Color32,
+    grid: Color32,
+    /// The ±7.5 dB lines.
+    grid_minor: Color32,
+    grid_zero: Color32,
+    label: Color32,
+    muted: Color32,
+    caption: Color32,
+    caption_shadow: Color32,
+    chip: Color32,
+    chip_text: Color32,
+    chip_subtle: Color32,
+    /// One flat colour for the live spectrum, or `None` for the fire ramp.
+    spectrum: Option<Color32>,
+}
+
+impl EqColors {
+    fn for_ctx(ctx: &egui::Context) -> Self {
+        let look = crate::theme::Look::get(ctx);
+        if look.is_stage() {
+            Self {
+                area: Color32::TRANSPARENT,
+                curve: look.text,
+                curve_width: 2.0,
+                ring: look.accent,
+                dot: look.panel,
+                dot_selected: look.accent,
+                dot_edge: look.text,
+                grid: look.fill_soft,
+                grid_minor: look.fill_soft,
+                grid_zero: look.control_edge,
+                label: look.text_idle,
+                muted: look.text_muted,
+                caption: look.text,
+                caption_shadow: Color32::TRANSPARENT,
+                chip: look.fill_soft,
+                chip_text: look.text,
+                chip_subtle: look.text_idle,
+                spectrum: Some(Color32::from_rgba_unmultiplied(
+                    look.accent.r(),
+                    look.accent.g(),
+                    look.accent.b(),
+                    41,
+                )),
+            }
+        } else {
+            Self {
+                area: Color32::from_rgba_unmultiplied(142, 142, 147, 25),
+                curve: crate::theme::palette::TEXT_MUTED,
+                curve_width: 1.25,
+                ring: Color32::WHITE,
+                dot: Color32::from_rgb(184, 184, 190),
+                dot_selected: Color32::WHITE,
+                dot_edge: Color32::BLACK,
+                grid: Color32::from_rgba_unmultiplied(235, 235, 245, 18),
+                grid_minor: Color32::from_rgba_unmultiplied(235, 235, 245, 12),
+                grid_zero: Color32::from_rgba_unmultiplied(235, 235, 245, 46),
+                label: crate::theme::palette::GRAPH_LABEL,
+                muted: crate::theme::palette::TEXT_MUTED,
+                caption: Color32::WHITE,
+                caption_shadow: Color32::from_black_alpha(230),
+                chip: crate::theme::palette::CONTROL_FILL,
+                chip_text: Color32::WHITE,
+                chip_subtle: Color32::from_rgba_unmultiplied(235, 235, 245, 112),
+                spectrum: None,
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod light_colors {
+    use super::*;
+
+    #[test]
+    fn the_reference_curve_grid_keeps_its_two_weights() {
+        let ctx = egui::Context::default();
+        let colors = EqColors::for_ctx(&ctx);
+        assert_eq!(
+            colors.grid,
+            Color32::from_rgba_unmultiplied(235, 235, 245, 18)
+        );
+        assert_eq!(
+            colors.grid_minor,
+            Color32::from_rgba_unmultiplied(235, 235, 245, 12)
+        );
+    }
 }

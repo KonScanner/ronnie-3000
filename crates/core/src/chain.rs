@@ -206,7 +206,18 @@ pub struct BlockParams {
     pub mix: f64,
     /// Block EQ settings.
     pub eq: EqParams,
+    /// Normalized crossfade from IR A (0) to IR B (1). Unused while a block has no IR B.
+    pub ir_blend: f64,
+    /// Normalized level of IR A, where 0.5 is unity like `input_gain`.
+    pub ir_a_level: f64,
+    /// Normalized level of IR B, where 0.5 is unity like `input_gain`.
+    pub ir_b_level: f64,
+    /// Whether IR B is polarity-inverted.
+    pub ir_b_invert: bool,
 }
+
+const DEFAULT_IR_BLEND: f64 = 0.5;
+const DEFAULT_IR_LEVEL: f64 = 0.5;
 
 impl Default for BlockParams {
     fn default() -> Self {
@@ -218,6 +229,10 @@ impl Default for BlockParams {
             output_gain: 0.5,
             mix: 1.0,
             eq: EqParams::default(),
+            ir_blend: DEFAULT_IR_BLEND,
+            ir_a_level: DEFAULT_IR_LEVEL,
+            ir_b_level: DEFAULT_IR_LEVEL,
+            ir_b_invert: false,
         }
     }
 }
@@ -232,8 +247,31 @@ impl BlockParams {
             output_gain: number_field(value.get("outputGain"), 0.5),
             mix: number_field(value.get("mix"), 1.0),
             eq: EqParams::from_value(value.get("eq").unwrap_or(&Value::Null))?,
+            ir_blend: unit_or(
+                value.get("irBlend").and_then(Value::as_f64),
+                DEFAULT_IR_BLEND,
+            ),
+            ir_a_level: unit_or(
+                value.get("irALevel").and_then(Value::as_f64),
+                DEFAULT_IR_LEVEL,
+            ),
+            ir_b_level: unit_or(
+                value.get("irBLevel").and_then(Value::as_f64),
+                DEFAULT_IR_LEVEL,
+            ),
+            ir_b_invert: bool_field(value.get("irBInvert"), false),
         })
     }
+}
+
+/// The second impulse response of a cab block, blended with the active model (IR A).
+///
+/// In v1 it is another model of the block's own tone; a later version may add a `tone` field
+/// for an IR from another tone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct IrB {
+    /// Model of the block's tone that plays as IR B.
+    pub model_id: ModelId,
 }
 
 /// Plain-data chain block. Mutable audio engines and histories never appear here.
@@ -253,6 +291,16 @@ pub struct ChainBlock {
     pub model_loading: bool,
     /// Whether the last load failed and offers retry.
     pub load_failed: bool,
+    /// Second IR of a cab block, blended with the active model. `None` plays the active model
+    /// alone, exactly as a block without dual-IR support does.
+    pub ir_b: Option<IrB>,
+    /// Whether IR B has no usable bytes, so the block plays the active model alone until they
+    /// arrive. A restore sets it; it is never stored.
+    pub ir_b_missing: bool,
+    /// The skin the user chose for the block's render, as a skin identity such as `"british"`.
+    /// `None` is Auto: the skin of the gear family the tone identifies. It changes only the
+    /// drawing, never the audio.
+    pub skin: Option<String>,
     /// Persisted block parameters.
     pub params: BlockParams,
 }
@@ -269,6 +317,9 @@ impl ChainBlock {
             loaded: true,
             model_loading: false,
             load_failed: false,
+            ir_b: None,
+            ir_b_missing: false,
+            skin: None,
             params: BlockParams::default(),
         }
     }
@@ -284,6 +335,9 @@ impl ChainBlock {
             loaded: true,
             model_loading: false,
             load_failed: false,
+            ir_b: None,
+            ir_b_missing: false,
+            skin: None,
             params: BlockParams::default(),
         }
     }
@@ -303,6 +357,9 @@ impl ChainBlock {
                 loaded: true,
                 model_loading: false,
                 load_failed: false,
+                ir_b: None,
+                ir_b_missing: false,
+                skin: None,
                 params: BlockParams::default(),
             });
         }
@@ -312,6 +369,8 @@ impl ChainBlock {
             .and_then(Value::as_i64)
             .map(ModelId);
         let params = BlockParams::from_value(value.get("params").unwrap_or(&Value::Null))?;
+        let ir_b = listed_ir_b(&tone, value.get(IR_B_MODEL_ID).and_then(Value::as_i64))
+            .filter(|ir_b| Some(ir_b.model_id) != active_model_id);
         Ok(Self {
             id,
             is_insert: false,
@@ -320,16 +379,19 @@ impl ChainBlock {
             loaded: bool_field(value.get("loaded"), true),
             model_loading: bool_field(value.get("modelLoading"), false),
             load_failed: bool_field(value.get("loadFailed"), false),
+            ir_b,
+            ir_b_missing: false,
+            skin: skin_override(value.get(SKIN_OVERRIDE).and_then(Value::as_str)),
             params,
         })
     }
 }
 
 /// Returns whether a model remains reachable from a block's persisted tone.
-/// Local tones retain every listed model; catalog tones retain only the active model.
+/// Local tones retain every listed model; catalog tones retain only the active model and IR B.
 #[must_use]
 pub fn references_model(block: &ChainBlock, id: ModelId) -> bool {
-    if block.active_model_id == Some(id) {
+    if block.active_model_id == Some(id) || block.ir_b.is_some_and(|ir_b| ir_b.model_id == id) {
         return true;
     }
     block
@@ -810,12 +872,17 @@ impl ChainBlock {
                 loaded: true,
                 model_loading: false,
                 load_failed: false,
+                ir_b: None,
+                ir_b_missing: false,
+                skin: None,
                 params: BlockParams::default(),
             });
         }
         let tone_json = juce_string_prop(tree, "toneJson").unwrap_or_default();
         let tone = Tone::from_json(tone_json)?;
         let active_model_id = juce_int_prop(tree, "activeModelId").map(ModelId);
+        let ir_b = listed_ir_b(&tone, juce_int_prop(tree, IR_B_MODEL_ID))
+            .filter(|ir_b| Some(ir_b.model_id) != active_model_id);
         Ok(Self {
             id,
             is_insert: false,
@@ -824,9 +891,92 @@ impl ChainBlock {
             loaded: true,
             model_loading: false,
             load_failed: false,
+            ir_b,
+            ir_b_missing: false,
+            skin: skin_override(juce_string_prop(tree, SKIN_OVERRIDE)),
             params: BlockParams::from_juce_tree(tree)?,
         })
     }
+
+    /// The IR B that a save keeps: the block's B when its tone lists that model.
+    ///
+    /// A B outside the tone has nothing to store or download, so a save leaves it out rather
+    /// than fail on it.
+    #[must_use]
+    pub fn stored_ir_b(&self) -> Option<IrB> {
+        let tone = self.tone.as_ref()?;
+        listed_ir_b(tone, self.ir_b.map(|ir_b| ir_b.model_id.0))
+    }
+
+    /// Writes IR B and the blend settings into a persisted `ChainBlock` tree.
+    ///
+    /// `irBModelId` (Int64) is present only while the block has an IR B and is removed when B is
+    /// cleared, so a tree reused from an earlier save never keeps a stale B. `irBlend`,
+    /// `irALevel`, `irBLevel` and `irBInvert` are always written. The other block properties are
+    /// left as they are.
+    pub fn write_ir_pair_juce(&self, tree: &mut JuceTree) {
+        match self.stored_ir_b() {
+            Some(ir_b) => set_juce_prop(tree, IR_B_MODEL_ID, JuceValue::Int64(ir_b.model_id.0)),
+            None => tree.properties.retain(|(name, _)| name != IR_B_MODEL_ID),
+        }
+        set_juce_prop(tree, "irBlend", JuceValue::Double(self.params.ir_blend));
+        set_juce_prop(tree, "irALevel", JuceValue::Double(self.params.ir_a_level));
+        set_juce_prop(tree, "irBLevel", JuceValue::Double(self.params.ir_b_level));
+        set_juce_prop(tree, "irBInvert", JuceValue::Bool(self.params.ir_b_invert));
+    }
+
+    /// Writes the skin override into a persisted `ChainBlock` tree.
+    ///
+    /// `skinOverride` (String) is present only while the block has an override and is removed
+    /// for Auto, so a tree reused from an earlier save never keeps a stale skin.
+    pub fn write_skin_juce(&self, tree: &mut JuceTree) {
+        match skin_override(self.skin.as_deref()) {
+            Some(skin) => set_juce_prop(tree, SKIN_OVERRIDE, JuceValue::String(skin)),
+            None => tree.properties.retain(|(name, _)| name != SKIN_OVERRIDE),
+        }
+    }
+}
+
+/// A stored skin override; an empty one is Auto.
+fn skin_override(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|skin| !skin.is_empty())
+        .map(str::to_owned)
+}
+
+/// The persisted `ChainBlock` property that names the skin a block's render uses.
+pub const SKIN_OVERRIDE: &str = "skinOverride";
+
+/// IR B for model `id`, when `tone` lists that model. A B outside the tone is dropped, so a
+/// later save never has to store a model the tone cannot give.
+///
+/// A restore also drops a B that is the active model: one model cannot blend with itself, and
+/// the pair would make the UI say two IRs play while one does.
+fn listed_ir_b(tone: &Tone, id: Option<i64>) -> Option<IrB> {
+    let model_id = ModelId(id?);
+    tone.models
+        .iter()
+        .any(|model| model.id == model_id)
+        .then_some(IrB { model_id })
+}
+
+/// The persisted `ChainBlock` property that names a cab block's IR B.
+pub const IR_B_MODEL_ID: &str = "irBModelId";
+
+fn set_juce_prop(tree: &mut JuceTree, name: &str, value: JuceValue) {
+    if let Some((_, existing)) = tree.properties.iter_mut().find(|(key, _)| key == name) {
+        *existing = value;
+    } else {
+        tree.properties.push((name.into(), value));
+    }
+}
+
+/// A normalized setting in 0..=1, or `fallback` when it is absent or not a number.
+fn unit_or(value: Option<f64>, fallback: f64) -> f64 {
+    value
+        .filter(|value| value.is_finite())
+        .map_or(fallback, |value| value.clamp(0.0, 1.0))
 }
 
 impl BlockParams {
@@ -839,6 +989,10 @@ impl BlockParams {
             output_gain: juce_number_prop(tree, "outputGain").unwrap_or(0.5),
             mix: juce_number_prop(tree, "mix").unwrap_or(1.0),
             eq: EqParams::from_juce_tree(child_tree(tree, "Eq"))?,
+            ir_blend: unit_or(juce_number_prop(tree, "irBlend"), DEFAULT_IR_BLEND),
+            ir_a_level: unit_or(juce_number_prop(tree, "irALevel"), DEFAULT_IR_LEVEL),
+            ir_b_level: unit_or(juce_number_prop(tree, "irBLevel"), DEFAULT_IR_LEVEL),
+            ir_b_invert: juce_bool_prop(tree, "irBInvert").unwrap_or(false),
         })
     }
 }
@@ -1090,4 +1244,118 @@ fn number_field(value: Option<&Value>, fallback: f64) -> f64 {
 
 fn bool_field(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(Value::as_bool).unwrap_or(fallback)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// An IR pack of two mic positions, as a cab block stores it.
+    fn cab_tone() -> Value {
+        json!({
+            "id": 7,
+            "title": "Cab",
+            "format": "ir",
+            "models": [
+                {"id": 71, "name": "SM57", "model_url": "https://models.example/71.wav"},
+                {"id": 72, "name": "R121", "model_url": "https://models.example/72.wav"},
+            ],
+        })
+    }
+
+    fn block_value(active: i64, ir_b: i64) -> Value {
+        json!({
+            "blockId": "blk-1",
+            "kind": "tone",
+            "activeModelId": active,
+            "irBModelId": ir_b,
+            "tone": cab_tone(),
+        })
+    }
+
+    fn block_tree(active: i64, ir_b: i64) -> JuceTree {
+        let tone = Tone::from_value(cab_tone()).expect("tone");
+        JuceTree {
+            identifier: "CHAINBLOCK".to_owned(),
+            properties: vec![
+                ("id".to_owned(), JuceValue::String("blk-1".to_owned())),
+                ("type".to_owned(), JuceValue::String("TONE".to_owned())),
+                (
+                    "toneJson".to_owned(),
+                    JuceValue::String(tone.to_json().expect("tone json")),
+                ),
+                ("activeModelId".to_owned(), JuceValue::Int64(active)),
+                ("irBModelId".to_owned(), JuceValue::Int64(ir_b)),
+            ],
+            children: Vec::new(),
+        }
+    }
+
+    fn juce_chain(block: JuceTree) -> JuceTree {
+        JuceTree {
+            identifier: "ChainSnapshot".to_owned(),
+            properties: Vec::new(),
+            children: vec![JuceTree {
+                identifier: "ChainBlocks".to_owned(),
+                properties: Vec::new(),
+                children: vec![block],
+            }],
+        }
+    }
+
+    #[test]
+    fn a_json_block_drops_a_second_ir_that_is_the_active_model() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 71)],
+        }))
+        .expect("chain");
+
+        assert_eq!(chain.left[0].active_model_id, Some(ModelId(71)));
+        assert_eq!(chain.left[0].ir_b, None, "one model cannot be both IRs");
+    }
+
+    #[test]
+    fn a_json_block_keeps_a_second_ir_that_differs_from_the_active_model() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 72)],
+        }))
+        .expect("chain");
+
+        assert_eq!(
+            chain.left[0].ir_b,
+            Some(IrB {
+                model_id: ModelId(72)
+            })
+        );
+    }
+
+    #[test]
+    fn a_juce_block_drops_a_second_ir_that_is_the_active_model() {
+        let chain = ChainSnapshot::from_juce_tree(&juce_chain(block_tree(71, 71))).expect("chain");
+        assert_eq!(chain.left[0].ir_b, None, "one model cannot be both IRs");
+    }
+
+    #[test]
+    fn a_normalized_pair_writes_no_second_ir_into_a_reused_tree() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 71)],
+        }))
+        .expect("chain");
+        // A tree from an earlier save still names B.
+        let mut tree = JuceTree {
+            identifier: "CHAINBLOCK".to_owned(),
+            properties: vec![("irBModelId".to_owned(), JuceValue::Int64(71))],
+            children: Vec::new(),
+        };
+        chain.left[0].write_ir_pair_juce(&mut tree);
+
+        assert!(
+            tree.properties
+                .iter()
+                .all(|(name, _)| name != IR_B_MODEL_ID),
+            "the normalized pair writes no second IR: {:?}",
+            tree.properties
+        );
+    }
 }

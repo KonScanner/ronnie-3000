@@ -44,6 +44,12 @@ pub struct LocalModelInspection {
     pub stash_name: String,
     /// Best-effort gear identifier.
     pub gear: Option<String>,
+    /// `.nam` metadata `gear_make`, when present.
+    pub gear_make: Option<String>,
+    /// `.nam` metadata `gear_model`, when present.
+    pub gear_model: Option<String>,
+    /// `.nam` metadata `tone_type`, when present.
+    pub tone_type: Option<String>,
 }
 
 /// Successful local tone load with a count of rejected files.
@@ -133,16 +139,36 @@ pub fn inspect_local_model(
         return Err(LocalError::InputTooLarge);
     }
     let kind = extension_from_name(name).ok_or(LocalError::UnsupportedExtension)?;
+    let mut gear_make = None;
+    let mut gear_model = None;
+    let mut tone_type = None;
     let gear = match kind {
         ModelKind::Nam => {
             let document = parse_nam(bytes)?;
-            let gear = document
-                .config
-                .get("metadata")
-                .and_then(|metadata| metadata.get("gear_type"))
-                .and_then(Value::as_str)
+            // NAM writes `metadata` at the top level; older files put it under `config`.
+            let field = |key: &str| {
+                document
+                    .metadata
+                    .extra
+                    .get(key)
+                    .or_else(|| {
+                        document
+                            .config
+                            .get("metadata")
+                            .and_then(|meta| meta.get(key))
+                    })
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|text| !text.is_empty())
+                    .map(str::to_owned)
+            };
+            let gear = field("gear_type")
+                .as_deref()
                 .and_then(gear_from_nam_type)
                 .map(str::to_owned);
+            gear_make = field("gear_make");
+            gear_model = field("gear_model");
+            tone_type = field("tone_type");
             validate_nam(&document)?;
             gear
         }
@@ -166,6 +192,9 @@ pub fn inspect_local_model(
         kind,
         stash_name: format!("{hash:x}-{}.{}", bytes.len(), kind.as_str()),
         gear,
+        gear_make,
+        gear_model,
+        tone_type,
     })
 }
 
@@ -247,6 +276,15 @@ pub fn load_local_path(
         });
         if let Some(gear) = &inspection.gear {
             model["gear"] = Value::String(gear.clone());
+        }
+        for (key, value) in [
+            ("gear_make", &inspection.gear_make),
+            ("gear_model", &inspection.gear_model),
+            ("tone_type", &inspection.tone_type),
+        ] {
+            if let Some(value) = value {
+                model[key] = Value::String(value.clone());
+            }
         }
         models.push(model);
     }

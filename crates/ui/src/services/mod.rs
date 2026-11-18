@@ -10,6 +10,7 @@ pub mod images;
 pub mod key_setup;
 pub(crate) mod links;
 pub mod load_flow;
+pub mod recent_tones;
 pub mod release_check;
 pub mod session;
 pub mod update;
@@ -20,7 +21,7 @@ pub use community::{CommunityAccess, CommunityHandle, CommunityService};
 pub use community_worker::{
     CATALOG_PAGE_SIZE, CommunityEvent, CommunityFailure, CommunityScope, CommunityWork,
     CommunityWorker, LoadRequest, MODEL_PAGE_SIZE, ModelList, ModelSwitchRequest, ModelsRequest,
-    QueryReply, QueryRequest, TAXONOMY_PAGE_SIZE, TaxonomyRequest,
+    QueryReply, QueryRequest, QueryScope, TAXONOMY_PAGE_SIZE, TaxonomyRequest,
 };
 pub use connectivity::{ConnectionGate, ConnectionProblem};
 pub use images::{
@@ -28,8 +29,9 @@ pub use images::{
 };
 pub use key_setup::{CommunityParts, KeySetup, KeySetupError, is_publishable_key};
 pub use load_flow::{
-    LoadFlow, LoadPhase, LoadTarget, LoadTicket, ModelSwitchFlow, ModelSwitchTicket,
+    LoadFlow, LoadPhase, LoadTarget, LoadTicket, ModelSlot, ModelSwitchFlow, ModelSwitchTicket,
 };
+pub use recent_tones::RecentTones;
 pub use release_check::{
     GithubReleaseFeed, ReleaseAnswer, ReleaseFeed, ReleaseLog, UpdateSchedule,
 };

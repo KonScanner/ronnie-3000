@@ -4281,6 +4281,7 @@ dependencies = [
 name = "ronie-plugin"
 version = "0.1.2"
 dependencies = [
+ "proptest",
  "ronie-core",
  "ronie-dsp",
  "ronie-ui",

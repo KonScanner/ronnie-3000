@@ -211,6 +211,208 @@ fn experimental(painter: &egui::Painter, rect: Rect, color: Color32) {
     painter.add(egui::epaint::PathShape::line(second, stroke));
 }
 
+/// Family-level outline icons, so a recognised capture shows its kind of gear.
+pub(super) fn draw_family(
+    painter: &egui::Painter,
+    rect: Rect,
+    family: ronie_core::gear::GearFamily,
+    color: Color32,
+) {
+    use ronie_core::gear::GearFamily as F;
+    let stroke = Stroke::new(unit(rect, 1.1), color);
+    let fine = Stroke::new(unit(rect, 0.6), color);
+    match family {
+        F::OdGreen | F::OdGold | F::Distortion | F::Fuzz | F::Boost | F::Compressor => {
+            outlined(painter, rect, (5.5, 2.0, 14.5, 18.0), 1.5, stroke);
+            painter.circle_stroke(point(rect, 10.0, 14.75), unit(rect, 1.25), stroke);
+            match family {
+                F::OdGreen => line(
+                    painter,
+                    rect,
+                    &[
+                        (7.0, 9.0),
+                        (8.0, 6.5),
+                        (9.0, 6.5),
+                        (11.0, 10.5),
+                        (12.0, 10.5),
+                        (13.0, 8.0),
+                    ],
+                    stroke,
+                ),
+                F::OdGold => {
+                    let mut wave = vec![point(rect, 7.0, 8.5)];
+                    cubic(&mut wave, rect, (8.0, 5.5), (9.0, 5.5), (10.0, 8.5));
+                    cubic(&mut wave, rect, (11.0, 11.5), (12.0, 11.5), (13.0, 8.5));
+                    painter.add(egui::epaint::PathShape::line(wave, stroke));
+                }
+                F::Distortion => line(
+                    painter,
+                    rect,
+                    &[
+                        (7.0, 6.5),
+                        (8.5, 6.5),
+                        (8.5, 10.5),
+                        (10.0, 10.5),
+                        (10.0, 6.5),
+                        (11.5, 6.5),
+                        (11.5, 10.5),
+                        (13.0, 10.5),
+                    ],
+                    stroke,
+                ),
+                F::Fuzz => line(
+                    painter,
+                    rect,
+                    &[
+                        (7.0, 8.5),
+                        (7.75, 6.0),
+                        (8.5, 11.0),
+                        (9.25, 6.0),
+                        (10.0, 11.0),
+                        (10.75, 6.0),
+                        (11.5, 11.0),
+                        (12.25, 6.0),
+                        (13.0, 8.5),
+                    ],
+                    stroke,
+                ),
+                F::Boost => {
+                    line(painter, rect, &[(10.0, 11.0), (10.0, 5.5)], stroke);
+                    line(
+                        painter,
+                        rect,
+                        &[(8.0, 7.5), (10.0, 5.5), (12.0, 7.5)],
+                        stroke,
+                    );
+                }
+                _ => {
+                    line(
+                        painter,
+                        rect,
+                        &[(7.0, 6.0), (9.0, 8.25), (7.0, 10.5)],
+                        stroke,
+                    );
+                    line(
+                        painter,
+                        rect,
+                        &[(13.0, 6.0), (11.0, 8.25), (13.0, 10.5)],
+                        stroke,
+                    );
+                }
+            }
+        }
+        F::HeadHighGain | F::HeadModernUs | F::HeadBritish | F::HeadBass => {
+            line(painter, rect, &[(8.0, 4.0), (12.0, 4.0)], stroke);
+            outlined(painter, rect, (1.5, 5.25, 18.5, 14.75), 1.0, stroke);
+            filled(painter, rect, (2.5, 12.0, 17.5, 13.75), 0.3, color);
+            match family {
+                F::HeadHighGain => {
+                    for y in [7.25, 9.0, 10.75] {
+                        line(painter, rect, &[(3.0, y), (17.0, y)], fine);
+                    }
+                }
+                F::HeadModernUs => {
+                    for y in [7.0, 8.75, 10.5] {
+                        for step in 0..7 {
+                            let x = 4.0 + 2.0 * step as f32;
+                            painter.circle_filled(point(rect, x, y), unit(rect, 0.45), color);
+                        }
+                    }
+                }
+                F::HeadBritish => {
+                    for (from, to) in [
+                        ((3.0, 10.5), (7.0, 6.5)),
+                        ((6.0, 11.0), (10.5, 6.5)),
+                        ((9.5, 11.0), (14.0, 6.5)),
+                        ((13.0, 11.0), (17.0, 7.0)),
+                        ((3.0, 6.5), (7.5, 11.0)),
+                        ((6.5, 6.5), (11.0, 11.0)),
+                        ((10.0, 6.5), (14.5, 11.0)),
+                        ((13.5, 6.5), (17.0, 10.0)),
+                    ] {
+                        line(painter, rect, &[from, to], fine);
+                    }
+                }
+                _ => {
+                    for step in 0..9 {
+                        let x = 4.0 + 1.5 * step as f32;
+                        line(painter, rect, &[(x, 6.5), (x, 11.0)], fine);
+                    }
+                }
+            }
+        }
+        F::ComboChime | F::ComboClean => {
+            line(painter, rect, &[(8.0, 1.5), (12.0, 1.5)], stroke);
+            outlined(painter, rect, (3.5, 2.5, 16.5, 18.0), 1.0, stroke);
+            filled(painter, rect, (4.5, 3.5, 15.5, 5.25), 0.3, color);
+            if family == F::ComboChime {
+                for offset in [0.0, 3.5, 7.0, 10.5] {
+                    line(
+                        painter,
+                        rect,
+                        &[(4.5 + offset, 6.5), (4.5, 6.5 + offset)],
+                        fine,
+                    );
+                    line(
+                        painter,
+                        rect,
+                        &[(15.5 - offset, 17.0), (15.5, 17.0 - offset)],
+                        fine,
+                    );
+                    line(
+                        painter,
+                        rect,
+                        &[(4.5 + offset, 17.0), (4.5, 17.0 - offset)],
+                        fine,
+                    );
+                    line(
+                        painter,
+                        rect,
+                        &[(15.5 - offset, 6.5), (15.5, 6.5 + offset)],
+                        fine,
+                    );
+                }
+            } else {
+                for y in [8.0, 9.75, 11.5, 13.25, 15.0, 16.5] {
+                    line(painter, rect, &[(5.0, y), (15.0, y)], fine);
+                }
+            }
+        }
+        F::Cab412Modern | F::Cab412Vintage => {
+            outlined(painter, rect, (2.5, 1.5, 17.5, 18.5), 1.0, stroke);
+            for (x, y) in [(6.75, 6.0), (13.25, 6.0), (6.75, 14.0), (13.25, 14.0)] {
+                painter.circle_stroke(point(rect, x, y), unit(rect, 2.6), stroke);
+            }
+        }
+        F::Cab212 => {
+            outlined(painter, rect, (1.0, 4.5, 19.0, 15.5), 1.0, stroke);
+            for x in [6.0, 14.0] {
+                painter.circle_stroke(point(rect, x, 10.0), unit(rect, 3.5), stroke);
+                painter.circle_filled(point(rect, x, 10.0), unit(rect, 0.8), color);
+            }
+        }
+        F::Cab112 => {
+            painter.circle_stroke(point(rect, 10.0, 10.0), unit(rect, 7.5), stroke);
+            painter.circle_stroke(point(rect, 10.0, 10.0), unit(rect, 2.25), stroke);
+        }
+        F::Cab810 => {
+            outlined(painter, rect, (5.0, 0.75, 15.0, 19.25), 1.0, stroke);
+            for y in [3.5, 7.75, 12.0, 16.25] {
+                for x in [7.75, 12.25] {
+                    painter.circle_stroke(point(rect, x, y), unit(rect, 1.55), fine);
+                }
+            }
+        }
+        F::FullRig => full_rig(painter, rect, color),
+        F::Outboard => outboard(painter, rect, color),
+        F::Space => space(painter, rect, color),
+        F::PedalDefaultDark | F::PedalDefaultLight => pedal(painter, rect, color),
+        F::CabDefault => cabinet(painter, rect, color),
+        F::AmpDefaultClean | F::AmpDefaultCrunch | F::AmpDefaultHiGain => amp(painter, rect, color),
+        F::Unknown => experimental(painter, rect, color),
+    }
+}
+
 fn outlined(
     painter: &egui::Painter,
     rect: Rect,

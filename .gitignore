@@ -34,3 +34,4 @@ rustc-ice-*.txt
 
 # Packaged application artifacts
 dist/
+__pycache__/

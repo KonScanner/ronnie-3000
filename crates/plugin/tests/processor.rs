@@ -1475,3 +1475,468 @@ fn a_new_download_of_the_same_model_gives_new_saved_bytes() {
         .collect();
     assert_eq!(embedded, [newer]);
 }
+
+/// A mono 48 kHz WAV whose first and last samples sound, so it keeps `frames` after the trim.
+fn cab_wav_of(frames: usize) -> ronie_core::ModelBytes {
+    let mut samples = vec![0_i16; frames];
+    samples[0] = 16_000;
+    samples[frames - 1] = 16_000;
+    let mut bytes = b"RIFF".to_vec();
+    bytes.extend_from_slice(&(36_u32 + samples.len() as u32 * 2).to_le_bytes());
+    bytes.extend_from_slice(b"WAVEfmt ");
+    bytes.extend_from_slice(&16_u32.to_le_bytes());
+    bytes.extend_from_slice(&1_u16.to_le_bytes());
+    bytes.extend_from_slice(&1_u16.to_le_bytes());
+    bytes.extend_from_slice(&48_000_u32.to_le_bytes());
+    bytes.extend_from_slice(&96_000_u32.to_le_bytes());
+    bytes.extend_from_slice(&2_u16.to_le_bytes());
+    bytes.extend_from_slice(&16_u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&(samples.len() as u32 * 2).to_le_bytes());
+    for sample in samples {
+        bytes.extend_from_slice(&sample.to_le_bytes());
+    }
+    bytes.into()
+}
+
+/// IR B is much longer than A (4 frames), so a chain that plays B has B's tail.
+const B_FRAMES: usize = 2_400;
+const B_TAIL: f64 = B_FRAMES as f64 / 48_000.0;
+
+fn tail(change: &ronie_dsp::prepare::PreparedChainChange) -> f64 {
+    change.latency.tail_seconds
+}
+
+/// What a saved session gets for its tone block's second model (8).
+struct SavedB<'a> {
+    /// Whether the block names model 8 as IR B.
+    named: bool,
+    /// Embedded bytes of model 8.
+    bytes: Option<&'a [u8]>,
+    /// Whether model 8 has a download URL.
+    source: bool,
+    /// `gear` metadata of model 8.
+    gear: Option<&'a str>,
+}
+
+/// Saves a session with the catalog IR tone (model 7, `wav_bytes`), then adds a second model 8
+/// to the saved tone as `b` says.
+fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
+    let backend = restored_backend(root);
+    load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
+    drop(backend);
+    let path = root.join("session.state");
+    let mut document = ronie_core::StateCodec::new()
+        .decode_session(&std::fs::read(&path).expect("saved session"))
+        .expect("session")
+        .raw;
+    let block = document
+        .children
+        .iter_mut()
+        .filter(|child| child.identifier == "ChainSnapshot")
+        .flat_map(|snapshot| &mut snapshot.children)
+        .flat_map(|lane| &mut lane.children)
+        .find(|block| block.properties.iter().any(|(name, _)| name == "toneId"))
+        .expect("tone block");
+    let (_, tone_json) = block
+        .properties
+        .iter_mut()
+        .find(|(name, _)| name == "toneJson")
+        .expect("tone json");
+    let ronie_core::JuceValue::String(text) = tone_json else {
+        panic!("tone json is a string");
+    };
+    let mut tone: serde_json::Value = serde_json::from_str(text).expect("tone json");
+    let mut model = serde_json::json!({"id": 8, "name": "Mic B"});
+    if b.source {
+        model["model_url"] = "https://models.example/8.wav".into();
+    }
+    if let Some(gear) = b.gear {
+        model["gear"] = gear.into();
+    }
+    tone["models"].as_array_mut().expect("models").push(model);
+    *text = tone.to_string();
+    if b.named {
+        block
+            .properties
+            .push(("irBModelId".to_owned(), ronie_core::JuceValue::Int64(8)));
+    }
+    if let Some(bytes) = b.bytes {
+        block
+            .children
+            .iter_mut()
+            .find(|child| child.identifier == "ModelCache")
+            .expect("model cache")
+            .children
+            .push(ronie_core::JuceTree {
+                identifier: "CachedModel".to_owned(),
+                properties: vec![
+                    ("modelId".to_owned(), ronie_core::JuceValue::Int64(8)),
+                    (
+                        "data".to_owned(),
+                        ronie_core::JuceValue::Binary(bytes.to_vec()),
+                    ),
+                ],
+                children: Vec::new(),
+            });
+    }
+    let mut encoded = b"T3KB".to_vec();
+    encoded.extend_from_slice(
+        &ronie_core::JuceCodec::default()
+            .write_tree(&document)
+            .expect("session bytes"),
+    );
+    std::fs::write(path, encoded).expect("write session");
+}
+
+fn saved_block(root: &std::path::Path) -> ronie_core::ChainBlock {
+    let bytes = std::fs::read(root.join("session.state")).expect("saved session");
+    ronie_core::StateCodec::new()
+        .decode_session(&bytes)
+        .expect("session")
+        .snapshot
+        .chain
+        .left[0]
+        .clone()
+}
+
+fn prepared_restore(backend: &ProcessorBackend) -> ronie_dsp::prepare::PreparedChainChange {
+    match backend.take_restore().expect("restore") {
+        Some(ronie_plugin::SessionRestore::Prepared(change)) => *change,
+        other => panic!("expected a prepared restore, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_session_with_b_saves_and_restores_offline_with_both_irs() {
+    let directory = tempfile::tempdir().expect("root");
+    let root = directory.path();
+    let b_bytes = cab_wav_of(B_FRAMES);
+    save_session_with_b(
+        root,
+        &SavedB {
+            named: true,
+            bytes: Some(&b_bytes),
+            source: true,
+            gear: None,
+        },
+    );
+
+    let restarted = restored_backend(root);
+    let block = restarted.chain_state(0).chain.left[0].clone();
+    assert_eq!(
+        block.ir_b,
+        Some(ronie_core::IrB {
+            model_id: ronie_core::ModelId(8)
+        })
+    );
+    assert!(!block.ir_b_missing);
+    assert!(
+        (tail(&prepared_restore(&restarted)) - B_TAIL).abs() < 1e-9,
+        "the offline restore plays B"
+    );
+    let chain = restarted.prepare_session_chain().expect("chain");
+    assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
+    assert!(
+        (tail(&chain.change) - B_TAIL).abs() < 1e-9,
+        "the live chain plays B"
+    );
+
+    let mut params = block.params.clone();
+    params.ir_blend = 0.8;
+    params.ir_a_level = 0.25;
+    params.ir_b_level = 0.75;
+    params.ir_b_invert = true;
+    restarted
+        .dispatch(params::UiAction::SetBlockParams {
+            block_id: block.id.clone(),
+            params: params.clone(),
+        })
+        .expect("blend");
+    drop(restarted);
+
+    let saved = saved_block(root);
+    assert_eq!(saved.ir_b, block.ir_b);
+    assert_eq!(saved.params.ir_blend, 0.8);
+    assert_eq!(saved.params.ir_a_level, 0.25);
+    assert_eq!(saved.params.ir_b_level, 0.75);
+    assert!(saved.params.ir_b_invert);
+    assert_eq!(
+        stored_bytes(root),
+        [(7, wav_bytes().to_vec()), (8, b_bytes.to_vec())]
+    );
+
+    let again = restored_backend(root);
+    assert!(
+        (tail(&prepared_restore(&again)) - B_TAIL).abs() < 1e-9,
+        "B still plays after a second save"
+    );
+}
+
+#[test]
+fn a_missing_b_plays_a_alone() {
+    for source in [false, true] {
+        let directory = tempfile::tempdir().expect("root");
+        let root = directory.path();
+        save_session_with_b(
+            root,
+            &SavedB {
+                named: true,
+                bytes: None,
+                source,
+                gear: None,
+            },
+        );
+
+        let restarted = restored_backend(root);
+        let block = restarted.chain_state(0).chain.left[0].clone();
+        assert_eq!(
+            block.ir_b.map(|ir_b| ir_b.model_id),
+            Some(ronie_core::ModelId(8)),
+            "B is kept for its download (source {source})"
+        );
+        assert!(
+            block.ir_b_missing,
+            "B reports its missing bytes (source {source})"
+        );
+        assert!(!block.load_failed && !block.model_loading && block.loaded);
+        if let Some(ronie_plugin::SessionRestore::Prepared(change)) =
+            restarted.take_restore().expect("restore")
+        {
+            assert!(tail(&change) < B_TAIL / 2.0, "A alone (source {source})");
+        }
+        let chain = restarted.prepare_session_chain().expect("chain");
+        assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
+        assert!(
+            tail(&chain.change) > 0.0 && tail(&chain.change) < B_TAIL / 2.0,
+            "A alone (source {source})"
+        );
+        drop(restarted);
+        assert_eq!(
+            saved_block(root).ir_b.map(|ir_b| ir_b.model_id),
+            Some(ronie_core::ModelId(8)),
+            "a save keeps B (source {source})"
+        );
+    }
+}
+
+#[test]
+fn a_cab_and_a_reverb_are_not_blended() {
+    let directory = tempfile::tempdir().expect("root");
+    let root = directory.path();
+    let b_bytes = cab_wav_of(B_FRAMES);
+    save_session_with_b(
+        root,
+        &SavedB {
+            named: true,
+            bytes: Some(&b_bytes),
+            source: true,
+            gear: Some("space"),
+        },
+    );
+
+    let restarted = restored_backend(root);
+    let restored = prepared_restore(&restarted);
+    assert!(
+        tail(&restored) > 0.0 && tail(&restored) < B_TAIL / 2.0,
+        "A alone"
+    );
+    let chain = restarted.prepare_session_chain().expect("chain");
+    assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
+    assert!(
+        tail(&chain.change) > 0.0 && tail(&chain.change) < B_TAIL / 2.0,
+        "A alone"
+    );
+}
+
+#[test]
+fn changing_the_skin_does_not_rebuild_the_chain() {
+    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let tone = ronie_core::Tone::from_value(serde_json::json!({
+        "id": 42,
+        "title": "Remote tone",
+        "format": "ir",
+        "models": [{"id": 7, "name": "Remote"}]
+    }))
+    .expect("tone");
+    let target = backend.chain_state(0).chain.left[0].id.clone();
+    backend
+        .dispatch(params::UiAction::LoadTone {
+            target_insert_id: target.clone(),
+            tone,
+            model_id: ronie_core::ModelId(7),
+        })
+        .expect("load tone");
+    let before = audio_state(&backend);
+
+    backend
+        .dispatch(params::UiAction::SetBlockSkin {
+            block_id: target.clone(),
+            skin: Some("cab-412-vintage".to_owned()),
+        })
+        .expect("skin");
+    assert_eq!(
+        backend.chain_state(0).chain.left[0].skin.as_deref(),
+        Some("cab-412-vintage")
+    );
+    let after = audio_state(&backend);
+    assert_eq!(after.fingerprint, before.fingerprint, "no new chain");
+    assert_eq!(after.block_params, before.block_params);
+    assert_eq!(after.controls, before.controls);
+
+    backend
+        .dispatch(params::UiAction::SetBlockSkin {
+            block_id: target,
+            skin: None,
+        })
+        .expect("Auto");
+    assert_eq!(audio_state(&backend).fingerprint, before.fingerprint);
+}
+
+#[test]
+fn a_blend_edit_is_a_block_setting_and_b_is_structure() {
+    let b_bytes = cab_wav_of(B_FRAMES);
+    let with_b = tempfile::tempdir().expect("root");
+    let without_b = tempfile::tempdir().expect("root");
+    for (directory, named) in [(&with_b, true), (&without_b, false)] {
+        save_session_with_b(
+            directory.path(),
+            &SavedB {
+                named,
+                bytes: Some(&b_bytes),
+                source: true,
+                gear: None,
+            },
+        );
+    }
+    let backend = restored_backend(with_b.path());
+    let other = restored_backend(without_b.path());
+    let before = audio_state(&backend);
+    assert_ne!(
+        before.fingerprint,
+        audio_state(&other).fingerprint,
+        "naming B needs a new chain"
+    );
+
+    let block = backend.chain_state(0).chain.left[0].clone();
+    let mut params = block.params.clone();
+    params.ir_blend = 0.9;
+    params.ir_a_level = 0.3;
+    params.ir_b_level = 0.6;
+    params.ir_b_invert = true;
+    backend
+        .dispatch(params::UiAction::SetBlockParams {
+            block_id: block.id,
+            params,
+        })
+        .expect("blend");
+    let after = audio_state(&backend);
+    assert_eq!(after.fingerprint, before.fingerprint, "no new chain");
+    assert_ne!(after.block_params, before.block_params);
+}
+
+#[test]
+fn a_preset_keeps_b_and_a_preset_with_a_missing_b_plays_a_alone() {
+    let b_bytes = cab_wav_of(B_FRAMES);
+    for bytes in [Some(b_bytes.as_ref()), None] {
+        let directory = tempfile::tempdir().expect("root");
+        let root = directory.path();
+        save_session_with_b(
+            root,
+            &SavedB {
+                named: true,
+                bytes,
+                source: true,
+                gear: None,
+            },
+        );
+        let backend = restored_backend(root);
+        backend
+            .dispatch(params::UiAction::SavePreset {
+                name: "Two mics".to_owned(),
+            })
+            .expect("save preset");
+        let id = backend
+            .chain_state(0)
+            .session
+            .active_preset
+            .clone()
+            .expect("saved preset")
+            .id;
+
+        backend
+            .dispatch(params::UiAction::LoadPreset { id })
+            .expect("load preset");
+
+        let block = backend.chain_state(0).chain.left[0].clone();
+        assert_eq!(
+            block.ir_b.map(|ir_b| ir_b.model_id),
+            Some(ronie_core::ModelId(8))
+        );
+        assert_eq!(block.ir_b_missing, bytes.is_none());
+        let chain = backend.prepare_session_chain().expect("chain");
+        assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
+        let expected = if bytes.is_some() {
+            B_TAIL
+        } else {
+            4.0 / 48_000.0
+        };
+        assert!((tail(&chain.change) - expected).abs() < 1e-9);
+    }
+}
+
+/// Names model `b` as IR B of the saved tone block without adding it to the saved tone, as a
+/// session re-saved by a plugin that keeps only the active model would.
+fn name_unlisted_b(root: &std::path::Path, b: i64) {
+    let path = root.join("session.state");
+    let mut document = ronie_core::StateCodec::new()
+        .decode_session(&std::fs::read(&path).expect("saved session"))
+        .expect("session")
+        .raw;
+    document
+        .children
+        .iter_mut()
+        .filter(|child| child.identifier == "ChainSnapshot")
+        .flat_map(|snapshot| &mut snapshot.children)
+        .flat_map(|lane| &mut lane.children)
+        .find(|block| block.properties.iter().any(|(name, _)| name == "toneId"))
+        .expect("tone block")
+        .properties
+        .push(("irBModelId".to_owned(), ronie_core::JuceValue::Int64(b)));
+    let mut encoded = b"T3KB".to_vec();
+    encoded.extend_from_slice(
+        &ronie_core::JuceCodec::default()
+            .write_tree(&document)
+            .expect("session bytes"),
+    );
+    std::fs::write(path, encoded).expect("write session");
+}
+
+#[test]
+fn a_b_that_the_stored_tone_does_not_list_never_stops_a_save() {
+    let directory = tempfile::tempdir().expect("root");
+    let root = directory.path();
+    let backend = restored_backend(root);
+    load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
+    drop(backend);
+    name_unlisted_b(root, 9);
+
+    let restarted = restored_backend(root);
+    let block = restarted.chain_state(0).chain.left[0].clone();
+    let mut params = block.params.clone();
+    params.ir_blend = 0.85;
+    restarted
+        .dispatch(params::UiAction::SetBlockParams {
+            block_id: block.id.clone(),
+            params,
+        })
+        .expect("blend");
+    drop(restarted);
+
+    assert_eq!(
+        saved_block(root).params.ir_blend,
+        0.85,
+        "the session is saved again"
+    );
+    assert_eq!(block.ir_b, None, "an unlisted B is dropped");
+}

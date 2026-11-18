@@ -4,7 +4,8 @@ mod nonuniform;
 pub(crate) mod uniform;
 
 pub use decode::compile_ir;
-pub use engine::PreparedIr;
+pub(crate) use engine::PairMix;
+pub use engine::{PreparedIr, PreparedIrPair};
 
 /// Audible IR category used for default mix and output padding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

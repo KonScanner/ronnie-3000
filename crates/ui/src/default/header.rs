@@ -17,19 +17,21 @@ use super::{
     faceplate::Faceplate,
     hints::HintController,
     overlays::{DismissReason, Overlay, OverlayController},
-    popover::{Placement, Popover, Surface, Trigger},
+    popover::{Placement as PopoverPlacement, Popover, Surface, Trigger},
     presets::PresetController,
 };
 use crate::services::{
+    catalog::CatalogStore,
     community::{CommunityAccess, CommunityService},
     community_worker::{
         CommunityEvent, CommunityFailure, CommunityScope, CommunityWork, CommunityWorker,
-        LoadRequest, QueryRequest,
+        LoadRequest, QueryRequest, QueryScope,
     },
     images::{ART_SIDE, AVATAR_SIDE, ImageCache, RemoteImages},
     key_setup::{CommunityParts, KeySetup, KeySetupError, is_publishable_key},
     links::open_web_url,
     load_flow::{LoadFlow, LoadPhase, LoadTicket, ModelSwitchFlow},
+    recent_tones::RecentTones,
     session::{AuthFlowAdapter, Session, SessionEvent, SessionStatus},
 };
 
@@ -37,6 +39,10 @@ use crate::services::{
 const HOME_LABEL: &str = "Back to main screen";
 /// What the user reads when the token store holds no usable session.
 const SESSION_ENDED: &str = "Your session ended. Sign in again to see your tones.";
+/// What the user reads when the backend refuses a tone that needs no download.
+const LOAD_REFUSED: &str = "The tone could not be loaded.";
+/// A local file that did not load. The menu that chose it has closed, so the user opens it again.
+const FILE_REFUSED: &str = "The file could not be loaded. Choose another file to try again.";
 /// The card of a failed load takes a click again, so the user reads how to retry.
 const LOAD_RETRY_HINT: &str = "Select the tone to try again.";
 /// The picker takes the same choice again, so the user reads how to retry.
@@ -79,9 +85,62 @@ fn user_name(user: &serde_json::Value) -> Option<&str> {
         .find_map(|field| user[field].as_str().filter(|name| !name.trim().is_empty()))
 }
 
+/// Where a tone added from the stage lands in its lane.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Placement {
+    /// After the last tone.
+    End,
+    /// Right after the block.
+    After(BlockId),
+    /// Right before the block.
+    Before(BlockId),
+    /// Where the kind of gear of the tone belongs, known when the tone lands: see
+    /// [`smart_placement`].
+    Smart,
+}
+
+/// Where a tone of `category` goes in `lane` when nothing else says: a pedal before the first
+/// amp, rig or cab; an amp or rig before the first cab; a cab after the last amp or rig; and
+/// anything else, or a lane with no such gear, at the end. `skip` is a block that does not
+/// count, such as the block that was just added.
+#[must_use]
+pub fn smart_placement(
+    lane: &[ronie_core::ChainBlock],
+    category: ronie_core::gear::GearCategory,
+    skip: Option<&BlockId>,
+) -> Placement {
+    use ronie_core::gear::GearCategory::{Amp, Cab, FullRig, Pedal};
+
+    let held = |block: &&ronie_core::ChainBlock| Some(&block.id) != skip;
+    let first = |kinds: &[ronie_core::gear::GearCategory]| {
+        lane.iter().filter(held).find(|block| {
+            super::skins::gear_category(block).is_some_and(|each| kinds.contains(&each))
+        })
+    };
+    match category {
+        Pedal => first(&[Amp, FullRig, Cab]).map(|block| Placement::Before(block.id.clone())),
+        Amp | FullRig => first(&[Cab]).map(|block| Placement::Before(block.id.clone())),
+        Cab => lane
+            .iter()
+            .filter(held)
+            .rfind(|block| {
+                super::skins::gear_category(block).is_some_and(|each| matches!(each, Amp | FullRig))
+            })
+            .map(|block| Placement::After(block.id.clone())),
+        _ => None,
+    }
+    .unwrap_or(Placement::End)
+}
+
 /// Complete Default chrome controller. Processor mutations go through `UiBackend`.
 pub struct ChromeController {
     backend: Arc<dyn UiBackend>,
+    /// Which layout draws the window.
+    view_mode: crate::shell::ViewMode,
+    /// Whether the Stage layout is light or dark.
+    appearance: crate::shell::Appearance,
+    /// Where an explicit light or dark choice is kept for the machine.
+    appearance_store: Option<ronie_core::SettingsStore>,
     presets: PresetController,
     session: Session,
     community: Option<Box<dyn CommunityAccess>>,
@@ -125,6 +184,25 @@ pub struct ChromeController {
     /// Closed browser that keeps its query, results, and scroll for the next open.
     parked_browser: Option<BrowserView>,
     load_flow: LoadFlow,
+    recent_tones: RecentTones,
+    /// The TONE3000 results of the Stage add menu, while it shows a category.
+    add_store: Option<CatalogStore>,
+    /// The newest query generation of an add menu store that closed. The next store counts on
+    /// from it, so a late answer of a closed store never matches a query of the next one.
+    add_generation: u64,
+    /// The block that an add from the menu fills, and the load generation that fills it, so that
+    /// the block opens when that load lands.
+    added: Option<(String, u64)>,
+    /// Where the block of the pending add goes.
+    placement: Placement,
+    /// The lane of the pending add.
+    added_side: ronie_core::ChainSide,
+    /// Where a tone that the browser loads goes, when a stage slot opened the browser: the
+    /// insert it fills, and its place in the lane of that insert.
+    browser_placement: Option<(String, Placement)>,
+    /// A REPLACE that asks the Stage layout for its menu: the block and the control under
+    /// which the menu opens.
+    replace_request: Option<(BlockId, egui::Rect)>,
     model_switches: ModelSwitchFlow,
     /// Whether the worker can hold a model list or a switch of a detail.
     detail_work_live: bool,
@@ -163,6 +241,80 @@ impl ChromeController {
         Self::with_session(backend, presets, session, hints_enabled)
     }
 
+    /// Records the control that opened the current popover, so that a second press on it closes
+    /// the popover and dismissal returns focus to it.
+    pub(super) fn set_overlay_trigger(&mut self, trigger: Option<Trigger>) {
+        self.overlay_trigger = trigger;
+    }
+
+    /// The processor load as a percentage, for status readouts.
+    pub(super) fn cpu_percent(&self) -> f32 {
+        self.backend.meter_levels().cpu * 100.0
+    }
+
+    /// Which layout draws the window.
+    #[must_use]
+    pub const fn view_mode(&self) -> crate::shell::ViewMode {
+        self.view_mode
+    }
+
+    /// Chooses the layout that draws the window.
+    pub fn set_view_mode(&mut self, mode: crate::shell::ViewMode) {
+        self.view_mode = mode;
+    }
+
+    /// Whether the Stage layout is light or dark.
+    #[must_use]
+    pub const fn appearance(&self) -> crate::shell::Appearance {
+        self.appearance
+    }
+
+    /// Chooses whether the Stage layout is light or dark, for this session only.
+    ///
+    /// A later [`Self::use_settings`] replaces this choice with the stored one.
+    pub fn set_appearance(&mut self, appearance: crate::shell::Appearance) {
+        self.appearance = appearance;
+    }
+
+    /// The look that the Stage layout draws with on this frame: the player's choice, or
+    /// else the appearance of the system, light when the system does not say.
+    #[must_use]
+    pub fn stage_look(&self, ctx: &egui::Context) -> crate::theme::Look {
+        let dark = match self.appearance {
+            crate::shell::Appearance::Dark => true,
+            crate::shell::Appearance::Light => false,
+            crate::shell::Appearance::System => ctx.system_theme() == Some(egui::Theme::Dark),
+        };
+        if dark {
+            crate::theme::Look::stage_dark()
+        } else {
+            crate::theme::Look::stage()
+        }
+    }
+
+    /// Switches the Stage layout to the other of light and dark, as the player's explicit
+    /// choice, and keeps that choice for the machine.
+    ///
+    /// # Errors
+    /// Returns a preferences error when the choice cannot be saved; the choice still holds for
+    /// this session.
+    pub(super) fn toggle_appearance(
+        &mut self,
+        ctx: &egui::Context,
+    ) -> Result<(), ronie_core::PropertiesError> {
+        let appearance = if self.stage_look(ctx).is_dark() {
+            crate::shell::Appearance::Light
+        } else {
+            crate::shell::Appearance::Dark
+        };
+        self.appearance = appearance;
+        ctx.request_repaint();
+        if let (Some(store), Some(value)) = (&self.appearance_store, appearance.stored()) {
+            store.merge_key(crate::shell::Appearance::SETTINGS_KEY, value)?;
+        }
+        Ok(())
+    }
+
     /// Creates Default chrome around one session.
     pub(crate) fn with_session(
         backend: Arc<dyn UiBackend>,
@@ -171,6 +323,9 @@ impl ChromeController {
         hints_enabled: bool,
     ) -> Self {
         Self {
+            view_mode: crate::shell::ViewMode::ReferenceDefault,
+            appearance: crate::shell::Appearance::System,
+            appearance_store: None,
             presets: PresetController::new(backend.clone(), presets),
             session,
             community: None,
@@ -209,6 +364,16 @@ impl ChromeController {
             browser: None,
             parked_browser: None,
             load_flow: LoadFlow::new(backend.clone()),
+            recent_tones: backend
+                .text_preference(RecentTones::KEY)
+                .map_or_else(RecentTones::default, |text| RecentTones::from_text(&text)),
+            add_store: None,
+            add_generation: 0,
+            added: None,
+            placement: Placement::End,
+            added_side: ronie_core::ChainSide::Left,
+            browser_placement: None,
+            replace_request: None,
             model_switches: ModelSwitchFlow::new(backend.clone()),
             detail_work_live: false,
             images: None,
@@ -400,6 +565,7 @@ impl ChromeController {
         }
         self.browser = None;
         self.parked_browser = None;
+        self.browser_placement = None;
         self.after_session_change(before);
         self.user_refresh_due = self.session.status().signed_in();
     }
@@ -480,23 +646,33 @@ impl ChromeController {
     fn apply_community_event(&mut self, event: CommunityEvent) -> bool {
         let store = self.browser.as_mut().map(BrowserView::store_mut);
         let failure = match event {
-            CommunityEvent::Query { generation, result } => match result {
-                Ok(reply) => {
-                    if let Some(store) = store
-                        && store.complete_query(generation, reply.page, reply.trending)
-                    {
-                        store.remember_result_creators();
+            CommunityEvent::Query {
+                scope,
+                generation,
+                result,
+            } => {
+                let store = match scope {
+                    QueryScope::Browser => store,
+                    QueryScope::AddMenu => self.add_store.as_mut(),
+                };
+                match result {
+                    Ok(reply) => {
+                        if let Some(store) = store
+                            && store.complete_query(generation, reply.page, reply.trending)
+                        {
+                            store.remember_result_creators();
+                        }
+                        None
                     }
-                    None
-                }
-                Err(CommunityFailure::Failed(message)) => {
-                    if let Some(store) = store {
-                        store.fail_query(generation, message);
+                    Err(CommunityFailure::Failed(message)) => {
+                        if let Some(store) = store {
+                            store.fail_query(generation, message);
+                        }
+                        None
                     }
-                    None
+                    Err(failure) => Some(failure),
                 }
-                Err(failure) => Some(failure),
-            },
+            }
             CommunityEvent::Taxonomy {
                 generation,
                 kind,
@@ -527,6 +703,12 @@ impl ChromeController {
             CommunityEvent::ToneLoad { generation, result } => match result {
                 Ok(()) => {
                     self.load_flow.finish_remote(generation);
+                    None
+                }
+                Err(CommunityFailure::Failed(message))
+                    if message == crate::services::community_worker::TARGET_GONE =>
+                {
+                    self.load_flow.drop_load(generation);
                     None
                 }
                 Err(CommunityFailure::Failed(message)) => {
@@ -629,9 +811,23 @@ impl ChromeController {
                     query: query.query,
                     page: query.page,
                     signed_in,
+                    scope: QueryScope::Browser,
                 }));
             }
             work.extend(taxonomy.map(CommunityWork::Taxonomy));
+        }
+        if let Some(query) = self
+            .add_store
+            .as_mut()
+            .and_then(CatalogStore::take_unsent_query)
+        {
+            work.push(CommunityWork::Query(QueryRequest {
+                generation: query.generation,
+                query: query.query,
+                page: query.page,
+                signed_in,
+                scope: QueryScope::AddMenu,
+            }));
         }
         if let Some(detail) = &mut self.detail {
             let list = detail.take_models_request(self.session.status());
@@ -680,6 +876,17 @@ impl ChromeController {
                 .is_some_and(|detail| detail.fail_switch(request.ticket.generation()))
             {
                 self.hints.set_toast(Some(problem.to_owned()));
+            }
+            return;
+        }
+        if let CommunityWork::Query(QueryRequest {
+            scope: QueryScope::AddMenu,
+            generation,
+            ..
+        }) = &work
+        {
+            if let Some(store) = &mut self.add_store {
+                store.fail_query(*generation, problem);
             }
             return;
         }
@@ -736,8 +943,13 @@ impl ChromeController {
     /// network and the tone lands at once.
     pub fn pick_tone(&mut self, tone: ronie_core::Tone) {
         if self.community.is_none() || tone.local {
-            if let Ok(generation) = self.load_flow.begin_load(tone.clone()) {
-                self.load_flow.complete_cached(generation, tone);
+            if let Ok(generation) = self.load_flow.begin_load(tone.clone())
+                && !self.load_flow.complete_cached(generation, tone)
+                && self.load_flow.phase() == LoadPhase::Failed
+            {
+                // A refused model, such as a local file that is gone, changes nothing in the chain.
+                self.hints
+                    .set_toast(Some(format!("{LOAD_REFUSED} {LOAD_RETRY_HINT}")));
             }
             return;
         }
@@ -920,8 +1132,393 @@ impl ChromeController {
         &mut self.load_flow
     }
 
+    /// The tones that were loaded lately.
+    #[must_use]
+    pub const fn recent_tones(&self) -> &RecentTones {
+        &self.recent_tones
+    }
+
+    fn remember_tone(&mut self, tone: ronie_core::Tone) {
+        self.recent_tones.remember(tone);
+        // The list is a convenience, so a refused write loses only the memory of it.
+        let _ = self.backend.dispatch(UiAction::SetTextPreference {
+            key: RecentTones::KEY.to_owned(),
+            value: self.recent_tones.to_text(),
+        });
+    }
+
+    /// Loads a local file into one insert, puts its tone in the library, and opens the new
+    /// block. A refused file shows a toast and changes nothing.
+    ///
+    /// # Errors
+    /// Returns the error of the drop.
+    pub fn drop_file_into(
+        &mut self,
+        insert_id: &str,
+        path: &std::path::Path,
+        placement: Placement,
+    ) -> Result<(), UiError> {
+        self.drop_file(insert_id, path, placement, false)
+    }
+
+    /// Loads a local file into block `block_id` in place of its tone. The block keeps its id,
+    /// its place, and its params; a load that is still downloading gives way to the file. A
+    /// refused file shows a toast and changes nothing.
+    ///
+    /// # Errors
+    /// Returns the error of the drop.
+    pub fn replace_with_file(
+        &mut self,
+        block_id: &str,
+        path: &std::path::Path,
+    ) -> Result<(), UiError> {
+        self.drop_file(block_id, path, Placement::End, true)
+    }
+
+    fn drop_file(
+        &mut self,
+        target_id: &str,
+        path: &std::path::Path,
+        placement: Placement,
+        replace: bool,
+    ) -> Result<(), UiError> {
+        let dropped = if replace {
+            // The file wins over a load that is still downloading. The generation moves before
+            // the dispatch, so a download that passed its check while the dispatch runs can no
+            // longer publish after the file.
+            self.load_flow.abandon();
+            self.backend
+                .dispatch(UiAction::ReplaceWithFile {
+                    target_block_id: BlockId(target_id.to_owned()),
+                    path: path.to_path_buf(),
+                })
+                .map(|_| ())
+        } else {
+            self.gallery.drop_file(target_id, path)
+        };
+        if let Err(error) = dropped {
+            self.hints.set_toast(Some(FILE_REFUSED.to_owned()));
+            return Err(error);
+        }
+        self.place_block(target_id, placement);
+        let chain = self.backend.chain_state(0).chain;
+        if let Some(tone) = chain
+            .block(&ronie_core::BlockId(target_id.to_owned()))
+            .and_then(|block| block.tone.clone())
+        {
+            self.remember_tone(tone);
+        }
+        // The target holds the file's tone now, so it opens as a block, as an add does.
+        self.gallery.activate(target_id);
+        self.sync_detail();
+        Ok(())
+    }
+
+    /// Shows the TONE3000 tones of one category in the add menu, for a search text.
+    ///
+    /// This keeps the store of an earlier call, and starts a query only for a signed-in user
+    /// whose category or text changed, or whose store holds no answer. A call each frame is
+    /// cheap.
+    pub fn open_add_results(&mut self, category: ronie_core::gear::GearCategory, text: &str) {
+        let after = self.add_generation;
+        let store = self
+            .add_store
+            .get_or_insert_with(|| CatalogStore::after_generation(after));
+        let gear = gear_value(category);
+        let sort = text
+            .trim()
+            .is_empty()
+            .then_some(ronie_core::ToneSort::Trending);
+        let query = store.query();
+        let changed = query.gear != gear || query.text != text || query.sort != sort;
+        if changed {
+            store.set_gear(gear);
+            let query = store.query_mut();
+            text.clone_into(&mut query.text);
+            query.sort = sort;
+        }
+        let unanswered = store.result().is_none()
+            && matches!(
+                store.status(),
+                crate::services::catalog::CatalogStatus::Idle
+            );
+        if self.session.status().signed_in() && (changed || unanswered) {
+            store.begin_query();
+        }
+    }
+
+    /// The store of the add menu results, while the menu shows a category.
+    pub fn add_store_mut(&mut self) -> Option<&mut CatalogStore> {
+        self.add_store.as_mut()
+    }
+
+    /// The store of the add menu results, while the menu shows a category.
+    #[must_use]
+    pub const fn add_store(&self) -> Option<&CatalogStore> {
+        self.add_store.as_ref()
+    }
+
+    /// Forgets the add menu results. A late answer then finds no store, or a store whose
+    /// generations it cannot match.
+    pub fn close_add_results(&mut self) {
+        if let Some(store) = self.add_store.take() {
+            self.add_generation = store.current_generation();
+        }
+    }
+
+    /// Whether a catalog tone can load now. A catalog load asks the service for the tone as the
+    /// user, so a signed-out user signs in first; with no service, a load needs no network.
+    #[must_use]
+    pub fn can_download_catalog_tones(&self) -> bool {
+        self.community.is_none() || self.session.status().signed_in()
+    }
+
+    /// The tone that a load is fetching now.
+    #[must_use]
+    pub fn loading_tone(&self) -> Option<ronie_core::ToneId> {
+        self.load_flow.loading_tone_id()
+    }
+
+    /// Loads `tone` into the insert `insert_id` of lane `side` from the add menu.
+    ///
+    /// The gallery selection stays, so the stage keeps its block until the tone lands; the new
+    /// block then opens. An open browser closes first, because its target is another slot.
+    pub fn add_tone(
+        &mut self,
+        side: ronie_core::ChainSide,
+        insert_id: &str,
+        tone: ronie_core::Tone,
+        placement: Placement,
+    ) {
+        self.start_add(side, insert_id, tone, placement, false);
+    }
+
+    /// Loads `tone` into block `block_id` in place of its tone, from the add menu. The block
+    /// keeps its id, its place, and its params, and loses the second IR and the skin of the old
+    /// tone. One undo takes the whole replace back, and a failed load leaves the block alone.
+    pub fn replace_tone(&mut self, block_id: &str, tone: ronie_core::Tone) {
+        let side = self.side_of(block_id);
+        self.start_add(side, block_id, tone, Placement::End, true);
+    }
+
+    /// Asks the Stage layout to open the add menu under `anchor`, to replace the tone of
+    /// block `block_id`.
+    pub fn open_replace(&mut self, block_id: BlockId, anchor: egui::Rect) {
+        self.replace_request = Some((block_id, anchor));
+    }
+
+    /// The REPLACE that waits for its menu, once.
+    pub(super) fn take_replace_request(&mut self) -> Option<(BlockId, egui::Rect)> {
+        self.replace_request.take()
+    }
+
+    /// The lane that holds block `id`; lane A for a block that is gone.
+    fn side_of(&self, id: &str) -> ronie_core::ChainSide {
+        let chain = self.backend.chain_state(0).chain;
+        if chain.right.iter().any(|block| block.id.0 == id) {
+            ronie_core::ChainSide::Right
+        } else {
+            ronie_core::ChainSide::Left
+        }
+    }
+
+    /// Finishes a load that landed: the tone joins the library, and the block of an add from
+    /// the menu opens.
+    fn finish_landed(&mut self, tone: ronie_core::Tone) {
+        self.remember_tone(tone);
+        self.open_added_block();
+    }
+
+    fn start_add(
+        &mut self,
+        side: ronie_core::ChainSide,
+        insert_id: &str,
+        tone: ronie_core::Tone,
+        placement: Placement,
+        replace: bool,
+    ) {
+        if let Some(mut browser) = self.browser.take() {
+            browser.close();
+            self.parked_browser = Some(browser);
+            self.cancel_browser_work();
+            if matches!(
+                self.gallery.selection(),
+                GallerySelection::SelectTone { .. }
+            ) {
+                self.gallery.clear_selection();
+            }
+        }
+        self.browser_placement = None;
+        if replace {
+            self.load_flow.select_replace(side, insert_id);
+        } else {
+            self.load_flow.select(side, insert_id);
+        }
+        self.pick_tone(tone);
+        self.placement = placement;
+        self.added_side = side;
+        self.added = (self.load_flow.phase() != LoadPhase::Idle)
+            .then(|| (insert_id.to_owned(), self.load_flow.generation()));
+        // A tone with no network lands at once, so its block opens in this call.
+        if let Some(tone) = self.load_flow.take_landed() {
+            self.finish_landed(tone);
+        }
+    }
+
+    /// Moves block `id`, which an add just filled, to `placement` in the lane that holds it.
+    /// The placement of a pending add from the menu stays as it is.
+    fn place_block(&mut self, id: &str, placement: Placement) {
+        let chain = self.backend.chain_state(0).chain;
+        let holds = |lane: &[ronie_core::ChainBlock]| {
+            lane.iter()
+                .any(|block| block.id.0 == id && !block.is_insert)
+        };
+        let side = if holds(&chain.left) {
+            ronie_core::ChainSide::Left
+        } else if holds(&chain.right) {
+            ronie_core::ChainSide::Right
+        } else {
+            return;
+        };
+        self.place_added_block(id, side, placement);
+    }
+
+    /// Moves block `id`, which an add filled in lane `side`, to `placement`, when that is not
+    /// the end.
+    fn place_added_block(&self, id: &str, side: ronie_core::ChainSide, placement: Placement) {
+        let chain = self.backend.chain_state(0).chain;
+        let lane = match side {
+            ronie_core::ChainSide::Left => &chain.left,
+            ronie_core::ChainSide::Right => &chain.right,
+        };
+        let position = |anchor: &BlockId| lane.iter().position(|block| block.id == *anchor);
+        let placement = match placement {
+            Placement::Smart => {
+                let own = BlockId(id.to_owned());
+                let Some(category) = lane
+                    .iter()
+                    .find(|block| block.id == own)
+                    .and_then(super::skins::gear_category)
+                else {
+                    return;
+                };
+                smart_placement(lane, category, Some(&own))
+            }
+            other => other,
+        };
+        let index = match placement {
+            Placement::End | Placement::Smart => return,
+            Placement::After(anchor) => position(&anchor).map(|at| at + 1),
+            Placement::Before(anchor) => position(&anchor),
+        };
+        let Some(index) = index else {
+            return;
+        };
+        let _ = self.backend.dispatch(UiAction::PlaceAddedBlock {
+            block_id: BlockId(id.to_owned()),
+            side,
+            index,
+        });
+    }
+
+    /// Opens the block that an add from the menu filled, when the load that landed is that add.
+    fn open_added_block(&mut self) {
+        let Some((id, generation)) = self.added.take() else {
+            return;
+        };
+        if generation != self.load_flow.generation() {
+            return;
+        }
+        let filled = self
+            .backend
+            .chain_state(0)
+            .chain
+            .block(&BlockId(id.clone()))
+            .is_some_and(|block| !block.is_insert);
+        if filled {
+            let placement = std::mem::replace(&mut self.placement, Placement::End);
+            self.place_added_block(&id, self.added_side, placement);
+            self.gallery.activate(&id);
+            self.sync_detail();
+        }
+    }
+
+    /// Opens the tone browser for the insert `insert_id`, narrowed to `category` and `text`.
+    /// The tone that the browser loads lands at `placement` in the lane of the insert.
+    pub fn open_browser_for(
+        &mut self,
+        insert_id: &str,
+        category: Option<ronie_core::gear::GearCategory>,
+        text: &str,
+        placement: Placement,
+    ) {
+        self.browser_placement =
+            (placement != Placement::End).then(|| (insert_id.to_owned(), placement));
+        self.gallery.activate(insert_id);
+        self.sync_browser();
+        self.narrow_browser(category, text);
+    }
+
+    /// Opens the tone browser to replace the tone of block `block_id`, narrowed to `category`
+    /// and `text`. The tone that the browser loads keeps the block's id, place, and params.
+    pub fn open_replace_browser(
+        &mut self,
+        block_id: &str,
+        category: Option<ronie_core::gear::GearCategory>,
+        text: &str,
+    ) {
+        self.browser_placement = None;
+        let side = self.side_of(block_id);
+        self.gallery.select_tone(side, BlockId(block_id.to_owned()));
+        // The browser keeps a target of this block and side, so this replace marker stays.
+        self.load_flow.select_replace(side, block_id);
+        self.sync_browser();
+        self.narrow_browser(category, text);
+    }
+
+    /// Narrows the open tone browser to `category` and `text`.
+    fn narrow_browser(&mut self, category: Option<ronie_core::gear::GearCategory>, text: &str) {
+        let service = self.community.is_some();
+        let Some(category) = category else {
+            return;
+        };
+        if let Some(browser) = &mut self.browser {
+            let store = browser.store_mut();
+            store.set_gear(gear_value(category));
+            text.clone_into(&mut store.query_mut().text);
+            if service {
+                store.begin_query();
+            }
+        }
+    }
+
     /// Opens tone selection for the gallery target and closes completed flows.
     pub fn sync_browser(&mut self) {
+        if let Some(tone) = self.load_flow.take_landed() {
+            // The slot's place belongs to the load that filled the slot's insert, and not to a
+            // load that landed in another insert.
+            let filled = self.browser_placement.take().filter(|(insert, _)| {
+                self.backend
+                    .chain_state(0)
+                    .chain
+                    .block(&BlockId(insert.clone()))
+                    .and_then(|block| block.tone.as_ref())
+                    .is_some_and(|held| held.id == tone.id)
+            });
+            self.finish_landed(tone);
+            if let Some((insert, placement)) = filled {
+                self.place_block(&insert, placement);
+            }
+        }
+        if self.load_flow.phase() != LoadPhase::Loading
+            && self
+                .added
+                .as_ref()
+                .is_some_and(|(_, generation)| *generation != self.load_flow.generation())
+        {
+            // A newer load or a close took the place of the add.
+            self.added = None;
+        }
         // A finished phase stays set until the next selection, so it closes an open browser
         // one time. It must not act on a selection that the user makes later.
         if self.browser.is_some()
@@ -931,6 +1528,7 @@ impl ChromeController {
             )
         {
             let mut closed = self.browser.take();
+            self.browser_placement = None;
             if self.community.is_some() {
                 // A cancelled load leaves the store open, and its worker now stops.
                 if let Some(browser) = &mut closed {
@@ -990,6 +1588,7 @@ impl ChromeController {
             self.parked_browser = self.browser.take();
             self.cancel_browser_work();
         }
+        self.browser_placement = None;
         if let Some(detail) = &mut self.detail {
             detail.close();
             self.detail = None;
@@ -1160,8 +1759,19 @@ impl ChromeController {
         &self.banners
     }
 
-    /// Restores update snoozes and dismissed banners from saved preferences.
+    /// Restores update snoozes, dismissed banners and the light or dark choice from saved
+    /// preferences, and keeps later changes there.
+    ///
+    /// This replaces the appearance with the stored choice, or with
+    /// [`Appearance::System`](crate::shell::Appearance::System) when none is stored, so a
+    /// caller that forces an appearance must call [`Self::set_appearance`] after this.
     pub fn use_settings(&mut self, settings: ronie_core::SettingsStore) {
+        let stored = settings.read().ok().and_then(|file| {
+            file.get(crate::shell::Appearance::SETTINGS_KEY)
+                .map(str::to_owned)
+        });
+        self.appearance = crate::shell::Appearance::from_stored(stored.as_deref());
+        self.appearance_store = Some(settings.clone());
         self.updates = crate::services::update::UpdateCheck::with_settings(
             env!("CARGO_PKG_VERSION"),
             settings.clone(),
@@ -1578,6 +2188,22 @@ impl ChromeController {
         self.faceplate.measuring()
     }
 
+    /// The global panel.
+    pub fn faceplate_mut(&mut self) -> &mut Faceplate {
+        &mut self.faceplate
+    }
+
+    /// Whether the audio engine runs in its low-latency "optimize" mode.
+    #[must_use]
+    pub fn optimize(&self) -> bool {
+        super::tuning::optimize(self.backend.as_ref())
+    }
+
+    /// Turns the low-latency "optimize" mode on or off.
+    pub fn set_optimize(&mut self, enabled: bool) -> Result<(), UiError> {
+        super::tuning::set_optimize(self.backend.as_ref(), enabled)
+    }
+
     /// Whether the tuner is visible.
     #[must_use]
     pub fn tuner_visible(&self) -> bool {
@@ -1693,6 +2319,9 @@ impl ChromeController {
             self.cached_account = None;
             self.account_avatar = None;
             self.user_refresh_due = self.session.status().signed_in();
+        }
+        if let Some(store) = &mut self.add_store {
+            store.drop_session_results();
         }
         // A closed browser shows its results again at the next open.
         for browser in self
@@ -1973,6 +2602,20 @@ impl ChromeController {
     }
 }
 
+/// The TONE3000 `gear` value of one category.
+pub(super) const fn gear_value(category: ronie_core::gear::GearCategory) -> &'static str {
+    use ronie_core::gear::GearCategory;
+    match category {
+        GearCategory::Pedal => "pedal",
+        GearCategory::Amp => "amp",
+        GearCategory::FullRig => "amp+cab",
+        GearCategory::Cab => "cab",
+        GearCategory::Outboard => "outboard",
+        GearCategory::Space => "space",
+        GearCategory::Unknown => "",
+    }
+}
+
 /// Renders the Default header, preset surfaces, account menu, hints, and toast.
 pub fn show(ui: &mut egui::Ui, chrome: &mut ChromeController) {
     let background_events = chrome.system_modal_visible().then(|| {
@@ -2014,15 +2657,37 @@ pub fn show(ui: &mut egui::Ui, chrome: &mut ChromeController) {
     }
     let state = chrome.backend.chain_state(0);
     chrome.sync_remote_images(ui.ctx(), &state.chain);
-    show_header(ui, chrome, &state);
-    show_overlay(ui, chrome);
-    show_hints(ui, chrome);
+    if chrome.view_mode == crate::shell::ViewMode::RonieFlow {
+        super::stage::show(ui, chrome, &state, now_ms);
+    } else {
+        crate::theme::Look::install(ui.ctx(), crate::theme::Look::reference());
+        show_header(ui, chrome, &state);
+        show_overlay(ui, chrome);
+        show_hints(ui, chrome);
+        show_faceplate(ui, chrome, Color32::BLACK);
+        show_stage(ui, chrome, now_ms);
+    }
+    close_hidden_drags(ui, chrome);
+    if let Some(events) = background_events {
+        ui.ctx().input_mut(|input| input.events = events);
+    }
+    show_dialogs(ui, chrome, now_ms);
+    show_toast(ui, chrome);
+}
+
+/// Draws the global controls in a bottom panel, unless the tone browser or the auth page
+/// covers the window.
+pub(super) fn show_faceplate(ui: &mut egui::Ui, chrome: &mut ChromeController, fill: Color32) {
     if chrome.browser.is_none() && !chrome.auth_active() {
         egui::Panel::bottom("default-faceplate")
             .exact_size(108.0)
-            .frame(egui::Frame::NONE.fill(Color32::BLACK))
+            .frame(egui::Frame::NONE.fill(fill))
             .show(ui, |ui| chrome.faceplate.show(ui));
     }
+}
+
+/// Draws the central area: the auth page, the tuner, the tone browser, a block, or the chain.
+pub(super) fn show_stage(ui: &mut egui::Ui, chrome: &mut ChromeController, now_ms: i64) {
     chrome.sync_auth(ui);
     if !chrome.auth_active() {
         if chrome.tuner_visible {
@@ -2055,7 +2720,10 @@ pub fn show(ui: &mut egui::Ui, chrome: &mut ChromeController) {
             chrome.sync_browser();
             if chrome.browser.is_none() {
                 if let Some(detail) = &mut chrome.detail {
-                    chrome.gallery.show_meters(ui);
+                    // The light page draws its own meters beside the stage.
+                    if detail.page() == super::block::BlockPage::Reference {
+                        chrome.gallery.show_meters(ui);
+                    }
                     detail.show(ui, session);
                     if detail.take_sign_in_request() {
                         let _ = chrome.sign_in();
@@ -2066,12 +2734,6 @@ pub fn show(ui: &mut egui::Ui, chrome: &mut ChromeController) {
             }
         }
     }
-    close_hidden_drags(ui, chrome);
-    if let Some(events) = background_events {
-        ui.ctx().input_mut(|input| input.events = events);
-    }
-    show_dialogs(ui, chrome, now_ms);
-    show_toast(ui, chrome);
 }
 
 /// Closes the knob drag of each page that this pass did not show.
@@ -2492,7 +3154,7 @@ pub(super) fn draw_chevron(painter: &egui::Painter, rect: egui::Rect, right: boo
     ));
 }
 
-fn draw_plus(painter: &egui::Painter, rect: egui::Rect, color: Color32) {
+pub(super) fn draw_plus(painter: &egui::Painter, rect: egui::Rect, color: Color32) {
     let center = rect.center();
     let stroke = egui::Stroke::new(1.5, color);
     painter.line_segment(
@@ -2553,12 +3215,12 @@ fn draw_save(painter: &egui::Painter, rect: egui::Rect) {
     ));
 }
 
-fn show_overlay(ui: &mut egui::Ui, chrome: &mut ChromeController) {
+pub(super) fn show_overlay(ui: &mut egui::Ui, chrome: &mut ChromeController) {
     let trigger = chrome.overlay_trigger;
     let popover = |name: &str, panel: egui::Rect, radius: f32| {
         Popover::new(
             ui.scope_id().with(name),
-            Placement::At(panel.min),
+            PopoverPlacement::At(panel.min),
             panel.size(),
             Surface::edged(radius),
         )
@@ -3208,5 +3870,159 @@ fn show_toast(ui: &mut egui::Ui, chrome: &ChromeController) {
                 0.0
             };
         super::toast::show(ui, toast, bottom_offset);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use ronie_core::{
+        ChainSide, ModelBytes, ModelId, Tone,
+        params::{ParameterId, ParameterValue},
+    };
+
+    use super::*;
+    use crate::backend::{
+        ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiBackend, UiError, UiReceipt,
+    };
+
+    fn scenario(id: &str) -> crate::testbed::UiScenario {
+        crate::testbed::load_scenarios(include_str!("../../../../fixtures/ui-scenarios.json"))
+            .expect("scenarios")
+            .into_iter()
+            .find(|scenario| scenario.id == id)
+            .expect("scenario exists")
+    }
+
+    /// Writes a short mono 16-bit WAV impulse response, a file that a replace takes.
+    fn write_ir(path: &std::path::Path) {
+        let samples = [0_i16, 1000, -1000, 0];
+        let mut bytes = Vec::from(b"RIFF".as_slice());
+        bytes.extend_from_slice(&(36 + samples.len() as u32 * 2).to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&48_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&96_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&2_u16.to_le_bytes());
+        bytes.extend_from_slice(&16_u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&(samples.len() as u32 * 2).to_le_bytes());
+        for sample in samples {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        std::fs::write(path, bytes).expect("WAV");
+    }
+
+    fn remote_tone() -> Tone {
+        Tone::from_value(serde_json::json!({
+            "id": 5,
+            "title": "Remote",
+            "format": "nam",
+            "models": [{"id": 7, "name": "Amp", "model_url": "https://models.example/7.nam"}],
+        }))
+        .expect("tone")
+    }
+
+    /// Publishes a download once, for a test that wants it to land at a chosen step.
+    type PublishHook = Box<dyn FnOnce() -> Result<bool, UiError> + Send>;
+
+    /// A backend that runs a hook right after it carries out a file replace, as a background
+    /// download that passed its generation check while the dispatch was running.
+    struct ReplacingProbe {
+        inner: Arc<MockBackend>,
+        publish: Arc<Mutex<Option<PublishHook>>>,
+    }
+
+    impl UiBackend for ReplacingProbe {
+        fn chain_state(&self, known_revision: u64) -> ChainViewState {
+            self.inner.chain_state(known_revision)
+        }
+
+        fn meter_levels(&self) -> MeterSnapshot {
+            self.inner.meter_levels()
+        }
+
+        fn dispatch(&self, action: UiAction) -> Result<UiReceipt, UiError> {
+            let replaced = matches!(action, UiAction::ReplaceWithFile { .. });
+            let receipt = self.inner.dispatch(action)?;
+            if replaced {
+                let hook = self.publish.lock().expect("lock").take();
+                if let Some(hook) = hook {
+                    hook()?;
+                }
+            }
+            Ok(receipt)
+        }
+
+        fn parameter(&self, id: ParameterId) -> Option<ParameterValue> {
+            self.inner.parameter(id)
+        }
+
+        fn set_parameter(
+            &self,
+            id: ParameterId,
+            value: ParameterValue,
+            gesture: GesturePhase,
+        ) -> Result<(), UiError> {
+            self.inner.set_parameter(id, value, gesture)
+        }
+    }
+
+    #[test]
+    fn a_file_replace_wins_over_a_download_that_lands_during_its_dispatch() {
+        let mock = Arc::new(MockBackend::from_scenario(&scenario("main-mono")));
+        let publish: Arc<Mutex<Option<PublishHook>>> = Arc::default();
+        let chrome_backend = Arc::new(ReplacingProbe {
+            inner: mock.clone(),
+            publish: publish.clone(),
+        });
+        let mut chrome = ChromeController::new(chrome_backend, Vec::new(), false, true);
+        let target = mock
+            .chain_state(0)
+            .chain
+            .left
+            .iter()
+            .find(|block| !block.is_insert)
+            .expect("a tone block")
+            .id
+            .clone();
+
+        chrome
+            .load_flow_mut()
+            .select_replace(ChainSide::Left, &target.0);
+        let ticket = chrome
+            .load_flow_mut()
+            .begin_remote_load(remote_tone())
+            .expect("a background load");
+        let replacement = ticket.clone();
+        *publish.lock().expect("lock") = Some(Box::new(move || {
+            replacement.publish(
+                remote_tone(),
+                ModelId(7),
+                ModelBytes::from(b"model".to_vec()),
+            )
+        }));
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("closet-cab.wav");
+        write_ir(&path);
+        chrome
+            .replace_with_file(&target.0, &path)
+            .expect("the file replaces the tone");
+
+        let tone = mock
+            .chain_state(0)
+            .chain
+            .block(&target)
+            .and_then(|block| block.tone.clone())
+            .expect("the block keeps a tone");
+        assert!(
+            tone.local,
+            "the file's tone must stay, not the download: {tone:?}"
+        );
+        assert_eq!(tone.title, "closet-cab");
     }
 }

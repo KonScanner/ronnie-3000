@@ -142,6 +142,9 @@ pub enum ToneError {
     /// Catalog persistence cannot retain an absent active model.
     #[error("active model {0} is not present in the catalog tone")]
     MissingActiveModel(crate::ModelId),
+    /// Catalog persistence cannot retain an absent extra model, such as a cab block's IR B.
+    #[error("model {0} is not present in the catalog tone")]
+    MissingStoredModel(crate::ModelId),
 }
 
 /// Error returned while parsing chain or session snapshots.

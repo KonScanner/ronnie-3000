@@ -10,6 +10,24 @@ All notable changes to Ronnie 3000 are in this file. The format follows
 
 - On Linux, `make install-vst3` builds the VST3 plugin from source and installs it in `~/.vst3`.
   `make uninstall-vst3` removes it again.
+- A Stage layout, opened with `ronie --layout stage`. It has a light window
+  whose header shows the signal chain as gear icons, with a + to add a block and the preset
+  manager on the right, with undo and redo. The selected block fills the stage, the global
+  controls and a mono/stereo lanes switch sit in a light panel, and a black utility bar holds
+  the tuner, MIDI, optimize, TONE3000, settings and your account. The current layout stays the
+  default.
+- In the Stage layout, a block's page shows a 3D render of its gear: a pedal, an amp or a
+  cab, chosen from what the capture models. Drag the GAIN IN, OUTPUT and MIX knobs on the render
+  to set the block's input gain, output gain and mix. The renders are original designs, made
+  with the Blender scripts in `tools/render`.
+- Tiles without artwork show the gear family of their capture (for example a chime combo, a
+  British head, a 4x12 or a green overdrive), recognised from the capture's name, its
+  TONE3000 makes, or the make and model in the `.nam` file.
+
+### Fixed
+
+- `.nam` files imported from disk lost their gear type, because Ronnie read the metadata
+  from the wrong place. Ronnie now also keeps their make, model and tone type.
 
 ## [0.1.2] - 2026-11-12
 

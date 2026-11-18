@@ -214,29 +214,42 @@ impl Tone {
     /// Returns the tone shape whose models persistence may reference.
     ///
     /// Local tones retain their complete list. Catalog tones retain only the
-    /// active model, in both the typed projection and raw JSON.
+    /// active model, first, then each of `extra` (such as a cab block's IR B) once,
+    /// in both the typed projection and raw JSON.
     ///
     /// # Errors
     ///
     /// Returns [`ToneError::MissingActiveModel`] if a catalog tone does not
-    /// contain the requested active model.
-    pub fn for_storage(self, active_model_id: ModelId) -> Result<Self, ToneError> {
+    /// contain the requested active model, or [`ToneError::MissingStoredModel`]
+    /// if it does not contain one of `extra`.
+    pub fn for_storage(
+        self,
+        active_model_id: ModelId,
+        extra: &[ModelId],
+    ) -> Result<Self, ToneError> {
         if self.local {
             return Ok(self);
         }
-        let active = self
-            .models
-            .iter()
-            .position(|model| model.id == active_model_id)
-            .ok_or(ToneError::MissingActiveModel(active_model_id))?;
+        let find = |id: ModelId| self.models.iter().find(|model| model.id == id);
+        let mut models = vec![
+            find(active_model_id)
+                .ok_or(ToneError::MissingActiveModel(active_model_id))?
+                .clone(),
+        ];
+        for &id in extra {
+            if models.iter().any(|model| model.id == id) {
+                continue;
+            }
+            models.push(find(id).ok_or(ToneError::MissingStoredModel(id))?.clone());
+        }
+        let raw_models = models.iter().map(|model| model.raw.clone()).collect();
         let mut stored = self;
-        stored.models = vec![stored.models[active].clone()];
-        let raw_model = stored.models[0].raw.clone();
+        stored.models = models;
         let object = stored
             .raw
             .as_object_mut()
             .ok_or(ToneError::InvalidDocument("tone must be an object"))?;
-        object.insert("models".into(), Value::Array(vec![raw_model]));
+        object.insert("models".into(), Value::Array(raw_models));
         Ok(stored)
     }
 

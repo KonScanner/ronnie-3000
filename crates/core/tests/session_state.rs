@@ -537,3 +537,136 @@ fn ui_session_reads_the_active_preset_object() {
     assert_eq!(active.id, "factory-1");
     assert_eq!(active.name, "Crunch Rhythm");
 }
+
+fn with_b(mut block_tree: JuceTree, b: i64) -> JuceTree {
+    block_tree
+        .properties
+        .push(("irBModelId".into(), JuceValue::Int64(b)));
+    block_tree
+}
+
+#[test]
+fn restore_offline_prepares_b() {
+    let catalog = tone(false, true);
+    let bytes = state_bytes(
+        1,
+        with_b(
+            block(
+                "cab",
+                &catalog,
+                100,
+                &[("a", 100, b"mic-a"), ("b", 101, b"mic-b")],
+            ),
+            101,
+        ),
+        false,
+    );
+    let document = StateCodec::new().decode_session(&bytes).expect("document");
+    assert_eq!(document.model_cache.len(), 2, "B's embedded bytes are kept");
+    let cache = ModelByteCache::new(1024);
+    let current = document.snapshot.clone();
+
+    let plan = ronie_core::restore_offline(
+        &document,
+        RestoreCaches {
+            bytes: &cache,
+            current: Some(&current),
+        },
+    )
+    .expect("restore");
+
+    let jobs: Vec<_> = plan
+        .jobs
+        .iter()
+        .map(|job| {
+            (
+                job.block_id.0.as_str(),
+                job.model_id,
+                job.bytes.as_ref().map(|bytes| bytes.to_vec()),
+            )
+        })
+        .collect();
+    assert_eq!(
+        jobs,
+        vec![
+            ("cab", ModelId(100), Some(b"mic-a".to_vec())),
+            ("cab", ModelId(101), Some(b"mic-b".to_vec())),
+        ]
+    );
+    let generations: std::collections::BTreeSet<_> =
+        plan.jobs.iter().map(|job| job.generation).collect();
+    assert_eq!(generations.len(), 2, "each job has its own generation");
+    let b_key = ByteCacheKey {
+        block_id: BlockId("cab".into()),
+        model_id: ModelId(101),
+        namespace: ModelNamespace::Catalog,
+    };
+    assert_eq!(cache.get(&b_key).expect("B is cached").as_ref(), b"mic-b");
+    assert!(plan.reconciled_block_ids.contains(&BlockId("cab".into())));
+
+    let stale = ModelByteCache::new(1024);
+    stale
+        .insert(b_key, ronie_core::ModelBytes::from(b"old-b".as_slice()))
+        .expect("old B bytes");
+    let plan = ronie_core::restore_offline(
+        &document,
+        RestoreCaches {
+            bytes: &stale,
+            current: Some(&current),
+        },
+    )
+    .expect("restore");
+    assert!(
+        !plan.reconciled_block_ids.contains(&BlockId("cab".into())),
+        "changed B bytes need a recompile"
+    );
+
+    let mut other_b = current.clone();
+    other_b.chain.left[0].ir_b = None;
+    let plan = ronie_core::restore_offline(
+        &document,
+        RestoreCaches {
+            bytes: &ModelByteCache::new(1024),
+            current: Some(&other_b),
+        },
+    )
+    .expect("restore");
+    assert!(
+        !plan.reconciled_block_ids.contains(&BlockId("cab".into())),
+        "a changed B needs a recompile"
+    );
+}
+
+#[test]
+fn restore_offline_plays_a_alone_when_b_has_no_bytes_or_source() {
+    let bytes = state_bytes(
+        1,
+        with_b(
+            block("cab", &tone(false, false), 100, &[("a", 100, b"mic-a")]),
+            101,
+        ),
+        false,
+    );
+    let document = StateCodec::new().decode_session(&bytes).expect("document");
+    let current = document.snapshot.clone();
+
+    let plan = ronie_core::restore_offline(
+        &document,
+        RestoreCaches {
+            bytes: &ModelByteCache::new(1024),
+            current: Some(&current),
+        },
+    )
+    .expect("a missing B does not fail the restore");
+
+    let jobs: Vec<_> = plan
+        .jobs
+        .iter()
+        .map(|job| (job.block_id.0.as_str(), job.model_id))
+        .collect();
+    assert_eq!(jobs, vec![("cab", ModelId(100))], "only A is prepared");
+    assert!(
+        plan.reconciled_block_ids.contains(&BlockId("cab".into())),
+        "a skipped B does not force a recompile"
+    );
+}

@@ -80,8 +80,10 @@ impl AudioSessionState {
         let structure = |blocks: &[ChainBlock]| {
             blocks
                 .iter()
+                // The skin only changes the drawing, so a skin change never asks for a chain.
                 .map(|block| ChainBlock {
                     params: BlockParams::default(),
+                    skin: None,
                     ..block.clone()
                 })
                 .collect()

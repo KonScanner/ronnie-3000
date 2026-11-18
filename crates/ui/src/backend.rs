@@ -286,6 +286,37 @@ pub enum UiAction {
         /// Destination zero-based index.
         target_index: usize,
     },
+    /// Place a block that was just added, without an undo step of its own.
+    PlaceAddedBlock {
+        /// The added block.
+        block_id: BlockId,
+        /// Destination lane.
+        side: ChainSide,
+        /// Destination zero-based index, clamped before the trailing insert.
+        index: usize,
+    },
+    /// Replace the tone of a tone block in place, as one undo step. The block keeps its id, its
+    /// place, and its params, and loses the second IR and the skin of the old tone.
+    ReplaceTone {
+        /// The tone block to replace.
+        target_block_id: BlockId,
+        /// Tone metadata.
+        tone: Tone,
+        /// Selected model.
+        model_id: ModelId,
+        /// Complete model bytes that a background worker downloaded, or `None` for a tone whose
+        /// bytes the backend already holds. With bytes, the running audio chain follows when the
+        /// same thread calls [`UiBackend::settle_audio`], as for [`UiAction::LoadToneWithBytes`].
+        bytes: Option<ModelBytes>,
+    },
+    /// Replace the tone of a tone block in place with a local file, as [`UiAction::ReplaceTone`]
+    /// does.
+    ReplaceWithFile {
+        /// The tone block to replace.
+        target_block_id: BlockId,
+        /// User-selected file or directory.
+        path: PathBuf,
+    },
     /// Load and stash a local file or folder into one insert.
     DropFile {
         /// Destination insert.
@@ -352,6 +383,44 @@ pub enum UiAction {
         replaces: Option<ModelId>,
         /// Complete model bytes.
         bytes: ModelBytes,
+    },
+    /// Set or clear the second IR of a cab block: another model of its tone, blended with the
+    /// active model. `None` removes it and resets the blend, the levels and the invert, so the
+    /// block plays its active model alone.
+    ///
+    /// The model must be an IR of the block's tone other than the active model.
+    SelectSecondModel {
+        /// Block to edit.
+        block_id: BlockId,
+        /// New second IR, or `None` to remove it.
+        model_id: Option<ModelId>,
+    },
+    /// Set the second IR of a cab block to a catalog model with bytes that a background worker
+    /// downloaded. The model joins the block's stored tone, which otherwise holds only the active
+    /// model.
+    ///
+    /// The rules are those of [`Self::SelectModelWithBytes`], for the second IR: the action
+    /// fails with no change unless the block still holds this tone with `replaces` as its
+    /// second IR.
+    SelectSecondModelWithBytes {
+        /// Block to edit.
+        block_id: BlockId,
+        /// Stored tone that contains the new model.
+        tone: Tone,
+        /// New second IR.
+        model_id: ModelId,
+        /// Second IR when the switch started.
+        replaces: Option<ModelId>,
+        /// Complete model bytes.
+        bytes: ModelBytes,
+    },
+    /// Choose the skin a block's render uses, or `None` for Auto: the skin of the gear family
+    /// the tone identifies. One undo step; the audio chain is not touched.
+    SetBlockSkin {
+        /// Block to edit.
+        block_id: BlockId,
+        /// Skin identity, such as `"british"`, or `None` for Auto.
+        skin: Option<String>,
     },
     /// Save or update a user preset.
     SavePreset {
@@ -842,12 +911,22 @@ struct MockState {
     effect_override: Option<UiEffect>,
     device_settings: Option<crate::default::SystemDeviceState>,
     chain_faults: Vec<ChainFault>,
+    /// Whether a tone load is refused, as a backend refuses a model it cannot read.
+    refuse_tone_loads: bool,
 }
 
 impl MockState {
     /// Carries out one action in the editor, and then in the device stub.
     fn dispatch(&mut self, action: UiAction) -> Result<UiReceipt, UiError> {
         self.actions.push(action.clone());
+        if self.refuse_tone_loads
+            && matches!(
+                action,
+                UiAction::LoadTone { .. } | UiAction::ReplaceTone { bytes: None, .. }
+            )
+        {
+            return Err(UiError::Control("the model file is missing".to_owned()));
+        }
         let device = match &action {
             UiAction::Device(device) => Some(device.clone()),
             _ => None,
@@ -1038,6 +1117,16 @@ impl MockBackend {
                 }
             });
         session.chain.revision = fixture["chain"]["revision"].as_u64().unwrap_or(0);
+        // A restore marks a second IR whose bytes it did not find. A session never stores the
+        // mark, so a scenario names it beside the block.
+        for block in fixture["chain"]["chain"].as_array().into_iter().flatten() {
+            if block["irBMissing"].as_bool() == Some(true)
+                && let Some(id) = block["blockId"].as_str()
+                && let Some(block) = session.chain.block_mut(&BlockId(id.to_owned()))
+            {
+                block.ir_b_missing = block.ir_b.is_some();
+            }
+        }
         let preparation = PrepareSpec {
             host_sample_rate: fixture["chain"]["sampleRate"].as_f64().unwrap_or(48_000.0),
             max_host_frames: 64,
@@ -1092,6 +1181,7 @@ impl MockBackend {
                     &fixture["device"],
                 ),
                 chain_faults: Vec::new(),
+                refuse_tone_loads: false,
             })),
             meters: fixture_meters(scenario),
         }
@@ -1134,6 +1224,13 @@ impl MockBackend {
     pub fn set_device_settings(&self, device: Option<crate::default::SystemDeviceState>) {
         if let Ok(mut state) = self.state.lock() {
             state.device_settings = device;
+        }
+    }
+
+    /// Makes each later tone load fail, or succeed again, for tests of a refused load.
+    pub fn refuse_tone_loads(&self, refuse: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.refuse_tone_loads = refuse;
         }
     }
 

@@ -220,20 +220,30 @@ impl ModelSelect {
         let width = ui.available_width().max(180.0);
         let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 36.0), Sense::hover());
         let painter = ui.painter_at(rect);
-        let content_color = if self.disabled(session) {
-            Color32::from_white_alpha(96)
+        let colors = PickerColors::for_ctx(ui.ctx());
+        let disabled = self.disabled(session);
+        let content_color = if disabled {
+            colors.content_disabled
         } else {
-            Color32::WHITE
+            colors.content
         };
         painter.rect_filled(
             rect,
-            8.0,
-            if self.disabled(session) {
-                Color32::from_rgb(19, 19, 20)
+            colors.radius,
+            if disabled {
+                colors.fill_disabled
             } else {
-                crate::theme::palette::CONTROL_FILL
+                colors.fill
             },
         );
+        if let Some(edge) = colors.edge {
+            painter.rect_stroke(
+                rect,
+                colors.radius,
+                egui::Stroke::new(1.0, edge),
+                egui::StrokeKind::Inside,
+            );
+        }
         let prev = Rect::from_min_size(rect.min + egui::vec2(12.0, 8.0), egui::Vec2::splat(20.0));
         let next = Rect::from_min_size(
             egui::pos2(rect.right() - 123.0, rect.top() + 8.0),
@@ -248,7 +258,7 @@ impl ModelSelect {
                 egui::pos2(rect.right() - 93.0, rect.top() + 8.0),
                 egui::pos2(rect.right() - 93.0, rect.bottom() - 8.0),
             ],
-            egui::Stroke::new(1.0, crate::theme::palette::HAIRLINE),
+            egui::Stroke::new(1.0, colors.hairline),
         );
         let mut selected = None;
         let previous = ui
@@ -282,9 +292,9 @@ impl ModelSelect {
             prev,
             false,
             if self.can_step(-1, session) {
-                Color32::WHITE
+                colors.content
             } else {
-                Color32::from_white_alpha(115)
+                colors.chevron_disabled
             },
         );
         draw_model_chevron(
@@ -292,9 +302,9 @@ impl ModelSelect {
             next,
             true,
             if self.can_step(1, session) {
-                Color32::WHITE
+                colors.content
             } else {
-                Color32::from_white_alpha(115)
+                colors.chevron_disabled
             },
         );
         let index = self.current_index().map_or(0, |index| index + 1);
@@ -309,7 +319,11 @@ impl ModelSelect {
         });
         let content_width = 20.0 + text_width;
         let content_x = tally.center().x - content_width / 2.0;
-        draw_model_folder(&painter, egui::pos2(content_x + 7.0, tally.center().y));
+        draw_model_folder(
+            &painter,
+            egui::pos2(content_x + 7.0, tally.center().y),
+            colors.folder,
+        );
         painter.text(
             egui::pos2(content_x + 20.0, tally.center().y),
             egui::Align2::LEFT_CENTER,
@@ -352,6 +366,103 @@ impl ModelSelect {
                 selected.or_else(|| self.show_dropdown(ui, rect, trigger_response.id, session));
         }
         selected
+    }
+
+    /// Renders the picker as one compact capture button that opens the same list, and returns
+    /// a model selected by the user.
+    ///
+    /// `label` is the accessible name. `fallback` shows when the list does not hold the model,
+    /// and `faded` draws the button as a capture that is not loaded.
+    pub fn show_compact(
+        &mut self,
+        ui: &mut egui::Ui,
+        rect: Rect,
+        label: &str,
+        fallback: &str,
+        faded: bool,
+        session: SessionStatus,
+    ) -> Option<ModelId> {
+        let colors = PickerColors::for_ctx(ui.ctx());
+        let disabled = self.disabled(session);
+        let response = ui
+            .add_enabled_ui(!disabled, |ui| {
+                ui.interact(rect, ui.scope_id().with("model-compact"), Sense::click())
+            })
+            .inner;
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, !disabled, label));
+        if response.clicked() {
+            if self.open {
+                self.close();
+            } else {
+                self.open(session);
+            }
+        }
+        let fade = |color: Color32| {
+            if faded {
+                color.gamma_multiply(0.4)
+            } else {
+                color
+            }
+        };
+        let painter = ui.painter_at(rect.expand(1.0));
+        painter.rect_filled(
+            rect,
+            colors.radius,
+            fade(if disabled {
+                colors.fill_disabled
+            } else {
+                colors.fill
+            }),
+        );
+        if let Some(edge) = colors.edge {
+            painter.rect_stroke(
+                rect,
+                colors.radius,
+                egui::Stroke::new(1.0, fade(edge)),
+                egui::StrokeKind::Inside,
+            );
+        }
+        let content = fade(if disabled {
+            colors.content_disabled
+        } else {
+            colors.content
+        });
+        let name = self
+            .current_index()
+            .and_then(|index| self.options.get(index))
+            .map_or(fallback, |option| option.name.as_str());
+        let chevron = egui::pos2(rect.right() - 13.0, rect.center().y);
+        let text_width = (rect.width() - 34.0).max(0.0);
+        let mut job = egui::text::LayoutJob::single_section(
+            name.to_owned(),
+            egui::TextFormat::simple(egui::FontId::proportional(11.0), content),
+        );
+        job.wrap = egui::text::TextWrapping {
+            max_width: text_width,
+            max_rows: 1,
+            break_anywhere: true,
+            overflow_character: Some('\u{2026}'),
+        };
+        let galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+        painter.galley(
+            egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y / 2.0),
+            galley,
+            content,
+        );
+        let stroke = egui::Stroke::new(1.8, content);
+        painter.add(egui::epaint::PathShape::line(
+            vec![
+                chevron + egui::vec2(-3.75, -1.9),
+                chevron + egui::vec2(0.0, 1.9),
+                chevron + egui::vec2(3.75, -1.9),
+            ],
+            stroke,
+        ));
+        if self.open {
+            self.show_dropdown(ui, rect, response.id, session)
+        } else {
+            None
+        }
     }
 
     fn show_dropdown(
@@ -473,8 +584,7 @@ fn draw_model_chevron(painter: &egui::Painter, rect: Rect, right: bool, color: C
     ));
 }
 
-fn draw_model_folder(painter: &egui::Painter, center: egui::Pos2) {
-    let color = Color32::from_white_alpha(153);
+fn draw_model_folder(painter: &egui::Painter, center: egui::Pos2, color: Color32) {
     let point =
         |x: f32, y: f32| center + egui::vec2((x - 12.0) * 14.0 / 24.0, (y - 12.0) * 14.0 / 24.0);
     let stroke = egui::Stroke::new(7.0 / 6.0, color);
@@ -497,4 +607,48 @@ fn draw_model_folder(painter: &egui::Painter, center: egui::Pos2) {
         stroke,
     ));
     painter.line_segment([point(2.0, 10.0), point(22.0, 10.0)], stroke);
+}
+
+/// Colours of the picker bar: dark in the reference layout, light on the Stage page.
+struct PickerColors {
+    fill: Color32,
+    fill_disabled: Color32,
+    edge: Option<Color32>,
+    radius: f32,
+    content: Color32,
+    content_disabled: Color32,
+    chevron_disabled: Color32,
+    hairline: Color32,
+    folder: Color32,
+}
+
+impl PickerColors {
+    fn for_ctx(ctx: &egui::Context) -> Self {
+        let look = crate::theme::Look::get(ctx);
+        if look.is_stage() {
+            Self {
+                fill: look.fill_soft,
+                fill_disabled: look.fill_disabled,
+                edge: Some(look.control_edge),
+                radius: 6.0,
+                content: look.text,
+                content_disabled: look.icon_bypassed,
+                chevron_disabled: look.icon_bypassed,
+                hairline: look.control_edge,
+                folder: look.text_muted,
+            }
+        } else {
+            Self {
+                fill: crate::theme::palette::CONTROL_FILL,
+                fill_disabled: Color32::from_rgb(19, 19, 20),
+                edge: None,
+                radius: 8.0,
+                content: Color32::WHITE,
+                content_disabled: Color32::from_white_alpha(96),
+                chevron_disabled: Color32::from_white_alpha(115),
+                hairline: crate::theme::palette::HAIRLINE,
+                folder: Color32::from_white_alpha(153),
+            }
+        }
+    }
 }

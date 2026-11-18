@@ -131,6 +131,17 @@ impl CatalogStore {
         }
     }
 
+    /// Creates an empty store whose queries count on from `generation`, so that no answer to a
+    /// query of an earlier store with generations up to it can complete a query of this one.
+    #[must_use]
+    pub fn after_generation(generation: u64) -> Self {
+        Self {
+            generation,
+            sent_generation: generation,
+            ..Self::new()
+        }
+    }
+
     /// Current query.
     #[must_use]
     pub const fn query(&self) -> &ToneQuery {

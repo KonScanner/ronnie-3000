@@ -68,13 +68,15 @@ pub enum GearGlyph {
     Space,
     /// Unknown equipment.
     Generic,
+    /// A recognised gear family, such as a chime combo or a vintage 4x12.
+    Family(ronie_core::gear::GearFamily),
 }
 
 /// Resolves a persisted gear string to its fallback glyph.
 #[must_use]
 pub fn gear_glyph(gear: &str) -> GearGlyph {
     match gear {
-        "amp+cab" | "full-rig" => GearGlyph::FullRig,
+        "amp+cab" | "full-rig" | "amp-cab" => GearGlyph::FullRig,
         "amp" => GearGlyph::Amp,
         "cab" | "cabinet" => GearGlyph::Cabinet,
         "pedal" => GearGlyph::Pedal,
@@ -82,6 +84,59 @@ pub fn gear_glyph(gear: &str) -> GearGlyph {
         "space" | "spaces" | "ir" => GearGlyph::Space,
         _ => GearGlyph::Generic,
     }
+}
+
+/// Resolves a tone, and optionally its active model, to its glyph.
+///
+/// A capture recognised by name or metadata shows its gear family. Anything else keeps the
+/// category glyph from the tone's `gear` value.
+#[must_use]
+pub fn tone_glyph(tone: &ronie_core::Tone, model: Option<&ronie_core::ToneModel>) -> GearGlyph {
+    use ronie_core::gear::{GearFamily as F, GearHints, MatchSource, identify};
+
+    let hints = GearHints::from_tone(tone, model);
+    let identity = identify(&hints);
+    let recognised = matches!(
+        identity.source,
+        MatchSource::NamMetadata | MatchSource::Catalog | MatchSource::Title
+    );
+    let has_icon = matches!(
+        identity.family,
+        F::OdGreen
+            | F::OdGold
+            | F::Distortion
+            | F::Fuzz
+            | F::Boost
+            | F::Compressor
+            | F::HeadHighGain
+            | F::HeadModernUs
+            | F::HeadBritish
+            | F::ComboChime
+            | F::ComboClean
+            | F::HeadBass
+            | F::Cab412Modern
+            | F::Cab412Vintage
+            | F::Cab212
+            | F::Cab112
+            | F::Cab810
+    );
+    if recognised && has_icon {
+        GearGlyph::Family(identity.family)
+    } else {
+        gear_glyph(hints.gear.as_deref().unwrap_or_default())
+    }
+}
+
+/// Resolves a chain block to its glyph, using the block's active model.
+#[must_use]
+pub fn block_glyph(block: &ChainBlock) -> GearGlyph {
+    let Some(tone) = block.tone.as_ref() else {
+        return GearGlyph::Generic;
+    };
+    let model = block
+        .active_model_id
+        .and_then(|id| tone.models.iter().find(|model| model.id == id));
+    tone_glyph(tone, model)
 }
 
 /// Maps dB from the -60 floor to a bounded linear meter fraction.
@@ -177,13 +232,7 @@ pub fn show(
                 .corner_radius(CornerRadius::same(16))
                 .paint_at(ui, rect);
         } else {
-            let gear = block
-                .tone
-                .as_ref()
-                .and_then(|tone| tone.raw.get("gear"))
-                .and_then(|gear| gear.as_str())
-                .unwrap_or_default();
-            draw_gear(&painter, rect, gear_glyph(gear));
+            draw_gear(&painter, rect, block_glyph(block));
             if !block.params.enabled || state != TileVisualState::Ready {
                 painter.rect_filled(rect, CornerRadius::same(16), palette::ART_SCRIM);
             }
@@ -609,11 +658,19 @@ fn rounded_rect_ring(rect: Rect, radius: f32) -> Vec<egui::Pos2> {
     points
 }
 
-pub(crate) fn draw_gear(painter: &egui::Painter, rect: Rect, glyph: GearGlyph) {
-    let center = rect.center();
-    let scale = rect.width() / 224.0;
-    let color = palette::TEXT_MUTED;
-    let glyph_rect = Rect::from_center_size(center, egui::Vec2::splat(64.0 * scale));
+/// Paints a gear glyph centred in `rect`, sized for a tile of that width.
+pub fn draw_gear(painter: &egui::Painter, rect: Rect, glyph: GearGlyph) {
+    let glyph_rect = Rect::from_center_size(
+        rect.center(),
+        egui::Vec2::splat(64.0 * rect.width() / 224.0),
+    );
+    draw_glyph(painter, glyph_rect, glyph, palette::TEXT_MUTED);
+}
+
+/// Paints a gear glyph filling `glyph_rect` in `color`.
+pub fn draw_glyph(painter: &egui::Painter, glyph_rect: Rect, glyph: GearGlyph, color: Color32) {
+    let center = glyph_rect.center();
+    let scale = glyph_rect.width() / 64.0;
     match glyph {
         GearGlyph::FullRig => super::gear::draw(painter, glyph_rect, "full-rig", color),
         GearGlyph::Amp => super::gear::draw(painter, glyph_rect, "amp", color),
@@ -621,6 +678,7 @@ pub(crate) fn draw_gear(painter: &egui::Painter, rect: Rect, glyph: GearGlyph) {
         GearGlyph::Pedal => super::gear::draw(painter, glyph_rect, "pedal", color),
         GearGlyph::Outboard => super::gear::draw(painter, glyph_rect, "outboard", color),
         GearGlyph::Space => super::gear::draw(painter, glyph_rect, "space", color),
+        GearGlyph::Family(family) => super::gear::draw_family(painter, glyph_rect, family, color),
         GearGlyph::Generic => {
             let stroke = Stroke::new((2.0 * scale).max(1.0), color);
             for (index, y) in [-14.0, 0.0, 14.0].into_iter().enumerate() {
@@ -651,4 +709,16 @@ fn dashed_border(painter: &egui::Painter, rect: Rect, color: Color32) {
         7.0,
         5.0,
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GearGlyph, gear_glyph};
+
+    #[test]
+    fn a_local_full_rig_capture_shows_the_full_rig_glyph() {
+        for gear in ["amp+cab", "full-rig", "amp-cab"] {
+            assert_eq!(gear_glyph(gear), GearGlyph::FullRig, "{gear}");
+        }
+    }
 }

@@ -78,6 +78,8 @@ const MODEL_ADDRESS_REFUSED: &str = "The model is not on an approved address.";
 const MODEL_EMPTY: &str = "The model download was empty.";
 const MODEL_TOO_LARGE: &str = "The model is larger than the limit.";
 const MODEL_UNUSABLE: &str = "The model could not be prepared.";
+/// The block that a load was for is gone, so the load ends with nothing to say.
+pub const TARGET_GONE: &str = "The block is gone.";
 
 /// Fields of a user that are public. The cache and the events keep no other field.
 const PUBLIC_USER_FIELDS: [&str; 5] = ["id", "username", "display_name", "name", "avatar_url"];
@@ -93,6 +95,17 @@ pub struct QueryRequest {
     pub page: u32,
     /// Whether to use the catalog. A signed-out user gets only the trending preview.
     pub signed_in: bool,
+    /// Which store asked, which the answer names again.
+    pub scope: QueryScope,
+}
+
+/// The store that a catalog query belongs to. Each store has its own newest query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueryScope {
+    /// The tone browser.
+    Browser,
+    /// The results of the Stage add menu.
+    AddMenu,
 }
 
 /// One taxonomy page to fetch.
@@ -204,6 +217,8 @@ pub struct QueryReply {
 pub enum CommunityEvent {
     /// A catalog page.
     Query {
+        /// Store that asked.
+        scope: QueryScope,
         /// Generation of the request.
         generation: u64,
         /// Page or failure.
@@ -261,7 +276,7 @@ pub enum CommunityEvent {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum WorkKind {
-    Query,
+    Query(QueryScope),
     Taxonomy,
     Favorite,
     User,
@@ -320,22 +335,25 @@ impl<T: HttpTransport + Send + Sync + 'static> CommunityWorker<T> {
         }
     }
 
-    /// Fetches one catalog page and supersedes the previous query.
+    /// Fetches one catalog page and supersedes the previous query of the same store.
     pub fn start_query(&mut self, runtime: &Handle, request: QueryRequest) {
-        self.retire(WorkKind::Query);
+        let scope = request.scope;
+        self.retire(WorkKind::Query(scope));
         let quiet = burst_quiet(&mut self.last_query);
         let generation = request.generation;
         let handle = self.handle.clone();
         self.spawn(
             runtime,
-            WorkKind::Query,
+            WorkKind::Query(scope),
             CommunityEvent::Query {
+                scope,
                 generation,
                 result: Err(CommunityFailure::Failed(WORK_FAILED)),
             },
             async move {
                 tokio::time::sleep(quiet).await;
                 CommunityEvent::Query {
+                    scope,
                     generation,
                     result: run_query(&handle, request).await.map_err(failure),
                 }
@@ -555,7 +573,7 @@ impl<T: HttpTransport + Send + Sync + 'static> CommunityWorker<T> {
                 self.retire(WorkKind::ModelSwitch);
             }
             CommunityScope::Browser => {
-                self.retire(WorkKind::Query);
+                self.retire(WorkKind::Query(QueryScope::Browser));
                 self.retire(WorkKind::Taxonomy);
                 self.retire(WorkKind::ToneLoad);
                 // A write that left cannot return, so it finishes with nobody to tell.
@@ -600,7 +618,7 @@ impl<T: HttpTransport + Send + Sync + 'static> CommunityWorker<T> {
         });
         self.ready.retain(|event| {
             kind != match event {
-                CommunityEvent::Query { .. } => WorkKind::Query,
+                CommunityEvent::Query { scope, .. } => WorkKind::Query(*scope),
                 CommunityEvent::Taxonomy { .. } => WorkKind::Taxonomy,
                 CommunityEvent::Favorite { .. } => WorkKind::Favorite,
                 CommunityEvent::User { .. } => WorkKind::User,
@@ -870,7 +888,7 @@ async fn download_catalog_model<T: HttpTransport + Send + Sync + 'static>(
 fn stored_tone(mut tone: Tone, model: ToneModel) -> Result<Tone, CommunityFailure> {
     let model_id = model.id;
     tone.models = vec![model];
-    tone.for_storage(model_id)
+    tone.for_storage(model_id, &[])
         .map_err(|_| CommunityFailure::Failed(SERVICE_INVALID))
 }
 
@@ -890,7 +908,13 @@ async fn publish_with_one_compile(
     })
     .await
     .map_err(|_| CommunityFailure::Failed(WORK_FAILED))?
-    .map_err(|_| CommunityFailure::Failed(MODEL_UNUSABLE))?;
+    .map_err(|error| {
+        CommunityFailure::Failed(if matches!(error, UiError::UnknownTarget(_)) {
+            TARGET_GONE
+        } else {
+            MODEL_UNUSABLE
+        })
+    })?;
     if published {
         Ok(())
     } else {
@@ -1004,7 +1028,10 @@ mod tests {
     };
     use url::Url;
 
-    use super::{CommunityEvent, CommunityFailure, CommunityWorker, OffThreadTokens, WorkKind};
+    use super::{
+        CommunityEvent, CommunityFailure, CommunityWorker, OffThreadTokens, QueryRequest,
+        QueryScope, WorkKind,
+    };
     use crate::services::community::CommunityService;
 
     /// A provider that blocks its thread until another task runs on the runtime.
@@ -1035,13 +1062,14 @@ mod tests {
         let mut worker = CommunityWorker::new(handle);
         let runtime = tokio::runtime::Runtime::new().expect("runtime");
         let on_panic = CommunityEvent::Query {
+            scope: QueryScope::Browser,
             generation: 4,
             result: Err(CommunityFailure::Failed("stopped")),
         };
 
         worker.spawn(
             runtime.handle(),
-            WorkKind::Query,
+            WorkKind::Query(QueryScope::Browser),
             on_panic.clone(),
             async move { panic!("a task failure") },
         );
@@ -1056,6 +1084,57 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
         };
         assert_eq!(events, [on_panic]);
+    }
+
+    fn quiet_worker(directory: &tempfile::TempDir) -> CommunityWorker<RecordedTransport> {
+        let origin = Url::parse("https://api.example").expect("origin");
+        let service = CommunityService::new(
+            OAuthConfig::new(origin.clone(), "public-client"),
+            OriginPolicy::new(origin, []),
+            RecordedTransport::new(Vec::new()),
+            SettingsStore::standalone(directory.path(), "settings"),
+        );
+        let (_auth, handle) = service.into_parts();
+        CommunityWorker::new(handle)
+    }
+
+    #[test]
+    fn a_query_answer_carries_the_scope_of_its_request() {
+        let directory = tempfile::tempdir().expect("settings root");
+        let mut worker = quiet_worker(&directory);
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        for (generation, scope) in [(1, QueryScope::Browser), (2, QueryScope::AddMenu)] {
+            worker.start_query(
+                runtime.handle(),
+                QueryRequest {
+                    generation,
+                    query: ronie_core::ToneQuery::default(),
+                    page: 1,
+                    signed_in: false,
+                    scope,
+                },
+            );
+        }
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let mut events = Vec::new();
+        while events.len() < 2 {
+            events.extend(worker.poll());
+            assert!(std::time::Instant::now() < deadline, "{events:?}");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let mut scopes: Vec<(u64, QueryScope)> = events
+            .iter()
+            .filter_map(|event| match event {
+                CommunityEvent::Query {
+                    generation, scope, ..
+                } => Some((*generation, *scope)),
+                _ => None,
+            })
+            .collect();
+        scopes.sort_by_key(|(generation, _)| *generation);
+        // A menu query does not end the query of the browser, and each answer says whose it is.
+        assert_eq!(scopes, [(1, QueryScope::Browser), (2, QueryScope::AddMenu)]);
     }
 
     #[test]

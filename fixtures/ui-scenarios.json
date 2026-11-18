@@ -993,6 +993,306 @@
     {
       "drives": [
         {
+          "kind": "wait",
+          "ms": 300
+        }
+      ],
+      "id": "main-detail-dark",
+      "section": "main",
+      "state": {
+        "appearance": "dark",
+        "auth": true,
+        "banner": false,
+        "chain": {
+          "activeSide": "left",
+          "canRedo": false,
+          "canUndo": true,
+          "chain": [
+            {
+              "activeModelId": 1104,
+              "blockId": "blk-1",
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 1,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 6,
+                "downloads_count": 4100,
+                "format": "nam",
+                "gear": "pedal",
+                "id": 104,
+                "images": [
+                  "https://fixtures.invalid/img/pedal-muff"
+                ],
+                "models": [
+                  {
+                    "id": 1104,
+                    "name": "D-12_00 T-12_00 + BD-2 Boost"
+                  }
+                ],
+                "models_count": 6,
+                "title": "Green Russian Big Muff + BD-2",
+                "url": "https://www.fixtures.invalid/tones/green-russian-big-muff-clone-boss-bd-2-pack-80291",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-kosmic",
+                  "username": "kosmicaudio"
+                }
+              }
+            },
+            {
+              "activeModelId": 1101,
+              "blockId": "blk-2",
+              "inputLevelDbu": 12.5,
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "outputLevelDbu": 14.2,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 0.85,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 6,
+                "downloads_count": 5246,
+                "format": "nam",
+                "gear": "amp",
+                "id": 101,
+                "images": [
+                  "https://fixtures.invalid/img/amp-vox"
+                ],
+                "models": [
+                  {
+                    "id": 1101,
+                    "name": "AC30-6 TB Brl 3"
+                  }
+                ],
+                "models_count": 6,
+                "title": "'02 Vox AC30/6 Top Boost",
+                "url": "https://www.fixtures.invalid/tones/02-vox-ac306-top-boost-70408",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-signaltheory",
+                  "display_name": "Signal Theory Audio",
+                  "is_verified": true,
+                  "username": "signaltheoryaudio"
+                }
+              }
+            },
+            {
+              "activeModelId": 1103,
+              "blockId": "blk-3",
+              "irLong": false,
+              "kind": "tone",
+              "loadFailed": false,
+              "loaded": true,
+              "modelLoading": false,
+              "params": {
+                "enabled": true,
+                "eq": {
+                  "bands": [
+                    {
+                      "freqHz": 20,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "lowcut"
+                    },
+                    {
+                      "freqHz": 150,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 1500,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 4000,
+                      "gainDb": 0,
+                      "q": 1,
+                      "type": "bell"
+                    },
+                    {
+                      "freqHz": 8000,
+                      "gainDb": 0,
+                      "q": 0.71,
+                      "type": "highshelf"
+                    }
+                  ],
+                  "enabled": false,
+                  "pre": false
+                },
+                "inputGain": 0.5,
+                "mix": 1,
+                "normalize": true,
+                "outputGain": 0.5
+              },
+              "tone": {
+                "a2_models_count": 0,
+                "downloads_count": 31000,
+                "format": "ir",
+                "gear": "cab",
+                "id": 103,
+                "images": [
+                  "https://fixtures.invalid/img/cab-412"
+                ],
+                "models": [
+                  {
+                    "id": 1103,
+                    "name": "M201 Cap Edge"
+                  }
+                ],
+                "models_count": 24,
+                "title": "UK Greenback - Marshall 1960TV 4x12 M201",
+                "url": "https://www.fixtures.invalid/tones/uk-greenback-marshall-1960tv-4x12-m201-75087",
+                "user": {
+                  "avatar_url": "https://fixtures.invalid/img/avatar-outmoded",
+                  "username": "outmodedelectronics"
+                }
+              }
+            },
+            {
+              "blockId": "ins-1",
+              "kind": "insert"
+            },
+            {
+              "blockId": "ins-2",
+              "kind": "insert"
+            }
+          ],
+          "inputMode": "stereo",
+          "multiCore": true,
+          "namFullSize": false,
+          "revision": 1,
+          "sampleRate": 48000,
+          "standalone": false,
+          "stereoEnabled": false,
+          "stereoInput": false
+        },
+        "description": "The block detail page of the Stage layout in dark mode: a black stage under a soft spotlight, the amp render with its skin chip and model picker, the BYPASS, REPLACE and REMOVE pills, the dark global panel and the utility bar with its LIGHT switch.",
+        "hasDrive": true,
+        "hints": true,
+        "id": "main-detail-dark",
+        "layout": "stage",
+        "section": "main",
+        "sessionStorage": {
+          "reference.detailBlockId": "blk-2"
+        },
+        "title": "Block detail card, dark Stage"
+      },
+      "viewport": {
+        "height": 578,
+        "scale": 2.0,
+        "width": 1024
+      }
+    },
+    {
+      "drives": [
+        {
           "kind": "click",
           "target": "Info:"
         },

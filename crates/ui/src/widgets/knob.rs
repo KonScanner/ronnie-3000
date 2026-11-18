@@ -69,6 +69,8 @@ enum Scale {
     Buffer,
     Crossover,
     Pan,
+    /// A crossfade of two sources, shown as the share of each: "65 / 35".
+    Blend,
 }
 
 impl Scale {
@@ -200,6 +202,22 @@ impl KnobSpec {
         }
     }
 
+    /// A knob that crossfades from A at 0 to B at 1, shown as the share of each, "65 / 35".
+    ///
+    /// The reset value is the even blend, and a typed number is the share of A.
+    #[must_use]
+    pub fn blend() -> Self {
+        Self {
+            scale: Scale::Blend,
+            stored: Stored::Unit,
+            choices: &[],
+            reset: 0.5,
+            key_step: DEFAULT_KEY_STEP,
+            travel: (0.0, 1.0),
+            interval: None,
+        }
+    }
+
     /// A knob for a value from 0 to 1 that shows as a percentage.
     #[must_use]
     pub fn percent(reset: f64) -> Self {
@@ -305,6 +323,10 @@ impl KnobSpec {
                 |magnitude| format!("{magnitude:.0}%"),
                 "C",
             ),
+            Scale::Blend => {
+                let b = (position * 100.0).round();
+                format!("{:.0} / {b:.0}", 100.0 - b)
+            }
         }
     }
 
@@ -338,6 +360,7 @@ impl KnobSpec {
             Scale::Semitones => (number + 24.0) / 48.0,
             Scale::SidedMs => side / 48.0 + 0.5,
             Scale::Pan => side / 200.0 + 0.5,
+            Scale::Blend => 1.0 - number / 100.0,
             Scale::Real(..) => self.stored.position(number),
             Scale::Tonality => self.stored.position(number * 1000.0),
             Scale::Buffer => {
@@ -1092,7 +1115,7 @@ impl Knob {
             egui::Align2::CENTER_CENTER,
             self.caption.as_deref().unwrap_or(&self.label),
             egui::FontId::proportional(14.0),
-            crate::theme::palette::TEXT_MUTED,
+            crate::theme::Look::get(ui.ctx()).text_muted,
         );
         output.response
     }

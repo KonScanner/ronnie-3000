@@ -3,8 +3,9 @@
 use std::time::Duration;
 
 use ronie_core::{
-    BlockId, ChainBlock, ChainBranch, ChainSide, ChainSnapshot, InputMode, JuceTree, JuceValue,
-    MidiSource, ModelId, ModelSource, SessionSnapshot, Tone, ToneError, references_model,
+    BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot, InputMode, IrB,
+    JuceTree, JuceValue, MidiSource, ModelId, ModelSource, SKIN_OVERRIDE, SessionSnapshot, Tone,
+    ToneError, references_model,
 };
 use serde_json::{Value, json};
 
@@ -82,7 +83,7 @@ fn raw_tone_json_round_trip_preserves_every_field() {
 #[test]
 fn local_storage_retains_all_models_and_decodes_stash_names() {
     let stored = local_tone()
-        .for_storage(ModelId(11))
+        .for_storage(ModelId(11), &[])
         .expect("local storage should retain its active model");
 
     assert_eq!(stored.models.len(), 2);
@@ -98,7 +99,7 @@ fn local_storage_retains_all_models_and_decodes_stash_names() {
 #[test]
 fn catalog_storage_retains_only_the_active_model() {
     let stored = catalog_tone()
-        .for_storage(ModelId(1102))
+        .for_storage(ModelId(1102), &[])
         .expect("active catalog model should exist");
 
     assert_eq!(stored.models.len(), 1);
@@ -113,7 +114,7 @@ fn catalog_storage_retains_only_the_active_model() {
 
 #[test]
 fn catalog_storage_rejects_an_unknown_active_model() {
-    let result = catalog_tone().for_storage(ModelId(9999));
+    let result = catalog_tone().for_storage(ModelId(9999), &[]);
 
     assert!(matches!(
         result,
@@ -423,4 +424,287 @@ fn a_removed_tone_takes_its_slot_and_a_branch_after_it_moves_back() {
     let before = snapshot.clone();
     assert!(!snapshot.remove_tone(&open), "an open slot is not a tone");
     assert_eq!(snapshot, before);
+}
+
+fn ir_tone() -> Tone {
+    Tone::from_value(json!({
+        "id": 301,
+        "title": "Fixture cab",
+        "format": "ir",
+        "models": [
+            {"id": 3101, "name": "SM57", "model_url": "https://fixtures.local/models/3101.wav"},
+            {"id": 3102, "name": "R121", "model_url": "https://fixtures.local/models/3102.wav"},
+            {"id": 3103, "name": "Room", "model_url": "https://fixtures.local/models/3103.wav"}
+        ]
+    }))
+    .expect("IR fixture should parse")
+}
+
+fn juce_cab_block(extra: Vec<(String, JuceValue)>) -> JuceTree {
+    let mut properties = vec![
+        ("id".into(), JuceValue::String("cab".into())),
+        ("type".into(), JuceValue::String("IR".into())),
+        (
+            "toneJson".into(),
+            JuceValue::String(ir_tone().to_json().expect("tone JSON")),
+        ),
+        ("activeModelId".into(), JuceValue::Int64(3101)),
+        ("mix".into(), JuceValue::Double(1.0)),
+    ];
+    properties.extend(extra);
+    JuceTree {
+        identifier: "ChainBlock".to_owned(),
+        properties,
+        children: Vec::new(),
+    }
+}
+
+fn juce_chain(block: JuceTree) -> JuceTree {
+    JuceTree {
+        identifier: "ChainSnapshot".to_owned(),
+        properties: Vec::new(),
+        children: vec![JuceTree {
+            identifier: "ChainBlocks".to_owned(),
+            properties: Vec::new(),
+            children: vec![block],
+        }],
+    }
+}
+
+#[test]
+fn an_old_block_tree_loads_with_default_blend_and_no_b() {
+    let snapshot = ChainSnapshot::from_juce_tree(&juce_chain(juce_cab_block(Vec::new())))
+        .expect("an old cab block parses");
+    let block = &snapshot.left[0];
+
+    assert_eq!(block.ir_b, None);
+    assert_eq!(block.params.ir_blend, 0.5);
+    assert_eq!(block.params.ir_a_level, 0.5);
+    assert_eq!(block.params.ir_b_level, 0.5);
+    assert!(!block.params.ir_b_invert);
+
+    let ui = ChainSnapshot::from_ui_value(json!({
+        "chain": [{
+            "blockId": "cab",
+            "kind": "tone",
+            "tone": ir_tone().raw,
+            "activeModelId": 3101,
+            "params": {"mix": 1}
+        }]
+    }))
+    .expect("an old UI block parses");
+    assert_eq!(ui.left[0].ir_b, None);
+    let defaults = BlockParams::default();
+    let ir = |params: &BlockParams| {
+        (
+            params.ir_blend,
+            params.ir_a_level,
+            params.ir_b_level,
+            params.ir_b_invert,
+        )
+    };
+    assert_eq!(ir(&ui.left[0].params), ir(&defaults));
+    assert_eq!(ir(&block.params), ir(&defaults));
+}
+
+#[test]
+fn a_ui_block_with_b_reads_its_blend() {
+    let ui = ChainSnapshot::from_ui_value(json!({
+        "chain": [{
+            "blockId": "cab",
+            "kind": "tone",
+            "tone": ir_tone().raw,
+            "activeModelId": 3101,
+            "irBModelId": 3102,
+            "params": {"irBlend": 0.25, "irALevel": 0.4, "irBLevel": 0.6, "irBInvert": true}
+        }]
+    }))
+    .expect("a UI block with B parses");
+    let block = &ui.left[0];
+
+    assert_eq!(
+        block.ir_b,
+        Some(IrB {
+            model_id: ModelId(3102)
+        })
+    );
+    assert_eq!(block.params.ir_blend, 0.25);
+    assert_eq!(block.params.ir_a_level, 0.4);
+    assert_eq!(block.params.ir_b_level, 0.6);
+    assert!(block.params.ir_b_invert);
+}
+
+#[test]
+fn a_b_the_tone_does_not_list_is_dropped() {
+    let ui = ChainSnapshot::from_ui_value(json!({
+        "chain": [{
+            "blockId": "cab",
+            "kind": "tone",
+            "tone": ir_tone().raw,
+            "activeModelId": 3101,
+            "irBModelId": 9999,
+            "params": {"irBlend": 0.25}
+        }]
+    }))
+    .expect("a UI block with an unknown B parses");
+    assert_eq!(ui.left[0].ir_b, None, "a UI B outside the tone is dropped");
+    assert_eq!(ui.left[0].params.ir_blend, 0.25, "the blend is kept");
+
+    let tree = juce_cab_block(vec![
+        ("irBModelId".into(), JuceValue::Int64(9999)),
+        ("irBlend".into(), JuceValue::Double(0.25)),
+    ]);
+    let snapshot = ChainSnapshot::from_juce_tree(&juce_chain(tree)).expect("the tree parses");
+    assert_eq!(
+        snapshot.left[0].ir_b, None,
+        "a stored B outside the tone is dropped"
+    );
+    assert_eq!(snapshot.left[0].params.ir_blend, 0.25, "the blend is kept");
+}
+
+#[test]
+fn a_block_with_b_round_trips_through_juce() {
+    let mut block = ChainBlock::tone("cab", ir_tone(), ModelId(3101));
+    block.ir_b = Some(IrB {
+        model_id: ModelId(3102),
+    });
+    block.params.ir_blend = 0.3;
+    block.params.ir_a_level = 0.45;
+    block.params.ir_b_level = 0.7;
+    block.params.ir_b_invert = true;
+
+    let mut tree = juce_cab_block(Vec::new());
+    block.write_ir_pair_juce(&mut tree);
+    assert!(
+        tree.properties
+            .iter()
+            .any(|(name, value)| name == "irBModelId" && *value == JuceValue::Int64(3102)),
+        "B is an Int64 property: {:?}",
+        tree.properties
+    );
+    let codec = ronie_core::JuceCodec::default();
+    let bytes = codec.write_tree(&juce_chain(tree.clone())).expect("encode");
+    let decoded = codec.read_tree(&bytes).expect("decode");
+    let snapshot = ChainSnapshot::from_juce_tree(&decoded).expect("the tree parses");
+
+    assert_eq!(snapshot.left[0].ir_b, block.ir_b);
+    let params = &snapshot.left[0].params;
+    assert_eq!(params.ir_blend, 0.3);
+    assert_eq!(params.ir_a_level, 0.45);
+    assert_eq!(params.ir_b_level, 0.7);
+    assert!(params.ir_b_invert);
+
+    block.ir_b = None;
+    block.write_ir_pair_juce(&mut tree);
+    assert!(
+        !tree.properties.iter().any(|(name, _)| name == "irBModelId"),
+        "a cleared B removes its property"
+    );
+    let snapshot = ChainSnapshot::from_juce_tree(&juce_chain(tree)).expect("the tree parses");
+    assert_eq!(snapshot.left[0].ir_b, None);
+    assert_eq!(snapshot.left[0].params.ir_blend, 0.3);
+}
+
+#[test]
+fn for_storage_keeps_the_b_model_of_a_catalog_tone() {
+    let stored = ir_tone()
+        .for_storage(ModelId(3101), &[ModelId(3102)])
+        .expect("both models exist");
+
+    let ids: Vec<_> = stored.models.iter().map(|model| model.id).collect();
+    assert_eq!(ids, vec![ModelId(3101), ModelId(3102)]);
+    let raw_ids: Vec<_> = stored.raw["models"]
+        .as_array()
+        .expect("models")
+        .iter()
+        .map(|model| model["id"].as_i64().expect("id"))
+        .collect();
+    assert_eq!(raw_ids, vec![3101, 3102]);
+
+    let same = ir_tone()
+        .for_storage(ModelId(3101), &[ModelId(3101)])
+        .expect("a B equal to A is kept once");
+    assert_eq!(same.models.len(), 1);
+
+    assert!(matches!(
+        ir_tone().for_storage(ModelId(3101), &[ModelId(9999)]),
+        Err(ToneError::MissingStoredModel(ModelId(9999)))
+    ));
+}
+
+#[test]
+fn references_model_includes_b() {
+    let mut block = ChainBlock::tone("cab", ir_tone(), ModelId(3101));
+    assert!(!references_model(&block, ModelId(3102)));
+
+    block.ir_b = Some(IrB {
+        model_id: ModelId(3102),
+    });
+    assert!(references_model(&block, ModelId(3101)));
+    assert!(references_model(&block, ModelId(3102)));
+    assert!(!references_model(&block, ModelId(3103)));
+}
+
+#[test]
+fn a_skin_override_round_trips_through_juce() {
+    let mut block = ChainBlock::tone("cab", ir_tone(), ModelId(3101));
+    block.skin = Some("cab-412-vintage".to_owned());
+
+    let mut tree = juce_cab_block(Vec::new());
+    block.write_skin_juce(&mut tree);
+    assert!(
+        tree.properties
+            .iter()
+            .any(|(name, value)| name == SKIN_OVERRIDE
+                && *value == JuceValue::String("cab-412-vintage".into())),
+        "the override is a string property: {:?}",
+        tree.properties
+    );
+    let codec = ronie_core::JuceCodec::default();
+    let bytes = codec.write_tree(&juce_chain(tree.clone())).expect("encode");
+    let decoded = codec.read_tree(&bytes).expect("decode");
+    let snapshot = ChainSnapshot::from_juce_tree(&decoded).expect("the tree parses");
+    assert_eq!(snapshot.left[0].skin.as_deref(), Some("cab-412-vintage"));
+
+    block.skin = None;
+    block.write_skin_juce(&mut tree);
+    assert!(
+        !tree
+            .properties
+            .iter()
+            .any(|(name, _)| name == SKIN_OVERRIDE),
+        "Auto removes the property"
+    );
+
+    let ui = ChainSnapshot::from_ui_value(json!({
+        "chain": [{
+            "blockId": "cab",
+            "kind": "tone",
+            "tone": ir_tone().raw,
+            "activeModelId": 3101,
+            "skinOverride": "cab-112-clean"
+        }]
+    }))
+    .expect("a UI block with a skin parses");
+    assert_eq!(ui.left[0].skin.as_deref(), Some("cab-112-clean"));
+}
+
+#[test]
+fn an_old_block_has_no_skin_override() {
+    let snapshot =
+        ChainSnapshot::from_juce_tree(&juce_chain(juce_cab_block(Vec::new()))).expect("parses");
+    assert_eq!(snapshot.left[0].skin, None, "an old preset loads with Auto");
+    let blank = juce_cab_block(vec![(
+        SKIN_OVERRIDE.into(),
+        JuceValue::String(String::new()),
+    )]);
+    let snapshot = ChainSnapshot::from_juce_tree(&juce_chain(blank)).expect("parses");
+    assert_eq!(snapshot.left[0].skin, None, "an empty override is Auto");
+    let ui = ChainSnapshot::from_ui_value(json!({
+        "chain": [{"blockId": "cab", "kind": "tone", "tone": ir_tone().raw, "activeModelId": 3101}]
+    }))
+    .expect("parses");
+    assert_eq!(ui.left[0].skin, None);
+    assert_eq!(ChainBlock::tone("x", ir_tone(), ModelId(3101)).skin, None);
+    assert_eq!(ChainBlock::insert("x").skin, None);
 }

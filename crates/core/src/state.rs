@@ -116,7 +116,7 @@ pub struct PreparationJob {
     pub generation: u64,
     /// Destination block.
     pub block_id: BlockId,
-    /// Active model to prepare.
+    /// Model to prepare: the block's active model, or its IR B in a second job.
     pub model_id: ModelId,
     /// Retry source when embedded bytes are absent.
     pub source: Option<ModelSource>,
@@ -129,18 +129,19 @@ pub struct PreparationJob {
 pub struct RestorePlan {
     /// Restored typed snapshot.
     pub snapshot: SessionSnapshot,
-    /// Active-model preparation jobs.
+    /// Preparation jobs, one per (block, model): the active model and any IR B.
     pub jobs: Vec<PreparationJob>,
     /// Blocks whose identities match the current snapshot and need no forced recompile.
     pub reconciled_block_ids: Vec<BlockId>,
 }
 
 /// Builds a cache-first restoration plan without mutating the current snapshot or cache.
-/// Byte publication happens only after every active model has bytes or a retry source.
+/// Byte publication happens only after every active model has bytes or a retry source. An IR B
+/// with neither gets no job, and its block plays the active model alone.
 ///
 /// # Errors
 ///
-/// Returns [`RestoreError::MissingModel`] for an unrecoverable model, or a cache error.
+/// Returns [`RestoreError::MissingModel`] for an unrecoverable active model, or a cache error.
 pub fn restore_offline(
     document: &SessionDocument,
     caches: RestoreCaches<'_>,
@@ -156,44 +157,47 @@ pub fn restore_offline(
         .chain(&document.snapshot.chain.right)
         .filter(|block| !block.is_insert)
     {
-        let Some(active) = block.active_model_id else {
-            continue;
-        };
-        let source = block.tone.as_ref().and_then(|tone| {
-            tone.models
-                .iter()
-                .find(|model| model.id == active)
-                .and_then(|model| model.source.clone())
-        });
-        let namespace = crate::model_namespace(block, active);
-        let key = ByteCacheKey {
-            block_id: block.id.clone(),
-            model_id: active,
-            namespace,
-        };
-        let bytes = document
-            .model_cache
-            .iter()
-            .find(|entry| {
-                entry.block_id == block.id
-                    && entry.model_id == active
-                    && entry.namespace == namespace
-            })
-            .map(|entry| entry.bytes.clone())
-            .or_else(|| caches.bytes.get(&key));
-        if bytes.is_none() && source.is_none() {
-            return Err(RestoreError::MissingModel {
+        for model_id in prepared_models(block) {
+            let source = block.tone.as_ref().and_then(|tone| {
+                tone.models
+                    .iter()
+                    .find(|model| model.id == model_id)
+                    .and_then(|model| model.source.clone())
+            });
+            let namespace = crate::model_namespace(block, model_id);
+            let key = ByteCacheKey {
                 block_id: block.id.clone(),
-                model_id: active,
+                model_id,
+                namespace,
+            };
+            let bytes = document
+                .model_cache
+                .iter()
+                .find(|entry| {
+                    entry.block_id == block.id
+                        && entry.model_id == model_id
+                        && entry.namespace == namespace
+                })
+                .map(|entry| entry.bytes.clone())
+                .or_else(|| caches.bytes.get(&key));
+            if bytes.is_none() && source.is_none() {
+                // A missing IR B must not stop the restore: the block plays A alone.
+                if Some(model_id) != block.active_model_id {
+                    continue;
+                }
+                return Err(RestoreError::MissingModel {
+                    block_id: block.id.clone(),
+                    model_id,
+                });
+            }
+            jobs.push(PreparationJob {
+                generation: jobs.len() as u64 + 1,
+                block_id: block.id.clone(),
+                model_id,
+                source,
+                bytes,
             });
         }
-        jobs.push(PreparationJob {
-            generation: jobs.len() as u64 + 1,
-            block_id: block.id.clone(),
-            model_id: active,
-            source,
-            bytes,
-        });
     }
     for block in document
         .snapshot
@@ -235,30 +239,33 @@ pub fn restore_offline(
                         if existing.id != block.id
                             || existing.is_insert != block.is_insert
                             || existing.active_model_id != block.active_model_id
+                            || existing.ir_b != block.ir_b
                             || existing.tone != block.tone
                             || existing.params != block.params
                         {
                             return false;
                         }
-                        let Some(active) = block.active_model_id else {
-                            return true;
-                        };
-                        let key = ByteCacheKey {
-                            block_id: block.id.clone(),
-                            model_id: active,
-                            namespace: crate::model_namespace(block, active),
-                        };
-                        let restored = jobs
-                            .iter()
-                            .find(|job| job.block_id == block.id)
-                            .and_then(|job| job.bytes.as_ref());
-                        match (restored, caches.bytes.get(&key)) {
-                            (Some(restored), Some(current)) => {
-                                restored.as_ref() == current.as_ref()
+                        prepared_models(block).all(|model_id| {
+                            let key = ByteCacheKey {
+                                block_id: block.id.clone(),
+                                model_id,
+                                namespace: crate::model_namespace(block, model_id),
+                            };
+                            let Some(job) = jobs
+                                .iter()
+                                .find(|job| job.block_id == block.id && job.model_id == model_id)
+                            else {
+                                // Only an IR B is skipped, and it has no bytes to compare.
+                                return true;
+                            };
+                            match (job.bytes.as_ref(), caches.bytes.get(&key)) {
+                                (Some(restored), Some(current)) => {
+                                    restored.as_ref() == current.as_ref()
+                                }
+                                (Some(_), None) => true,
+                                (None, _) => false,
                             }
-                            (Some(_), None) => true,
-                            (None, _) => false,
-                        }
+                        })
                     })
             })
             .map(|block| block.id.clone())
@@ -270,6 +277,17 @@ pub fn restore_offline(
         jobs,
         reconciled_block_ids,
     })
+}
+
+/// The models a restore prepares for one block: the active model, then IR B when it differs.
+/// A block without an active model prepares nothing, even with an IR B.
+fn prepared_models(block: &crate::ChainBlock) -> impl Iterator<Item = ModelId> + '_ {
+    let active = block.active_model_id;
+    let ir_b = block
+        .ir_b
+        .map(|ir_b| ir_b.model_id)
+        .filter(|id| active.is_some() && Some(*id) != active);
+    active.into_iter().chain(ir_b)
 }
 
 fn collect_model_cache(

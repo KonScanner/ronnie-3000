@@ -1,0 +1,40 @@
+{
+  "id": "chime",
+  "width": 880,
+  "height": 894,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        188.0,
+        252.0
+      ],
+      "side": 48,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        261.0,
+        252.0
+      ],
+      "side": 48,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        335.0,
+        252.0
+      ],
+      "side": 48,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

@@ -14,7 +14,7 @@ pub use spectrum::{SpectrumAnalyzer, SpectrumTap};
 
 use crate::{
     ChainError, CompiledModel, PhaseEngine, PlanarBuffer, PrepareSpec,
-    ir::{CompiledIr, PreparedIr},
+    ir::{CompiledIr, PairMix, PreparedIr, PreparedIrPair},
     oversampling::ChainOversampler,
 };
 use eq::{EqControls, EqEngine};
@@ -27,6 +27,13 @@ pub enum BlockModel {
     Nam(CompiledModel),
     /// Immutable compiled IR.
     Ir(Arc<CompiledIr>),
+    /// Two compiled cab IRs blended inside one block.
+    IrPair {
+        /// The block's own IR.
+        a: Arc<CompiledIr>,
+        /// The IR blended in by `ir_blend`.
+        b: Arc<CompiledIr>,
+    },
 }
 
 /// Mutable model engine owned by one prepared block.
@@ -35,6 +42,8 @@ pub enum ModelProcessor {
     Nam(PhaseEngine),
     /// Prepared IR engine.
     Ir(Box<PreparedIr>),
+    /// Two prepared IR engines and their mix.
+    IrPair(Box<PreparedIrPair>),
 }
 
 /// Controls sampled at one callback boundary.
@@ -70,6 +79,14 @@ pub struct BlockControls {
     pub swap_mute_wet: bool,
     /// Whether the EQ analyzer is open and accepting samples.
     pub spectrum_enabled: bool,
+    /// IR pair crossfade: 0 plays only A, 1 plays only B.
+    pub ir_blend: f32,
+    /// Normalized level of IR A, 0.5 at unity.
+    pub ir_a_level: f32,
+    /// Normalized level of IR B, 0.5 at unity.
+    pub ir_b_level: f32,
+    /// Flip IR B's polarity.
+    pub ir_b_invert: bool,
 }
 
 impl Default for BlockControls {
@@ -90,8 +107,17 @@ impl Default for BlockControls {
             swap_pending: false,
             swap_mute_wet: false,
             spectrum_enabled: false,
+            ir_blend: 0.5,
+            ir_a_level: 0.5,
+            ir_b_level: 0.5,
+            ir_b_invert: false,
         }
     }
+}
+
+/// A normalized pair level, with a non-finite level at unity (0.5).
+fn finite_level(level: f32) -> f32 {
+    if level.is_finite() { level } else { 0.5 }
 }
 
 impl BlockControls {
@@ -103,7 +129,20 @@ impl BlockControls {
         self.normalize = params.normalize;
         self.slim_size = params.slim_size;
         self.eq = EqControls::from(&params.eq);
+        self.ir_blend = params.ir_blend as f32;
+        self.ir_a_level = params.ir_a_level as f32;
+        self.ir_b_level = params.ir_b_level as f32;
+        self.ir_b_invert = params.ir_b_invert;
         self
+    }
+
+    fn pair_mix(&self) -> PairMix {
+        PairMix {
+            blend: self.ir_blend,
+            level_a: normalized_gain(finite_level(self.ir_a_level)),
+            level_b: normalized_gain(finite_level(self.ir_b_level)),
+            invert_b: self.ir_b_invert,
+        }
     }
 }
 
@@ -165,7 +204,7 @@ pub fn prepare_block(
     let mut controls = BlockControls::from(&params);
     let model = compiled.clone();
     let ir_kind = match &compiled {
-        BlockModel::Ir(compiled) => Some(compiled.kind),
+        BlockModel::Ir(compiled) | BlockModel::IrPair { a: compiled, .. } => Some(compiled.kind),
         BlockModel::Nam(_) => None,
     };
     let (processor, normalization_gain) = match compiled {
@@ -197,6 +236,15 @@ pub fn prepare_block(
                 ModelProcessor::Ir(Box::new(engine)),
                 compiled.normalization_gain,
             )
+        }
+        BlockModel::IrPair { a, b } => {
+            if a.kind == crate::ir::IrKind::Reverb && params.mix == 1.0 {
+                controls.mix = 0.5;
+            }
+            let mut engine = PreparedIrPair::new(a, b, spec.stereo_output, controls.pair_mix());
+            engine.prepare(spec.max_host_frames)?;
+            // Each IR's own normalization is part of its mix gain.
+            (ModelProcessor::IrPair(Box::new(engine)), 1.0)
         }
     };
     let eq = EqEngine::new(chain_rate, &controls.eq);
@@ -453,12 +501,22 @@ impl PreparedBlock {
                     &mut self.island,
                     !controls.dual_mono && channels > 1 && self.spec.stereo_output,
                 )?;
-                self.normalization_gain = self.normalization_gain.clamp(0.0, 1.0);
-                self.normalization_smoother
-                    .set_target(self.normalization_gain);
-                for sample in buffer.as_mut_slice() {
-                    *sample *= self.normalization_smoother.next();
-                }
+            }
+            ModelProcessor::IrPair(engine) => {
+                engine.set_mix(controls.pair_mix());
+                engine.process_planar_with_stereo(
+                    buffer,
+                    &mut self.island,
+                    !controls.dual_mono && channels > 1 && self.spec.stereo_output,
+                )?;
+            }
+        }
+        if !matches!(self.processor, ModelProcessor::Nam(_)) {
+            self.normalization_gain = self.normalization_gain.clamp(0.0, 1.0);
+            self.normalization_smoother
+                .set_target(self.normalization_gain);
+            for sample in buffer.as_mut_slice() {
+                *sample *= self.normalization_smoother.next();
             }
         }
         if !controls.eq.pre && self.eq.is_active() {
@@ -516,5 +574,26 @@ impl PreparedBlock {
             self.spectrum.push_samples(left, right, dual_mono);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BlockControls;
+
+    #[test]
+    fn a_non_finite_pair_level_plays_at_unity() {
+        for level in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let controls = BlockControls {
+                ir_a_level: level,
+                ir_b_level: level,
+                ..BlockControls::default()
+            };
+            let mix = controls.pair_mix();
+            assert!(
+                (mix.level_a - 1.0).abs() < 1e-6 && (mix.level_b - 1.0).abs() < 1e-6,
+                "{level}: {mix:?}"
+            );
+        }
     }
 }
