@@ -3232,6 +3232,25 @@ fn draw_save(painter: &egui::Painter, rect: egui::Rect) {
     ));
 }
 
+/// Where the account menu opens. The Stage layout keeps the account in the bottom bar, so the
+/// menu opens just above its trigger there. The reference layout keeps the account at the top
+/// right of the header, so the menu hangs below that corner of `root`.
+fn account_placement(
+    view_mode: crate::shell::ViewMode,
+    trigger: Option<Trigger>,
+    root: egui::Rect,
+) -> PopoverPlacement {
+    match trigger {
+        Some(trigger) if view_mode == crate::shell::ViewMode::RonnieFlow => {
+            PopoverPlacement::Above {
+                anchor: trigger.rect(),
+                gap: 6.0,
+            }
+        }
+        _ => PopoverPlacement::At(egui::pos2(root.right() - 214.0, root.top() - 4.0)),
+    }
+}
+
 pub(super) fn show_overlay(ui: &mut egui::Ui, chrome: &mut ChromeController) {
     let trigger = chrome.overlay_trigger;
     let popover = |name: &str, panel: egui::Rect, radius: f32| {
@@ -3248,18 +3267,23 @@ pub(super) fn show_overlay(ui: &mut egui::Ui, chrome: &mut ChromeController) {
         Overlay::Account => {
             let root = ui.available_rect_before_wrap();
             let session = chrome.session();
-            let panel = egui::Rect::from_min_size(
-                egui::pos2(root.right() - 214.0, root.top() - 4.0),
-                egui::vec2(
-                    190.0,
-                    if session == SessionStatus::NoService {
-                        56.0
-                    } else {
-                        94.0
-                    },
-                ),
+            let size = egui::vec2(
+                190.0,
+                if session == SessionStatus::NoService {
+                    56.0
+                } else {
+                    94.0
+                },
             );
-            popover("account-popover", panel, 12.0).show(ui, |ui, panel| {
+            let placement = account_placement(chrome.view_mode(), trigger, root);
+            Popover::new(
+                ui.scope_id().with("account-popover"),
+                placement,
+                size,
+                Surface::edged(12.0),
+            )
+            .trigger(trigger)
+            .show(ui, |ui, panel| {
                 let row = |index| {
                     egui::Rect::from_min_size(
                         panel.min + egui::vec2(8.0, 8.0 + index as f32 * 38.0),
@@ -3903,6 +3927,32 @@ mod tests {
     use crate::backend::{
         ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiBackend, UiError, UiReceipt,
     };
+
+    #[test]
+    fn the_account_menu_opens_next_to_its_trigger_in_the_stage_layout() {
+        use crate::shell::ViewMode;
+        let root = egui::Rect::from_min_size(egui::pos2(0.0, 64.0), egui::vec2(1400.0, 700.0));
+        let account = egui::Rect::from_min_size(egui::pos2(1050.0, 740.0), egui::vec2(140.0, 24.0));
+        let trigger = Some(Trigger::new(account, None));
+        assert_eq!(
+            account_placement(ViewMode::RonnieFlow, trigger, root),
+            PopoverPlacement::Above {
+                anchor: account,
+                gap: 6.0
+            },
+            "the bottom bar's account opens its menu above itself"
+        );
+        assert_eq!(
+            account_placement(ViewMode::ReferenceDefault, trigger, root),
+            PopoverPlacement::At(egui::pos2(1400.0 - 214.0, 60.0)),
+            "the reference header keeps its menu at the top right"
+        );
+        assert_eq!(
+            account_placement(ViewMode::RonnieFlow, None, root),
+            PopoverPlacement::At(egui::pos2(1400.0 - 214.0, 60.0)),
+            "a menu with no trigger yet falls back to the corner"
+        );
+    }
 
     fn scenario(id: &str) -> crate::testbed::UiScenario {
         crate::testbed::load_scenarios(include_str!("../../../../fixtures/ui-scenarios.json"))

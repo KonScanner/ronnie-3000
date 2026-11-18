@@ -80,9 +80,6 @@ pub(super) fn show_utility(
     if account.clicked() {
         clicked = Some("Account");
     }
-    if chrome.overlay() == Overlay::Account {
-        chrome.set_overlay_trigger(Some(Trigger::from(&account)));
-    }
 
     ui.painter().text(
         egui::pos2(bounds.right() - 16.0, bounds.center().y),
@@ -117,6 +114,10 @@ pub(super) fn show_utility(
             }
         }
         _ => {}
+    }
+    // Set after the click opens the menu, so the menu's first frame opens above its trigger.
+    if chrome.overlay() == Overlay::Account {
+        chrome.set_overlay_trigger(Some(Trigger::from(&account)));
     }
 }
 

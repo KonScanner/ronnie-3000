@@ -204,6 +204,7 @@ fn an_lcd_rect_scales_with_the_body() {
             center: [300.0, 200.0],
             size: [90.0, 30.0],
         }),
+        plate: None,
     };
     let lcd = manifest.lcd.as_ref().unwrap();
     let full = Rect::from_min_size(pos2(10.0, 20.0), vec2(600.0, 800.0));
@@ -399,6 +400,7 @@ fn lcd_manifest(lcd: Option<SkinLcd>) -> SkinManifest {
         height: 800,
         knobs: Vec::new(),
         lcd,
+        plate: None,
     }
 }
 

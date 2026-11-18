@@ -29,6 +29,12 @@ impl Trigger {
     pub const fn new(rect: Rect, focus: Option<egui::Id>) -> Self {
         Self { rect, focus }
     }
+
+    /// The trigger area, so that a popover can open next to it.
+    #[must_use]
+    pub const fn rect(&self) -> Rect {
+        self.rect
+    }
 }
 
 impl From<&egui::Response> for Trigger {

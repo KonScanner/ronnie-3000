@@ -6,6 +6,20 @@ All notable changes to Ronnie 3000 are in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-18
+
+### Changed
+
+- The Stage header fits the window, from the smallest window up to a wide 2560x1440 screen.
+  The preset manager keeps to the right edge and grows with the window. The chain sits in the
+  middle of the space that is left, and the + to add a block now follows the last gear icon.
+- In the Stage layout, the account menu opens just above the account name in the bottom bar.
+  Before, it opened at the top right of the window.
+- The default amp and cab renders have a blank name plate, and Ronnie prints the active
+  capture's name on it. Before, the plate showed a fixed sample name such as "MY-RIG-LEAD".
+  The committed renders still show the sample name until `tools/render/build_skins.sh` renders
+  them again.
+
 ## [0.1.3] - 2026-11-18
 
 ### Added
@@ -98,7 +112,8 @@ The first public release.
 - Install on Linux with an AppImage, a tarball, or a one-line script. Experimental builds for
   macOS and Windows.
 
-[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/KonScanner/ronnie-3000/compare/v0.1.0...v0.1.1

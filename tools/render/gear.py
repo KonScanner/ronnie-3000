@@ -1,6 +1,6 @@
 """Ronnie 3000 amp and cab skins, rendered in Blender.
 
-Run: Blender -b --python-exit-code 1 -P gear.py -- <skin> <out_dir> [samples]
+Run: Blender -b --python-exit-code 1 -P gear.py -- <skin> <out_dir> [samples] [title]
 Amps: highgain, modern-us, british, chime, clean, bass, default-clean, default-crunch, default-hi-gain
 Cabs: cab-412-modern, cab-412-vintage, cab-212-chime, cab-112-clean, cab-810-bass, cab-default
 Units: 1 BU = 1 cm. Front view with a slight high angle, shared lighting.
@@ -14,7 +14,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import finish, knob_rig, load_font  # noqa: E402
+from common import finish, knob_rig, load_font, plate_rig  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 SKIN = argv[0] if argv else "highgain"
@@ -411,6 +411,23 @@ def bat_toggle(F, x, y, z, ink, label):
     text(label, 0.55, (x, y + 1.9, z + 0.02), ink, parent=F)
 
 
+# The left edge of the plate is this far left of the badge point. The "bottomleft" point is at
+# x0 + 10, so the edge sits 3.5 cm inside the grille edge.
+PLATE_INSET = 6.5
+# The plate is this share of the front width (x0 to x1).
+PLATE_SHARE = 0.45
+# The plate height: the cap height of the old 1.0-size badge text, with a margin.
+PLATE_HEIGHT = 1.4
+# The plate is this far above the grille cloth, as the old badge text was.
+PLATE_LIFT = 0.05
+
+
+def name_plate(F, x0, x1, x, y, z, ink):
+    """Registers a blank name plate from PLATE_INSET left of the badge point (x, y), PLATE_SHARE
+    of the front (x0 to x1) wide, for the app to print the capture's name in `ink`, a linear RGB."""
+    plate_rig.set_plate(F, x - PLATE_INSET, y, z + PLATE_LIFT, (x1 - x0) * PLATE_SHARE, PLATE_HEIGHT, ink)
+
+
 def badge(F, kind, title, x, y, z, ink):
     if kind in ("silver", "steel"):
         w = 0.95 * len(title) + 2.6
@@ -526,12 +543,13 @@ AMPS = {
                  panel=dict(color=(0.74, 0.75, 0.77), metallic=1.0, rough=0.24), panel_top=True, ink=(0.03, 0.03, 0.03), knob="knurl-black",
                  pilot=(1.0, 0.03, 0.0), leds=None, rockers=[(0.85, 0.85, 0.83), (0.85, 0.85, 0.83)], jacks=["INPUT"], badge=("steel", "Bass 300", "bottomright"), handle="bar", corners=True),
 }
-for k, grille_a, grille_b, title in (("default-clean", (0.5, 0.5, 0.48), (0.38, 0.38, 0.36), "bedroom-clean"),
-                                    ("default-crunch", (0.24, 0.15, 0.08), (0.14, 0.09, 0.05), "capture-03"),
-                                    ("default-hi-gain", (0.02, 0.02, 0.02), (0.06, 0.06, 0.065), "my-rig-lead")):
+# The default amps leave their name plate blank: the app prints the active capture there.
+for k, grille_a, grille_b in (("default-clean", (0.5, 0.5, 0.48), (0.38, 0.38, 0.36)),
+                              ("default-crunch", (0.24, 0.15, 0.08), (0.14, 0.09, 0.05)),
+                              ("default-hi-gain", (0.02, 0.02, 0.02), (0.06, 0.06, 0.065))):
     AMPS[k] = dict(form="head", W=64, H=27, D=25, tolex=(0.05, 0.05, 0.055), grain="fine", grille=("cloth", grille_a, grille_b), piping=(0.2, 0.2, 0.21),
                    panel=dict(color=(0.08, 0.08, 0.085), metallic=0.7, rough=0.3), panel_top=False, ink=(0.86, 0.86, 0.84), knob="chicken-white",
-                   pilot=(1.0, 0.25, 0.0), leds=None, rockers=None, jacks=["INPUT"], badge=("plain", title, "bottomleft"), handle="strap", corners=False, mark=True)
+                   pilot=(1.0, 0.25, 0.0), leds=None, rockers=None, jacks=["INPUT"], badge=("plate", None, "bottomleft"), handle="strap", corners=False, mark=True)
 
 CABS = {
     "cab-412-modern": dict(W=76, H=76, D=36, tolex=(0.012, 0.012, 0.012), grain="fine", grille=("mesh", (0.01, 0.01, 0.01), (0.05, 0.05, 0.05)), piping=None, see=0.55,
@@ -545,15 +563,17 @@ CABS = {
     "cab-810-bass": dict(W=62, H=120, D=40, tolex=(0.014, 0.014, 0.016), grain="fine", grille=("grid", (0.04, 0.04, 0.045), (0.0, 0.0, 0.0)), piping=None, see=0.3,
                          spk=[(sx * 13, 41 - i * 25) for i in range(4) for sx in (-1, 1)], r=10.5, badge=("steel", "Bass 8x10", "topcenter"), handle=None, corners=False, casters=True),
     "cab-default": dict(W=72, H=48, D=28, tolex=(0.05, 0.05, 0.055), grain="fine", grille=("cloth", (0.06, 0.06, 0.065), (0.11, 0.11, 0.115)), piping=(0.2, 0.2, 0.21), see=0.18,
-                        spk=[(-16, -1), (16, -1)], r=14.5, badge=("plain", "my-ir-mix", "bottomleft"), handle="strap", corners=False),
+                        spk=[(-16, -1), (16, -1)], r=14.5, badge=("plate", None, "bottomleft"), handle="strap", corners=False),
 }
 
 # ================================================================ build
+# The linear RGB of the label ink when a skin sets no "ink".
+DEFAULT_INK = (0.86, 0.86, 0.84)
 is_cab = SKIN in CABS
 cfg = CABS[SKIN] if is_cab else AMPS[SKIN]
 W, H, D = cfg["W"], cfg["H"], cfg["D"]
 lift = 6.6 if cfg.get("casters") else 1.2
-INK = principled("ink", cfg.get("ink", (0.86, 0.86, 0.84)), rough=0.5)
+INK = principled("ink", cfg.get("ink", DEFAULT_INK), rough=0.5)
 
 body = box("tolex body", (W, D, H), (0, 0, lift + H / 2), tolex("tolex", cfg["tolex"], cfg["grain"]), bev=1.3, seg=8)
 F = front_frame(D)
@@ -608,7 +628,11 @@ if is_cab:
     cx, cy, gw, gh = grille_area(x0, x1, y0, y1, [(sx, sy) for sx, sy in cfg["spk"]], cfg["r"], cfg["see"])
     kind, title_txt, where = cfg["badge"]
     bx, by = badge_pos(where, x0, x1, y0, y1)
-    badge(F, kind, title, bx, by, 0.1, principled("script ink", cfg.get("badge_ink", (0.88, 0.85, 0.76)), rough=0.4) if kind == "script" or cfg.get("badge_ink") else INK)
+    if kind == "plate" and not TITLE:
+        name_plate(F, x0, x1, bx, by, 0.1, cfg.get("badge_ink") or cfg.get("ink", DEFAULT_INK))
+    else:
+        kind = "plain" if kind == "plate" else kind
+        badge(F, kind, title, bx, by, 0.1, principled("script ink", cfg.get("badge_ink", (0.88, 0.85, 0.76)), rough=0.4) if kind == "script" or cfg.get("badge_ink") else INK)
 else:
     m = 2.6
     panel_h = 8.0 if cfg["form"] == "head" else 8.5
@@ -665,8 +689,13 @@ else:
             rx -= 3.6
     kind, _, where = cfg["badge"]
     bx, by = badge_pos(where, x0, x1, gy0, gy1)
-    badge(F, kind, title, bx, by, 0.1, principled("badge ink", (0.92, 0.9, 0.84), rough=0.4) if kind == "script" else
-          principled("plain ink", cfg.get("badge_ink") or ((0.85, 0.85, 0.83) if sum(cfg["grille"][1]) < 1.0 else (0.04, 0.04, 0.04)), rough=0.5))
+    plain_ink = cfg.get("badge_ink") or ((0.85, 0.85, 0.83) if sum(cfg["grille"][1]) < 1.0 else (0.04, 0.04, 0.04))
+    if kind == "plate" and not TITLE:
+        name_plate(F, x0, x1, bx, by, 0.1, plain_ink)
+    else:
+        kind = "plain" if kind == "plate" else kind
+        badge(F, kind, title, bx, by, 0.1, principled("badge ink", (0.92, 0.9, 0.84), rough=0.4) if kind == "script" else
+              principled("plain ink", plain_ink, rough=0.5))
 
 if cfg.get("corners"):
     corners(W, D, H + lift * 0)

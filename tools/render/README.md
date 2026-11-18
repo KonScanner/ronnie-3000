@@ -46,5 +46,10 @@ Each skin gets a folder under `crates/ui/assets/skins/<skin>/`:
   `lcd`: the `center` and `size` of its LCD glass, in body pixels. The camera is about 10° from straight down, so the
   glass projects to a slight trapezoid; `lcd` is the axis-aligned rectangle around its top face. The glass is rendered
   blank: the app draws the active capture's name on it.
+  The default amps (`default-clean`, `default-crunch`, `default-hi-gain`) and `cab-default` have `plate`: the
+  `center` and `size` of a blank name plate at the bottom left of the grille, in body pixels, and the `ink` of the
+  name as 8-bit sRGB. The render prints nothing there: the app prints the active capture's name in capitals, cut
+  with an ellipsis. A fourth argument to `gear.py` (a title) prints that title on the plate instead, with no
+  `plate` in the manifest.
 
 The app embeds these files. Running the build again replaces them.

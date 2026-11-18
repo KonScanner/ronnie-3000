@@ -17,24 +17,100 @@ use super::super::{
     tile::{block_glyph, draw_glyph},
 };
 
-/// Left edge of the chain strip in design points.
-const STRIP_LEFT: f32 = 260.0;
-/// Right edge of the chain strip, before the preset manager.
-const STRIP_RIGHT: f32 = 644.0;
+/// Space between the window edge and the preset manager.
+const MARGIN: f32 = 24.0;
+/// Left edge of the chain zone, after the logo and the name.
+const STRIP_LEFT: f32 = 210.0;
+/// Space between the chain zone and the preset manager. A hairline sits in its middle.
+const ZONE_GAP: f32 = 32.0;
+/// The preset manager takes this share of the header width, between the two limits.
+const PRESETS_SHARE: f32 = 0.3;
+const PRESETS_MIN: f32 = 300.0;
+const PRESETS_MAX: f32 = 420.0;
 /// One block button.
 const BUTTON: egui::Vec2 = egui::vec2(52.0, 56.0);
 /// Space between block buttons.
 const BUTTON_GAP: f32 = 6.0;
 /// Side of a gear glyph inside a block button.
 const GLYPH: f32 = 38.0;
-/// Room kept at the right of the strip for the + button.
-const PLUS_ROOM: f32 = 52.0;
+/// Side of the + button.
+const PLUS: f32 = 40.0;
+/// Space between the last block and the + button, so that the + reads as the chain's next slot.
+const PLUS_GAP: f32 = 10.0;
 /// Width of a scroll arrow at either end of the strip.
 const ARROW: f32 = 18.0;
-/// Left edge of the preset manager.
-const PRESETS_LEFT: f32 = 652.0;
-/// Right edge of the preset manager.
-const PRESETS_RIGHT: f32 = 1000.0;
+
+/// Where the parts of the header go for one window width and one chain.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct HeaderLayout {
+    /// The span that the blocks and, when the chain is too long, the scroll arrows take.
+    strip: egui::Rangef,
+    /// The left edge of the first block when the chain fits.
+    first_block: f32,
+    /// Whether the chain is too long for its zone and scrolls.
+    overflow: bool,
+    /// The + button, after the last block.
+    plus: Rect,
+    /// The preset manager.
+    presets: egui::Rangef,
+    /// The hairline between the chain zone and the preset manager.
+    divider: f32,
+}
+
+impl HeaderLayout {
+    /// The layout in the header `bounds` for blocks of `chain_width` in total.
+    ///
+    /// The preset manager keeps to the right edge and grows with the window between its limits.
+    /// The chain and its + stay together as one group in the middle of the free zone. A chain
+    /// too long for the zone fills it, scrolls, and keeps the + at the zone's right end.
+    pub(super) fn new(bounds: Rect, chain_width: f32) -> Self {
+        let presets_right = bounds.right() - MARGIN;
+        let presets_width = (bounds.width() * PRESETS_SHARE).clamp(PRESETS_MIN, PRESETS_MAX);
+        let presets = egui::Rangef::new(presets_right - presets_width, presets_right);
+        let zone_left = bounds.left() + STRIP_LEFT;
+        let zone_right = (presets.min - ZONE_GAP).max(zone_left + PLUS);
+        let plus_room = PLUS + if chain_width > 0.0 { PLUS_GAP } else { 0.0 };
+        let overflow = chain_width + plus_room > zone_right - zone_left;
+        let (strip, first_block, plus_left) = if overflow {
+            let strip = egui::Rangef::new(zone_left, zone_right - PLUS - PLUS_GAP);
+            (strip, strip.min + ARROW, zone_right - PLUS)
+        } else {
+            let group = chain_width + plus_room;
+            let left = zone_left + (zone_right - zone_left - group) / 2.0;
+            (
+                egui::Rangef::new(left, left + chain_width),
+                left,
+                left + group - PLUS,
+            )
+        };
+        Self {
+            strip,
+            first_block,
+            overflow,
+            plus: Rect::from_min_size(
+                egui::pos2(plus_left, bounds.center().y - PLUS / 2.0),
+                egui::Vec2::splat(PLUS),
+            ),
+            presets,
+            divider: presets.min - ZONE_GAP / 2.0,
+        }
+    }
+
+    /// The layout of the header `bounds` for the chain in `state`.
+    pub(super) fn of(bounds: Rect, state: &ChainViewState) -> Self {
+        Self::new(bounds, chain_width(&strip_items(state)))
+    }
+
+    /// The + button's box.
+    pub(super) const fn plus(&self) -> Rect {
+        self.plus
+    }
+}
+
+/// The width of the blocks and lane dividers in a row, with the gaps between them.
+fn chain_width(items: &[StripItem<'_>]) -> f32 {
+    items.iter().map(item_width).sum::<f32>() + BUTTON_GAP * items.len().saturating_sub(1) as f32
+}
 
 /// One block in strip order, with the lane divider before lane B.
 enum StripItem<'a> {
@@ -57,9 +133,15 @@ pub(super) fn show_header(
         Stroke::new(1.0, look.edge),
     );
 
+    let layout = HeaderLayout::of(bounds, state);
     show_logo(ui, chrome, bounds, look);
-    show_strip(ui, chrome, state, bounds, look);
-    show_presets(ui, chrome, state, bounds, look);
+    show_strip(ui, chrome, state, bounds, &layout, look);
+    painter.vline(
+        layout.divider,
+        (bounds.top() + 18.0)..=(bounds.bottom() - 18.0),
+        Stroke::new(1.0, look.edge),
+    );
+    show_presets(ui, chrome, state, bounds, layout.presets, look);
 }
 
 fn show_logo(ui: &mut egui::Ui, chrome: &mut ChromeController, bounds: Rect, look: Look) {
@@ -123,14 +205,13 @@ fn show_strip(
     chrome: &mut ChromeController,
     state: &ChainViewState,
     bounds: Rect,
+    layout: &HeaderLayout,
     look: Look,
 ) {
     let items = strip_items(state);
-    let content_left = bounds.left() + STRIP_LEFT;
-    let content_right = bounds.left() + STRIP_RIGHT - PLUS_ROOM;
-    let total: f32 = items.iter().map(item_width).sum::<f32>()
-        + BUTTON_GAP * items.len().saturating_sub(1) as f32;
-    let overflow = total > content_right - content_left;
+    let content_left = layout.strip.min;
+    let content_right = layout.strip.max;
+    let overflow = layout.overflow;
 
     // The first item shown, kept in memory so that the arrows can step through a long chain.
     let scroll_id = egui::Id::unique("stage-strip-first");
@@ -145,10 +226,9 @@ fn show_strip(
     }
 
     let (left, right) = if overflow {
-        (content_left + ARROW, content_right - ARROW)
+        (layout.first_block, content_right - ARROW)
     } else {
-        let left = content_left + ((content_right - content_left) - total) / 2.0;
-        (left, content_right)
+        (layout.first_block, content_right)
     };
 
     let selected = match chrome.gallery().selection() {
@@ -253,7 +333,7 @@ fn show_strip(
     }
     ui.ctx().data_mut(|data| data.insert_temp(scroll_id, first));
 
-    show_plus(ui, chrome, state, bounds, look);
+    show_plus(ui, chrome, state, layout.plus, look);
 
     if let Some((id, enabled)) = toggle {
         let _ = chrome.gallery_mut().set_enabled(&id, enabled);
@@ -301,32 +381,14 @@ fn arrow(
     response.clicked()
 }
 
-/// The + button's box, inside the header `bounds`.
-pub(super) fn plus_rect(bounds: Rect) -> Rect {
-    Rect::from_center_size(
-        egui::pos2(
-            bounds.left() + STRIP_RIGHT - PLUS_ROOM / 2.0 + 4.0,
-            bounds.center().y,
-        ),
-        egui::Vec2::splat(40.0),
-    )
-}
-
 fn show_plus(
     ui: &mut egui::Ui,
     chrome: &mut ChromeController,
     state: &ChainViewState,
-    bounds: Rect,
+    rect: Rect,
     look: Look,
 ) {
     let painter = ui.painter().clone();
-    let divider_x = bounds.left() + STRIP_RIGHT - PLUS_ROOM + 2.0;
-    painter.vline(
-        divider_x,
-        (bounds.top() + 18.0)..=(bounds.bottom() - 18.0),
-        Stroke::new(1.0, look.edge),
-    );
-    let rect = plus_rect(bounds);
     let response = ui.interact(rect, ui.scope_id().with("stage-add"), egui::Sense::click());
     let mut menu = AddMenu::load(ui.ctx());
     // A slot's menu leaves the + dashed: the + did not open it.
@@ -408,11 +470,12 @@ fn show_presets(
     chrome: &mut ChromeController,
     state: &ChainViewState,
     bounds: Rect,
+    span: egui::Rangef,
     look: Look,
 ) {
     let painter = ui.painter().clone();
-    let left = bounds.left() + PRESETS_LEFT;
-    let right = bounds.left() + PRESETS_RIGHT;
+    let left = span.min;
+    let right = span.max;
     let has_presets = !chrome.presets().is_empty();
 
     // Row 1: arrows on the left, text actions on the right.
@@ -627,6 +690,74 @@ fn hit(ui: &mut egui::Ui, rect: Rect, label: &'static str, enabled: bool) -> egu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn header(width: f32) -> Rect {
+        Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(width, 64.0))
+    }
+
+    /// The width of `blocks` block buttons in one lane.
+    fn blocks(count: usize) -> f32 {
+        BUTTON.x * count as f32 + BUTTON_GAP * count.saturating_sub(1) as f32
+    }
+
+    #[test]
+    fn the_plus_follows_the_last_block_of_the_chain() {
+        for count in [1, 2, 4] {
+            let layout = HeaderLayout::new(header(1400.0), blocks(count));
+            assert!(!layout.overflow);
+            assert_eq!(layout.strip.max, layout.first_block + blocks(count));
+            assert_eq!(
+                layout.plus.left(),
+                layout.strip.max + PLUS_GAP,
+                "{count} blocks"
+            );
+        }
+    }
+
+    #[test]
+    fn the_chain_and_its_plus_sit_in_the_middle_of_the_free_zone() {
+        let layout = HeaderLayout::new(header(1400.0), blocks(2));
+        let zone_right = layout.presets.min - ZONE_GAP;
+        let space_left = layout.first_block - STRIP_LEFT;
+        let space_right = zone_right - layout.plus.right();
+        assert!((space_left - space_right).abs() < 0.01);
+
+        let empty = HeaderLayout::new(header(1400.0), 0.0);
+        assert!((empty.plus.center().x - (STRIP_LEFT + zone_right) / 2.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn the_preset_manager_keeps_to_the_right_edge_and_grows_with_the_window() {
+        let narrow = HeaderLayout::new(header(1024.0), blocks(2));
+        let wide = HeaderLayout::new(header(1400.0), blocks(2));
+        let huge = HeaderLayout::new(header(2400.0), blocks(2));
+        assert_eq!(narrow.presets.max, 1024.0 - MARGIN);
+        assert_eq!(wide.presets.max, 1400.0 - MARGIN);
+        assert_eq!(
+            narrow.presets.span(),
+            PRESETS_MIN.max(1024.0 * PRESETS_SHARE)
+        );
+        assert!(wide.presets.span() > narrow.presets.span());
+        assert_eq!(huge.presets.span(), PRESETS_MAX);
+        for layout in [narrow, wide, huge] {
+            assert!(layout.plus.right() < layout.divider);
+            assert!(layout.divider < layout.presets.min);
+        }
+    }
+
+    #[test]
+    fn a_long_chain_scrolls_and_keeps_the_plus_at_the_end_of_its_zone() {
+        let layout = HeaderLayout::new(header(1024.0), blocks(20));
+        assert!(layout.overflow);
+        assert!(
+            layout.strip.min >= STRIP_LEFT && layout.strip.max < layout.plus.left(),
+            "the strip {:?} stays between the name and the +",
+            layout.strip
+        );
+        assert_eq!(layout.plus.right(), layout.presets.min - ZONE_GAP);
+        assert_eq!(layout.strip.max + PLUS_GAP, layout.plus.left());
+        assert_eq!(layout.first_block, layout.strip.min + ARROW);
+    }
 
     #[test]
     fn a_preset_arrow_uses_the_colours_of_its_layout() {

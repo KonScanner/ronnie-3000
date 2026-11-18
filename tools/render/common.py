@@ -151,6 +151,40 @@ class LcdRig:
 lcd_rig = LcdRig()
 
 
+class PlateRig:
+    """The blank name plate of a default amp or cab: a rectangle on the front face, and its ink.
+
+    The render leaves the plate empty; the app prints the active capture's name on it.
+    """
+
+    def __init__(self):
+        self.frame = None
+        self.corners = None
+        self.ink = None
+
+    def set_plate(self, frame, left, y, z, w, h, ink):
+        """Registers the plate on `frame`, an object whose local XY is the front face.
+
+        The plate starts at `left`, is centred on height `y` at depth `z`, and is `w` wide and
+        `h` high. `ink` is the linear RGB of the printed name.
+        """
+        if self.corners is not None:
+            raise ValueError("set_plate called twice: the name plate is already registered")
+        self.frame = frame
+        self.corners = [(left + dx, y + sy * h / 2, z) for dx in (0.0, w) for sy in (-1, 1)]
+        self.ink = ink
+
+
+plate_rig = PlateRig()
+
+
+def srgb8(linear):
+    """An 8-bit sRGB channel from a linear channel, as the app's colours are."""
+    c = max(0.0, min(1.0, linear))
+    s = c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+    return round(s * 255)
+
+
 def fit_resolution(scene):
     """Scales the render so that the body is TARGET_HEIGHT tall and at most MAX_WIDTH wide."""
     r = scene.render
@@ -342,6 +376,19 @@ def finish(scene, out_dir, skin_id, samples):
         manifest["lcd"] = {
             "center": [round((min(xs) + max(xs)) / 2.0, 1), round((min(ys) + max(ys)) / 2.0, 1)],
             "size": [round(max(xs) - min(xs), 1), round(max(ys) - min(ys), 1)],
+        }
+    if plate_rig.corners:
+        # The plate lives on the front frame; its world corners follow the frame's transform.
+        # The knob loop above moved objects after the first update, so refresh the matrices.
+        bpy.context.view_layer.update()
+        world = [plate_rig.frame.matrix_world @ Vector(c) for c in plate_rig.corners]
+        pts = [project(scene, cam, c) for c in world]
+        xs = [px - trim_left for px, _ in pts]
+        ys = [py - trim_top for _, py in pts]
+        manifest["plate"] = {
+            "center": [round((min(xs) + max(xs)) / 2.0, 1), round((min(ys) + max(ys)) / 2.0, 1)],
+            "size": [round(max(xs) - min(xs), 1), round(max(ys) - min(ys), 1)],
+            "ink": [srgb8(c) for c in plate_rig.ink],
         }
     with open(os.path.join(out_dir, "skin.json"), "w") as f:
         json.dump(manifest, f, indent=2)

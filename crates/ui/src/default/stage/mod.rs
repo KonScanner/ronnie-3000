@@ -456,7 +456,7 @@ fn show_add_menu(
     };
     // A downloading row spins, so the menu must repaint until its tone lands.
     let loading = data.loading.is_some();
-    let plus = header::plus_rect(header_bounds);
+    let plus = header::HeaderLayout::of(header_bounds, state).plus();
     let action = add_menu::show(ui, plus, stage, &mut menu, &data);
     if let Some(action) = action {
         if let Some(id) = menu.replacing.clone() {

@@ -406,17 +406,19 @@ fn a_long_chain_scrolls_instead_of_overlapping() {
         blocks.push(chain["chain"][3].clone());
         chain["chain"] = blocks.into();
     });
-    let strip = eframe::egui::Rect::from_min_max(
-        eframe::egui::pos2(260.0, 0.0),
-        eframe::egui::pos2(644.0, 64.0),
-    );
+    // The strip lies between the logo and the + button, wherever the layout puts them.
+    let logo = rect_of(&driver, "Back to main screen").expect("the logo");
+    let plus = rect_of(&driver, "Add a block").expect("the + button");
     let shown: Vec<_> = (0..14)
         .filter_map(|index| rect_of(&driver, &format!("Chain: Block {index}")))
         .collect();
     assert!(!shown.is_empty(), "some blocks show");
     assert!(shown.len() < 14, "not all fourteen fit");
     for rect in &shown {
-        assert!(strip.contains_rect(*rect), "{rect:?} leaves the strip");
+        assert!(
+            rect.left() >= logo.right() && rect.right() <= plus.left(),
+            "{rect:?} leaves the strip between the logo {logo:?} and the + {plus:?}"
+        );
     }
     assert!(driver.is_visible("Scroll blocks right"));
 }
@@ -857,6 +859,52 @@ fn the_utility_bar_holds_the_designed_items() {
             "{label} sits in the utility bar: {rect:?}"
         );
     }
+}
+
+/// The account menu row of `driver` labeled Settings, apart from the bar item `bar`.
+fn account_menu_row(driver: &UiDriver, bar: eframe::egui::Rect) -> Option<eframe::egui::Rect> {
+    driver
+        .controls()
+        .iter()
+        .find(|control| control.label == "Settings" && control.rect != bar)
+        .map(|control| control.rect)
+}
+
+#[test]
+fn the_account_menu_opens_above_its_trigger_on_its_first_frame() {
+    use eframe::egui;
+    let (mut driver, _) = stage_driver("main-mono");
+    let account = rect_of(&driver, "Account").expect("account");
+    let bar = rect_of(&driver, "Settings").expect("the Settings item of the bar");
+    // egui hides an area for a sizing pass the first time it shows, so open and close the menu
+    // one time. The next opening shows the menu on the frame after the click.
+    let _ = driver.click("Account").expect("account");
+    assert!(account_menu_row(&driver, bar).is_some(), "the menu opened");
+    let _ = driver.press_key(egui::Key::Escape);
+    driver.settle();
+    assert!(account_menu_row(&driver, bar).is_none(), "the menu closed");
+    // Play the click one frame at a time, because `click` runs more frames after the release.
+    let button = |pressed| egui::Event::PointerButton {
+        pos: account.center(),
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    driver.play(vec![egui::Event::PointerMoved(account.center())]);
+    driver.play(vec![button(true)]);
+    driver.play(vec![button(false)]);
+    // The click frame opens the menu, so the next frame is the first that shows it.
+    driver.frame();
+    let row = account_menu_row(&driver, bar).expect("the menu shows on its first frame");
+    // The fallback corner at the top right would also be above the bar, so measure the gap.
+    assert!(
+        row.bottom() <= account.top() && account.top() - row.bottom() <= 40.0,
+        "the menu {row:?} opens just above the account {account:?}"
+    );
+    assert!(
+        (row.left() - account.left()).abs() <= 16.0,
+        "the menu {row:?} lines up with the account {account:?}"
+    );
 }
 
 #[test]

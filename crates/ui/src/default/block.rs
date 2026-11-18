@@ -3238,8 +3238,20 @@ impl BlockDetail {
             },
             tint,
         );
-        // Its LCD shows its capture, and a click on it still opens the neighbour.
-        let text = super::skins::lcd_text(&capture_name(block).unwrap_or_default());
+        // Its plate and its LCD show its capture, and a click on them still opens the neighbour.
+        let name = capture_name(block).unwrap_or_default();
+        let plate_text = super::skins::plate_text(&name);
+        if let Some(plate) =
+            super::skins::draw_plate(ui.painter(), &textures.manifest, rect, &plate_text)
+        {
+            static_text(
+                ui,
+                plate,
+                ui.scope_id().with(("neighbour-plate", &block.id.0)),
+                &plate_text,
+            );
+        }
+        let text = super::skins::lcd_text(&name);
         if let Some(glass) = super::skins::draw_lcd(ui.painter(), &textures.manifest, rect, &text) {
             static_text(
                 ui,
@@ -3358,6 +3370,14 @@ impl BlockDetail {
             },
             tint,
         );
+        // A default amp or cab prints its capture's name on its plate.
+        let (_, name, _) = self.capture_shown();
+        let plate_text = super::skins::plate_text(&name);
+        if let Some(plate) =
+            super::skins::draw_plate(&painter, &textures.manifest, body, &plate_text)
+        {
+            static_text(ui, plate, id.with("plate"), &plate_text);
+        }
         if let Some(lcd_hint) =
             display.and_then(|display| self.paint_capture_display(ui, &painter, &display))
         {

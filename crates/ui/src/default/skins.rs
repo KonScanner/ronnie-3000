@@ -96,6 +96,30 @@ impl SkinLcd {
     }
 }
 
+/// The blank name plate on a default amp or cab skin, where the app prints the active capture's
+/// name in the plate's ink.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SkinPlate {
+    /// Centre of the plate, in body pixels.
+    pub center: [f32; 2],
+    /// Width and height of the plate, in body pixels.
+    pub size: [f32; 2],
+    /// Colour of the printed name.
+    pub ink: Color32,
+}
+
+impl SkinPlate {
+    /// Where the plate sits when the body is drawn in `body`.
+    #[must_use]
+    pub fn rect_in(&self, body: Rect, manifest: &SkinManifest) -> Rect {
+        let scale = body.width() / manifest.width as f32;
+        Rect::from_center_size(
+            body.min + egui::vec2(self.center[0], self.center[1]) * scale,
+            egui::vec2(self.size[0], self.size[1]) * scale,
+        )
+    }
+}
+
 /// Size of a skin's body, its live knobs and its LCD.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SkinManifest {
@@ -109,6 +133,8 @@ pub struct SkinManifest {
     pub knobs: Vec<SkinKnob>,
     /// The LCD glass, on pedals.
     pub lcd: Option<SkinLcd>,
+    /// The name plate, on the default amps and cab.
+    pub plate: Option<SkinPlate>,
 }
 
 impl SkinManifest {
@@ -132,14 +158,31 @@ impl SkinManifest {
             })
             .collect::<Option<Vec<_>>>()?;
         // A missing or malformed LCD leaves the skin without one; the body and knobs still draw.
+        let pair = |object: &serde_json::Value, key: &str| -> Option<[f32; 2]> {
+            let pair = object.get(key)?.as_array()?;
+            Some([number(pair.first()?)?, number(pair.get(1)?)?])
+        };
         let lcd = value.get("lcd").and_then(|lcd| {
-            let pair = |key: &str| -> Option<[f32; 2]> {
-                let pair = lcd.get(key)?.as_array()?;
-                Some([number(pair.first()?)?, number(pair.get(1)?)?])
-            };
             Some(SkinLcd {
-                center: pair("center")?,
-                size: pair("size")?,
+                center: pair(lcd, "center")?,
+                size: pair(lcd, "size")?,
+            })
+        });
+        // The same holds for the name plate: a malformed one leaves the skin without a name.
+        let plate = value.get("plate").and_then(|plate| {
+            let ink = plate
+                .get("ink")?
+                .as_array()?
+                .iter()
+                .map(|channel| u8::try_from(channel.as_u64()?).ok())
+                .collect::<Option<Vec<_>>>()?;
+            let [red, green, blue] = ink[..] else {
+                return None;
+            };
+            Some(SkinPlate {
+                center: pair(plate, "center")?,
+                size: pair(plate, "size")?,
+                ink: Color32::from_rgb(red, green, blue),
             })
         });
         Some(Self {
@@ -148,6 +191,7 @@ impl SkinManifest {
             height: u32::try_from(value.get("height")?.as_u64()?).ok()?,
             knobs,
             lcd,
+            plate,
         })
     }
 
@@ -553,11 +597,246 @@ pub fn paint_lcd(painter: &egui::Painter, rect: Rect, text: &str) {
     painter.galley(pos, galley, LCD_INK);
 }
 
+/// The smallest name on a plate. A longer name is cut with an ellipsis.
+const PLATE_MIN_SIZE: f32 = 6.0;
+
+/// The plate text of a capture name: printed in capitals, like the other labels of the render.
+#[must_use]
+pub fn plate_text(model_name: &str) -> String {
+    model_name.trim().to_uppercase()
+}
+
+/// Prints `text` on the skin's name plate when the skin has one, and returns where the plate is.
+///
+/// It returns `None` and prints nothing when the skin has no plate, when `text` is blank, or when
+/// the plate is too low for the smallest name.
+pub fn draw_plate(
+    painter: &egui::Painter,
+    manifest: &SkinManifest,
+    body: Rect,
+    text: &str,
+) -> Option<Rect> {
+    let plate = manifest.plate.as_ref()?;
+    let rect = plate.rect_in(body, manifest);
+    paint_plate(painter, rect, text, plate.ink).then_some(rect)
+}
+
+/// Prints `text` left-aligned in `rect` in `ink`, at the plate's height, smaller down to 6 pt
+/// when it is too wide, and cut with an ellipsis when even that does not fit.
+///
+/// It returns whether it printed: a blank text, or a plate lower than 6 pt, prints nothing.
+pub fn paint_plate(painter: &egui::Painter, rect: Rect, text: &str, ink: Color32) -> bool {
+    let Some(galley) = plate_galley(painter, rect, text, ink) else {
+        return false;
+    };
+    let pos = egui::pos2(rect.left(), rect.center().y - galley.size().y / 2.0);
+    painter
+        .with_clip_rect(rect.expand(1.0).intersect(painter.clip_rect()))
+        .galley(pos, galley, ink);
+    true
+}
+
+/// The one-row layout of `text` for a plate of `rect`, or `None` when nothing fits on it.
+fn plate_galley(
+    painter: &egui::Painter,
+    rect: Rect,
+    text: &str,
+    ink: Color32,
+) -> Option<Arc<egui::Galley>> {
+    let text = text.trim();
+    // A 6 pt name in a lower plate loses its top and bottom to the clip.
+    if !rect.is_positive() || rect.height() < PLATE_MIN_SIZE || text.is_empty() {
+        return None;
+    }
+    let font = |size: f32| egui::FontId::new(size, egui::FontFamily::Name("arimo-bold".into()));
+    let mut size = (rect.height() * 0.8).max(PLATE_MIN_SIZE);
+    let width = |size: f32| {
+        painter
+            .layout_no_wrap(text.to_owned(), font(size), ink)
+            .size()
+            .x
+    };
+    while width(size) > rect.width() && size > PLATE_MIN_SIZE {
+        size = (size - 0.25).max(PLATE_MIN_SIZE);
+    }
+    let mut job = egui::text::LayoutJob::single_section(
+        text.to_owned(),
+        egui::TextFormat::simple(font(size), ink),
+    );
+    job.wrap = egui::text::TextWrapping {
+        max_width: rect.width(),
+        max_rows: 1,
+        break_anywhere: true,
+        overflow_character: Some('\u{2026}'),
+    };
+    Some(painter.layout_job(job))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const BASE: &str = r#""id": "x", "width": 600, "height": 800, "knobs": []"#;
+
+    #[test]
+    fn a_name_plate_is_read_with_its_ink() {
+        let manifest = SkinManifest::parse(&format!(
+            r#"{{{BASE}, "plate": {{"center": [100, 600.5], "size": [240, 20], "ink": [237, 237, 235]}}}}"#
+        ))
+        .expect("manifest");
+        assert_eq!(
+            manifest.plate,
+            Some(SkinPlate {
+                center: [100.0, 600.5],
+                size: [240.0, 20.0],
+                ink: Color32::from_rgb(237, 237, 235),
+            })
+        );
+        let body = Rect::from_min_size(egui::pos2(10.0, 0.0), egui::vec2(300.0, 400.0));
+        let plate = manifest
+            .plate
+            .as_ref()
+            .expect("plate")
+            .rect_in(body, &manifest);
+        assert_eq!(plate.center(), egui::pos2(60.0, 300.25));
+        assert_eq!(plate.size(), egui::vec2(120.0, 10.0));
+        assert_eq!(
+            plate_text("  Mesa Dual Rectifier | Rhythm "),
+            "MESA DUAL RECTIFIER | RHYTHM"
+        );
+    }
+
+    /// Runs `paint` in one frame of a context with the app fonts, and returns what it painted.
+    fn plate_frame(mut paint: impl FnMut(&egui::Painter)) -> Vec<egui::epaint::ClippedShape> {
+        let context = egui::Context::default();
+        crate::fonts::Fonts::install(&context);
+        let mut output = context.run_ui(egui::RawInput::default(), |ui| paint(ui.painter()));
+        output.textures_delta.clear();
+        output.shapes
+    }
+
+    /// The layout of `text` on a plate of `rect`.
+    fn layout_on_plate(rect: Rect, text: &str) -> Option<Arc<egui::Galley>> {
+        let mut galley = None;
+        let _ = plate_frame(|painter| galley = plate_galley(painter, rect, text, Color32::WHITE));
+        galley
+    }
+
+    /// The characters of the first row of `galley`, with an ellipsis that cut the text.
+    fn shown_text(galley: &egui::Galley) -> String {
+        galley
+            .rows
+            .first()
+            .map(|row| row.glyphs.iter().map(|glyph| glyph.chr).collect())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn a_long_name_shrinks_to_the_smallest_size_and_ends_with_an_ellipsis() {
+        let rect = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(60.0, 10.0));
+        let galley = layout_on_plate(rect, "MESA DUAL RECTIFIER | RHYTHM CHANNEL").expect("galley");
+        assert_eq!(galley.rows.len(), 1, "the name keeps to one row");
+        assert!(
+            galley.size().x <= rect.width(),
+            "{} fits {}",
+            galley.size().x,
+            rect.width()
+        );
+        let size = galley
+            .job
+            .sections
+            .first()
+            .expect("section")
+            .format
+            .font_id
+            .size;
+        assert!((size - PLATE_MIN_SIZE).abs() < f32::EPSILON, "size {size}");
+        assert!(
+            shown_text(&galley).ends_with('\u{2026}'),
+            "{:?} ends with an ellipsis",
+            shown_text(&galley)
+        );
+    }
+
+    #[test]
+    fn a_short_name_stays_whole_at_the_plate_height() {
+        let rect = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(240.0, 10.0));
+        let galley = layout_on_plate(rect, "  JCM800 ").expect("galley");
+        assert_eq!(
+            shown_text(&galley),
+            "JCM800",
+            "the name is trimmed and whole"
+        );
+        let size = galley
+            .job
+            .sections
+            .first()
+            .expect("section")
+            .format
+            .font_id
+            .size;
+        assert!((size - 8.0).abs() < f32::EPSILON, "size {size}");
+    }
+
+    #[test]
+    fn a_blank_name_or_a_low_plate_prints_nothing() {
+        let plate = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(240.0, 10.0));
+        let low = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(240.0, 5.0));
+        for (rect, text) in [(plate, ""), (plate, "   "), (low, "JCM800")] {
+            assert!(
+                layout_on_plate(rect, text).is_none(),
+                "{text:?} in {rect:?}"
+            );
+            let mut printed = true;
+            let shapes = plate_frame(|painter| {
+                printed = paint_plate(painter, rect, text, Color32::WHITE);
+            });
+            assert!(!printed, "{text:?} in {rect:?}");
+            assert!(shapes.is_empty(), "{text:?} in {rect:?} painted {shapes:?}");
+        }
+        let manifest = SkinManifest::parse(&format!(
+            r#"{{{BASE}, "plate": {{"center": [300, 400], "size": [240, 20], "ink": [1, 2, 3]}}}}"#
+        ))
+        .expect("manifest");
+        let body = Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0));
+        let mut drawn = Some(Rect::NOTHING);
+        let _ = plate_frame(|painter| drawn = draw_plate(painter, &manifest, body, " "));
+        assert_eq!(drawn, None, "a blank name gives the plate no label");
+    }
+
+    #[test]
+    fn the_printed_name_is_clipped_to_its_plate() {
+        let rect = Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(60.0, 10.0));
+        let shapes = plate_frame(|painter| {
+            assert!(paint_plate(
+                painter,
+                rect,
+                "MESA DUAL RECTIFIER | RHYTHM CHANNEL",
+                Color32::WHITE
+            ));
+        });
+        let text = shapes
+            .iter()
+            .find(|clipped| matches!(clipped.shape, egui::Shape::Text(_)))
+            .expect("the name is painted");
+        assert_eq!(text.clip_rect, rect.expand(1.0));
+    }
+
+    #[test]
+    fn a_malformed_plate_is_dropped_and_the_rest_of_the_manifest_kept() {
+        for plate in [
+            r#""plate": 3"#,
+            r#""plate": {"center": [1, 2], "size": [3, 4]}"#,
+            r#""plate": {"center": [1, 2], "size": [3, 4], "ink": [1, 2]}"#,
+            r#""plate": {"center": [1, 2], "size": [3, 4], "ink": [1, 2, 300]}"#,
+            r#""plate": {"center": [1], "size": [3, 4], "ink": [1, 2, 3]}"#,
+        ] {
+            let manifest = SkinManifest::parse(&format!("{{{BASE}, {plate}}}"))
+                .unwrap_or_else(|| panic!("{plate} dropped the manifest"));
+            assert_eq!(manifest.width, 600);
+            assert!(manifest.plate.is_none(), "{plate}");
+        }
+    }
 
     #[test]
     fn a_malformed_lcd_is_dropped_and_the_rest_of_the_manifest_kept() {
