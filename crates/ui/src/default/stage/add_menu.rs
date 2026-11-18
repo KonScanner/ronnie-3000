@@ -11,6 +11,7 @@ use crate::services::{
 };
 
 use super::super::{
+    block::format_count,
     tile::{GearGlyph, draw_glyph, tone_glyph},
     tone_card::model_count,
 };
@@ -354,19 +355,6 @@ const fn plural(category: GearCategory) -> &'static str {
     }
 }
 
-/// A count with a comma between each group of three digits.
-fn grouped(value: u64) -> String {
-    let digits = value.to_string();
-    let mut output = String::new();
-    for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            output.push(',');
-        }
-        output.push(digit);
-    }
-    output
-}
-
 /// What the right end of a tone row says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RowState {
@@ -496,7 +484,8 @@ fn remote_line(tone: &Tone) -> String {
 fn downloads(value: u64) -> String {
     let (scaled, unit) = match value {
         0..1_000 => return value.to_string(),
-        1_000..1_000_000 => (value as f64 / 1_000.0, "k"),
+        // The unit is chosen after the rounding, so 999_999 reads "1M" and not "1000k".
+        1_000..999_500 => (value as f64 / 1_000.0, "k"),
         _ => (value as f64 / 1_000_000.0, "M"),
     };
     let text = if scaled < 100.0 {
@@ -1084,7 +1073,7 @@ fn draw_results(
     } else if let Some(page) = data.results.and_then(CatalogStore::result) {
         format!(
             "SHOW ALL {} {} IN THE TONE BROWSER",
-            grouped(page.total),
+            format_count(page.total),
             noun.to_uppercase()
         )
     } else {
@@ -1345,6 +1334,9 @@ mod tests {
             (12_400, "12.4k"),
             (99_960, "100k"),
             (124_000, "124k"),
+            (999_499, "999k"),
+            (999_500, "1M"),
+            (999_999, "1M"),
             (1_260_000, "1.3M"),
         ] {
             assert_eq!(downloads(value), text, "{value}");

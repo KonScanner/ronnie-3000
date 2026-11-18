@@ -7,6 +7,8 @@ use ronie_core::gear::GearFamily;
 use ronie_ui::default::tile::{GearGlyph, draw_gear, tone_glyph};
 use serde_json::json;
 
+mod common;
+
 fn tone(value: serde_json::Value) -> Tone {
     Tone::from_value(value).expect("tone parses")
 }
@@ -56,7 +58,7 @@ fn local_nam_metadata_picks_the_family() {
     let local = tone(json!({
         "id": 0, "local": true, "title": "my captures", "format": "nam",
         "models": [{
-            "id": 7, "name": "lead", "model_url": "file:///tmp/stash/abc-1.nam",
+            "id": 7, "name": "lead", "model_url": common::file_url("/tmp/stash/abc-1.nam"),
             "gear": "amp", "gear_make": "EVH", "gear_model": "5150 III"
         }]
     }));
@@ -80,10 +82,22 @@ const DRAWN_FAMILIES: &[GearFamily] = &[
     GearFamily::ComboClean,
     GearFamily::HeadBass,
     GearFamily::Cab412Modern,
+    GearFamily::Cab412Vintage,
     GearFamily::Cab212,
     GearFamily::Cab112,
     GearFamily::Cab810,
 ];
+
+/// Pairs of families that deliberately share one drawing arm. They are the only glyphs that
+/// may look identical; every other pair in [`DRAWN_FAMILIES`] must paint differently.
+const SHARED_PAINT_ARMS: [(GearFamily, GearFamily); 1] =
+    [(GearFamily::Cab412Vintage, GearFamily::Cab412Modern)];
+
+fn shares_a_paint_arm(left: GearFamily, right: GearFamily) -> bool {
+    SHARED_PAINT_ARMS.iter().any(|(first, second)| {
+        (*first == left && *second == right) || (*first == right && *second == left)
+    })
+}
 
 fn painted(glyph: GearGlyph) -> String {
     let context = egui::Context::default();
@@ -102,20 +116,36 @@ fn painted(glyph: GearGlyph) -> String {
 }
 
 #[test]
-fn every_family_glyph_paints_and_is_distinct() {
+fn every_drawn_family_glyph_paints_and_only_the_stated_arm_matches() {
     let drawings: Vec<String> = DRAWN_FAMILIES
         .iter()
         .map(|family| painted(GearGlyph::Family(*family)))
         .collect();
     for (index, drawing) in drawings.iter().enumerate() {
         for (other, other_drawing) in drawings.iter().enumerate().skip(index + 1) {
-            assert_ne!(
-                drawing, other_drawing,
-                "{:?} and {:?} look identical",
-                DRAWN_FAMILIES[index], DRAWN_FAMILIES[other]
-            );
+            let (left, right) = (DRAWN_FAMILIES[index], DRAWN_FAMILIES[other]);
+            if shares_a_paint_arm(left, right) {
+                assert_eq!(
+                    drawing, other_drawing,
+                    "{left:?} and {right:?} must keep their shared drawing arm"
+                );
+            } else {
+                assert_ne!(
+                    drawing, other_drawing,
+                    "{left:?} and {right:?} look identical"
+                );
+            }
         }
     }
+}
+
+#[test]
+fn the_two_412_cabs_share_their_drawing() {
+    assert_eq!(
+        painted(GearGlyph::Family(GearFamily::Cab412Vintage)),
+        painted(GearGlyph::Family(GearFamily::Cab412Modern)),
+        "Cab412Vintage draws in the arm that Cab412Modern uses"
+    );
 }
 
 #[test]
@@ -126,9 +156,9 @@ fn a_block_uses_its_active_model_metadata() {
     let pack = tone(json!({
         "id": 0, "local": true, "title": "two amps", "format": "nam",
         "models": [
-            {"id": 1, "name": "clean", "model_url": "file:///tmp/stash/a-1.nam",
+            {"id": 1, "name": "clean", "model_url": common::file_url("/tmp/stash/a-1.nam"),
              "gear": "amp", "gear_make": "Fender", "gear_model": "Twin Reverb"},
-            {"id": 2, "name": "lead", "model_url": "file:///tmp/stash/b-1.nam",
+            {"id": 2, "name": "lead", "model_url": common::file_url("/tmp/stash/b-1.nam"),
              "gear": "amp", "gear_make": "Peavey", "gear_model": "6505+"}
         ]
     }));

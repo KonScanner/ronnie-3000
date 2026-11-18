@@ -74,7 +74,9 @@ class KnobRig:
     def add(self, label, local_center, top_world, radius, axis, movers):
         """Registers a live knob. `local_center` is (x, y) in the space the movers live in."""
         if label not in LABEL_CONTROL:
-            return
+            raise ValueError(
+                f"unknown knob label {label!r}: the known labels are {', '.join(sorted(LABEL_CONTROL))}"
+            )
         knob = Knob(label, top_world, radius, axis, movers)
         knob.local_center = local_center
         self.knobs.append(knob)
@@ -91,6 +93,8 @@ class LcdRig:
 
     def set_glass(self, x, y, z, w, h):
         """Registers the glass top face, centred on (x, y) at height z, w wide and h deep."""
+        if self.corners is not None:
+            raise ValueError("set_glass called twice: the LCD glass is already registered")
         self.corners = [(x + sx * w / 2, y + sy * h / 2, z) for sx in (-1, 1) for sy in (-1, 1)]
 
 
@@ -149,6 +153,10 @@ def clean_body(path):
     px[..., 3] = np.where(shadow, px[..., 3] * SHADOW_SCALE, px[..., 3])
     rows = np.where((px[..., 3] > TRIM_ALPHA).any(axis=1))[0]
     cols = np.where((px[..., 3] > TRIM_ALPHA).any(axis=0))[0]
+    if rows.size == 0 or cols.size == 0:
+        raise ValueError(
+            f"{path}: the render is fully transparent, so the camera framing must be checked"
+        )
     h, w = a.shape
     top = max(0, int(rows[0]) - TRIM_PAD)
     bottom = min(h, int(rows[-1]) + 1 + TRIM_PAD)

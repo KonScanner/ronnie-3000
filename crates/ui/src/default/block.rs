@@ -2149,7 +2149,7 @@ impl BlockDetail {
                 }
             }
         }
-        let gear = match &skin {
+        match &skin {
             Some((skin, textures)) => {
                 // The render leaves room under it for the chip and an amp's lights.
                 let render_stage = Rect::from_min_max(
@@ -2180,17 +2180,14 @@ impl BlockDetail {
                 if textures.manifest.knobs.is_empty() {
                     self.show_trims_beside(ui, body, stage);
                 }
-                body
             }
             None => {
                 let side = stage.height().min(200.0);
                 let artwork = Rect::from_center_size(stage.center(), egui::Vec2::splat(side));
                 self.show_artwork(ui, artwork);
                 self.show_trims_beside(ui, artwork, stage);
-                artwork
             }
-        };
-        let _ = gear;
+        }
         if mics {
             self.show_mics_panel(ui, stage_full, session, look);
         }
@@ -2518,7 +2515,9 @@ impl BlockDetail {
         let Some(tone) = self.block.tone.as_ref() else {
             return false;
         };
-        if tone.kind != ModelKind::Ir || page_category(&self.block) != "CAB" {
+        if tone.kind != ModelKind::Ir
+            || super::skins::gear_category(&self.block) != Some(ronie_core::gear::GearCategory::Cab)
+        {
             return false;
         }
         self.block.ir_b.is_some() || self.models.options().len().max(model_total(&self.block)) >= 2
@@ -3173,7 +3172,7 @@ impl BlockDetail {
             .collect();
         let tracking = 1.2;
         let width: f32 = letters.iter().map(|galley| galley.size().x).sum::<f32>()
-            + tracking * (letters.len() - 1) as f32;
+            + tracking * letters.len().saturating_sub(1) as f32;
         let text_height = letters.first().map_or(0.0, |galley| galley.size().y);
         let column = 18.0 + 8.0 + text_height;
         let icon = egui::Pos2::new(rect.center().x, rect.center().y - column / 2.0 + 9.0);
@@ -3513,7 +3512,7 @@ impl BlockDetail {
         if self.light_followed != active {
             self.light_followed = active;
             if let Some(active) = active {
-                let lowest = active.saturating_sub(visible - 1);
+                let lowest = active.saturating_sub(visible.saturating_sub(1));
                 self.light_start = self.light_start.clamp(lowest, active);
             }
         }
@@ -4644,7 +4643,8 @@ fn stat_icon(painter: &egui::Painter, center: egui::Pos2, index: usize) {
     }
 }
 
-fn format_count(value: u64) -> String {
+/// A count with a comma between each group of three digits.
+pub(crate) fn format_count(value: u64) -> String {
     let digits = value.to_string();
     let mut output = String::new();
     for (index, character) in digits.chars().enumerate() {
@@ -4710,4 +4710,21 @@ fn tone_url(block: &ChainBlock) -> String {
         .filter(|url| is_web_url(url))
         .unwrap_or_default()
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_count;
+
+    #[test]
+    fn counts_group_each_three_digits() {
+        for (value, text) in [
+            (0, "0"),
+            (999, "999"),
+            (1_000, "1,000"),
+            (1_000_000, "1,000,000"),
+        ] {
+            assert_eq!(format_count(value), text, "{value}");
+        }
+    }
 }

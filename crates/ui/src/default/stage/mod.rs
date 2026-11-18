@@ -74,7 +74,11 @@ pub(super) fn show(
             super::chain::GallerySelection::None
         );
     if stage_free {
-        match focus.next_block(state) {
+        // The pass-top snapshot can still hold the block that Delete just removed, so choosing
+        // the next block from it would leave the stage with no page and fall through to the
+        // reference chain gallery for a frame.
+        let after = chrome.backend().chain_state(0);
+        match focus.next_block(&after) {
             Some(id) => {
                 chrome.gallery_mut().activate(&id);
                 chrome.sync_detail();
@@ -450,6 +454,8 @@ fn show_add_menu(
                 .and_then(|block| block.tone.as_ref())
         }),
     };
+    // A downloading row spins, so the menu must repaint until its tone lands.
+    let loading = data.loading.is_some();
     let plus = header::plus_rect(header_bounds);
     let action = add_menu::show(ui, plus, stage, &mut menu, &data);
     if let Some(action) = action {
@@ -466,7 +472,12 @@ fn show_add_menu(
         _ => chrome.close_add_results(),
     }
     menu.store(ui.ctx());
-    ui.ctx().request_repaint();
+    // The row of a downloading tone spins, so the menu repaints until it lands. Otherwise the
+    // app's 30 Hz cadence decides when the next frame runs.
+    if menu.adding || loading {
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(16));
+    }
 }
 
 /// Carries out what the player chose in the menu of an add.
@@ -777,4 +788,97 @@ pub(super) fn stage_slots(
         return slots;
     }
     super::block::StageSlots::default()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use eframe::egui;
+    use ronie_core::BlockId;
+
+    use crate::{
+        backend::MockBackend,
+        default::{ChromeController, GallerySelection},
+        driver::UiDriver,
+        shell::ViewMode,
+        testbed::{UiScenario, load_scenarios},
+    };
+
+    fn scenario(id: &str) -> UiScenario {
+        load_scenarios(include_str!("../../../../../fixtures/ui-scenarios.json"))
+            .expect("scenarios")
+            .into_iter()
+            .find(|scenario| scenario.id == id)
+            .expect("scenario exists")
+    }
+
+    fn stage_driver(id: &str) -> (UiDriver, Arc<MockBackend>) {
+        let backend = Arc::new(MockBackend::from_scenario(&scenario(id)));
+        let mut chrome = ChromeController::new(backend.clone(), Vec::new(), false, true);
+        chrome.set_view_mode(ViewMode::RonieFlow);
+        let mut driver = UiDriver::new(chrome, (*backend).clone());
+        driver.settle();
+        (driver, backend)
+    }
+
+    fn key_event(key: egui::Key, pressed: bool) -> egui::Event {
+        egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn delete_opens_the_neighbour_without_a_frame_of_the_reference_gallery() {
+        let (mut driver, _backend) = stage_driver("main-mono");
+        // One pass only: the pass in which the key removes the open block. Settling would hide
+        // the frame that falls through to the reference chain gallery.
+        driver.play(vec![key_event(egui::Key::Delete, true)]);
+
+        assert!(
+            !driver.is_visible("Add Tone"),
+            "the reference chain gallery must not draw inside the Stage: {:?}",
+            driver.visible_labels()
+        );
+        assert!(
+            driver.chrome().detail().is_some(),
+            "the neighbour is on the stage in the same pass"
+        );
+        assert!(
+            matches!(
+                driver.chrome().gallery().selection(),
+                GallerySelection::BlockDetail(id) if *id == BlockId("blk-2".to_owned())
+            ),
+            "the neighbour opens: {:?}",
+            driver.chrome().gallery().selection()
+        );
+    }
+
+    #[test]
+    fn an_open_add_menu_does_not_force_an_immediate_repaint() {
+        let (mut driver, _backend) = stage_driver("main-mono");
+        let _ = driver.click("Add a block").expect("the + button");
+        // The menu fades in over its first frames; only after that is an idle pass free of
+        // animation.
+        for _ in 0..12 {
+            driver.settle();
+        }
+        // One idle pass of the open menu: nothing on it animates, so the app's 30 Hz cadence
+        // must decide when the next frame runs.
+        driver.play(Vec::new());
+        assert!(
+            !driver.context().has_requested_repaint(),
+            "the open menu asked for a display-refresh repaint: {:?}",
+            driver
+                .context()
+                .repaint_causes()
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<_>>()
+        );
+    }
 }

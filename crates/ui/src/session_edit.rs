@@ -926,7 +926,10 @@ impl SessionEditor {
     }
 
     fn select_model(&mut self, block_id: &BlockId, model_id: ModelId) -> Result<UiEffect, UiError> {
-        self.change_block(block_id, |block| block.active_model_id = Some(model_id))?;
+        self.change_block(block_id, |block| {
+            block.active_model_id = Some(model_id);
+            clear_second_ir_that_matches(block, model_id);
+        })?;
         Ok(self.chain_changed())
     }
 
@@ -970,6 +973,7 @@ impl SessionEditor {
             block.loaded = true;
             block.model_loading = false;
             block.load_failed = false;
+            clear_second_ir_that_matches(block, model_id);
         })?;
         Ok(self.chain_changed())
     }
@@ -1665,6 +1669,15 @@ fn reset_ir_pair(params: &mut BlockParams) {
     params.ir_a_level = defaults.ir_a_level;
     params.ir_b_level = defaults.ir_b_level;
     params.ir_b_invert = defaults.ir_b_invert;
+}
+
+/// Clears IR B when `model_id` becomes the active model: one model cannot blend with itself,
+/// and the stale pair would make the UI say two IRs play while one does.
+fn clear_second_ir_that_matches(block: &mut ChainBlock, model_id: ModelId) {
+    if block.ir_b.map(|ir_b| ir_b.model_id) == Some(model_id) {
+        block.ir_b = None;
+        block.ir_b_missing = false;
+    }
 }
 
 /// Refuses bytes that cannot belong to one catalog model of `tone`.
@@ -3664,6 +3677,85 @@ mod tests {
                 .expect("change B");
             assert!(!cab_block(&editor, &slot).ir_b_missing, "{model_id:?}");
         }
+    }
+
+    #[test]
+    fn selecting_the_model_that_was_the_second_ir_clears_the_pair() {
+        let mut editor = editor();
+        let slot = editor.view(0).chain.left[0].id.clone();
+        let tone = cab_pack()
+            .for_storage(ModelId(71), &[ModelId(72)])
+            .expect("tone");
+        editor
+            .apply_alone(UiAction::LoadTone {
+                target_insert_id: slot.clone(),
+                tone,
+                model_id: ModelId(71),
+            })
+            .expect("load");
+        editor
+            .apply_alone(UiAction::SelectSecondModel {
+                block_id: slot.clone(),
+                model_id: Some(ModelId(72)),
+            })
+            .expect("second IR");
+        assert_eq!(
+            cab_block(&editor, &slot).ir_b.map(|ir_b| ir_b.model_id),
+            Some(ModelId(72))
+        );
+
+        editor
+            .apply_alone(UiAction::SelectModel {
+                block_id: slot.clone(),
+                model_id: ModelId(72),
+            })
+            .expect("select the second IR as A");
+
+        let block = cab_block(&editor, &slot);
+        assert_eq!(block.active_model_id, Some(ModelId(72)));
+        assert_eq!(block.ir_b, None, "one model cannot be both IRs");
+        assert!(!block.ir_b_missing);
+    }
+
+    #[test]
+    fn selecting_a_downloaded_model_that_was_the_second_ir_clears_the_pair() {
+        let mut editor = editor();
+        let slot = editor.view(0).chain.left[0].id.clone();
+        let tone = cab_pack()
+            .for_storage(ModelId(71), &[ModelId(72)])
+            .expect("tone");
+        editor
+            .apply_alone(UiAction::LoadTone {
+                target_insert_id: slot.clone(),
+                tone,
+                model_id: ModelId(71),
+            })
+            .expect("load");
+        editor
+            .apply_alone(UiAction::SelectSecondModel {
+                block_id: slot.clone(),
+                model_id: Some(ModelId(72)),
+            })
+            .expect("second IR");
+
+        let mut storage = FakeStorage::default();
+        editor
+            .apply(
+                UiAction::SelectModelWithBytes {
+                    block_id: slot.clone(),
+                    tone: stored_cab(72),
+                    model_id: ModelId(72),
+                    replaces: Some(ModelId(71)),
+                    bytes: bytes(),
+                },
+                &mut storage,
+            )
+            .expect("select the second IR as A");
+
+        let block = cab_block(&editor, &slot);
+        assert_eq!(block.active_model_id, Some(ModelId(72)));
+        assert_eq!(block.ir_b, None, "one model cannot be both IRs");
+        assert!(!block.ir_b_missing);
     }
 
     #[test]

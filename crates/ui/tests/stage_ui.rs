@@ -12,6 +12,8 @@ use ronie_ui::{
     theme::Look,
 };
 
+mod common;
+
 fn scenario(id: &str) -> UiScenario {
     load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
         .expect("scenarios")
@@ -1774,7 +1776,7 @@ fn a_second_add_takes_over_a_download_in_progress() {
 fn a_refused_library_load_shows_a_toast_and_keeps_the_menu_and_the_tone() {
     let local = ronie_core::Tone::from_value(serde_json::json!({
         "id": 0, "title": "Collected Stash", "format": "nam", "gear": "amp", "local": true,
-        "models": [{"id": 1, "name": "m", "model_url": "file:///stash/collected.nam"}]
+        "models": [{"id": 1, "name": "m", "model_url": common::file_url("/stash/collected.nam")}]
     }))
     .expect("tone");
     let (mut driver, backend) = menu_driver("main-mono", false, &[local]);
@@ -2270,7 +2272,7 @@ fn a_file_from_a_slot_lands_at_the_slot() {
 fn local_pedal(id: i64, title: &str) -> ronie_core::Tone {
     ronie_core::Tone::from_value(serde_json::json!({
         "id": id, "title": title, "format": "nam", "gear": "pedal", "local": true,
-        "models": [{"id": id * 10, "name": "m", "model_url": format!("file:///stash/{id}.nam")}]
+        "models": [{"id": id * 10, "name": "m", "model_url": common::file_url(&format!("/stash/{id}.nam"))}]
     }))
     .expect("tone")
 }

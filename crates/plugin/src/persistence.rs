@@ -1399,11 +1399,9 @@ mod tests {
             let bytes = encode_session(&frame, 0, None, None, &cache).expect("a B never stops a save");
             let decoded = decode_session(&bytes, &frame).expect("restore");
             let restored = &decoded.frame.session.chain.left[0];
-            let listed = [7, 8].contains(&b);
-            proptest::prop_assert_eq!(
-                restored.ir_b.map(|ir_b| ir_b.model_id.0),
-                listed.then_some(b)
-            );
+            // A B that the stored tone does not list, or that is the active model 7, is dropped.
+            let kept = (b == 8).then_some(b);
+            proptest::prop_assert_eq!(restored.ir_b.map(|ir_b| ir_b.model_id.0), kept);
             let again = encode_session(&decoded.frame, 0, None, Some(&decoded.document.raw), &cache)
                 .expect("a restored B never stops a save");
             let twice = decode_session(&again, &frame).expect("restore again");

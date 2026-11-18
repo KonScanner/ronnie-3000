@@ -727,7 +727,6 @@ impl Faceplate {
         }
     }
 
-    /// Shows the open deck above its knob. `bar_top` is the top edge of the bottom bar.
     /// Shows the Mono/Stereo lanes switch after Input.
     pub fn set_show_lanes(&mut self, shown: bool) {
         self.lanes = shown;
@@ -797,6 +796,7 @@ impl Faceplate {
         let _ = bottom;
     }
 
+    /// Shows the open deck above its knob. `bar_top` is the top edge of the bottom bar.
     fn show_deck(&mut self, ui: &mut egui::Ui, bar_top: f32) {
         let Some(kind) = self.active_deck.as_ref().map(DeckModel::kind) else {
             return;

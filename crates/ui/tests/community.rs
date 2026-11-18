@@ -46,14 +46,7 @@ use tokio::{
 };
 use url::Url;
 
-/// A file URL of an absolute path on this system. A Windows path needs a drive.
-fn file_url(path: &str) -> String {
-    if cfg!(windows) {
-        format!("file:///C:{path}")
-    } else {
-        format!("file://{path}")
-    }
-}
+mod common;
 
 fn settings(directory: &TempDir) -> SettingsStore {
     SettingsStore::standalone(directory.path(), UI_PREFERENCES_SETTINGS)
@@ -2435,11 +2428,14 @@ fn an_empty_download_keeps_the_chain_and_the_session() {
 
 #[test]
 fn a_model_address_that_is_not_approved_fails_before_transmission() {
+    // The models page parses every address before the origin policy rejects it, so the file
+    // address must name a real file path on this system.
+    let file = common::file_url("/etc/files/7.nam");
     for url in [
         "https://attacker.example/files/7.nam",
         "http://models.example/files/7.nam",
         "https://user:word@models.example/files/7.nam",
-        "file:///etc/files/7.nam",
+        file.as_str(),
     ] {
         let mut rig = LoadRig::new();
         let revision = rig.backend.chain_state(0).revision;
@@ -3064,7 +3060,7 @@ fn a_local_tone_with_a_service_needs_no_network() {
         "title": "Local",
         "format": "nam",
         "local": true,
-        "models": [{"id": 3, "name": "Local", "model_url": file_url("/stash/3.nam")}],
+        "models": [{"id": 3, "name": "Local", "model_url": common::file_url("/stash/3.nam")}],
     }))
     .expect("tone");
 
@@ -4102,8 +4098,8 @@ fn a_signed_out_local_switch_uses_the_stash_path_with_no_network() {
         "format": "nam",
         "local": true,
         "models": [
-            {"id": 3, "name": "One", "model_url": file_url("/stash/3.nam")},
-            {"id": 4, "name": "Two", "model_url": file_url("/stash/4.nam")},
+            {"id": 3, "name": "One", "model_url": common::file_url("/stash/3.nam")},
+            {"id": 4, "name": "Two", "model_url": common::file_url("/stash/4.nam")},
         ],
     }))
     .expect("tone");
@@ -5514,7 +5510,7 @@ fn signed_out_a_downloaded_library_tone_asks_for_sign_in_and_a_local_one_adds() 
     .expect("catalog tone");
     let stashed = Tone::from_value(serde_json::json!({
         "id": 0, "title": "Stashed Twin", "format": "nam", "gear": "amp", "local": true,
-        "models": [{"id": 1, "name": "m", "model_url": "file:///stash/twin.nam"}]
+        "models": [{"id": 1, "name": "m", "model_url": common::file_url("/stash/twin.nam")}]
     }))
     .expect("local tone");
     let mut recent = RecentTones::default();

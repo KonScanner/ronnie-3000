@@ -369,7 +369,8 @@ impl ChainBlock {
             .and_then(Value::as_i64)
             .map(ModelId);
         let params = BlockParams::from_value(value.get("params").unwrap_or(&Value::Null))?;
-        let ir_b = listed_ir_b(&tone, value.get(IR_B_MODEL_ID).and_then(Value::as_i64));
+        let ir_b = listed_ir_b(&tone, value.get(IR_B_MODEL_ID).and_then(Value::as_i64))
+            .filter(|ir_b| Some(ir_b.model_id) != active_model_id);
         Ok(Self {
             id,
             is_insert: false,
@@ -880,7 +881,8 @@ impl ChainBlock {
         let tone_json = juce_string_prop(tree, "toneJson").unwrap_or_default();
         let tone = Tone::from_json(tone_json)?;
         let active_model_id = juce_int_prop(tree, "activeModelId").map(ModelId);
-        let ir_b = listed_ir_b(&tone, juce_int_prop(tree, IR_B_MODEL_ID));
+        let ir_b = listed_ir_b(&tone, juce_int_prop(tree, IR_B_MODEL_ID))
+            .filter(|ir_b| Some(ir_b.model_id) != active_model_id);
         Ok(Self {
             id,
             is_insert: false,
@@ -948,6 +950,9 @@ pub const SKIN_OVERRIDE: &str = "skinOverride";
 
 /// IR B for model `id`, when `tone` lists that model. A B outside the tone is dropped, so a
 /// later save never has to store a model the tone cannot give.
+///
+/// A restore also drops a B that is the active model: one model cannot blend with itself, and
+/// the pair would make the UI say two IRs play while one does.
 fn listed_ir_b(tone: &Tone, id: Option<i64>) -> Option<IrB> {
     let model_id = ModelId(id?);
     tone.models
@@ -1239,4 +1244,118 @@ fn number_field(value: Option<&Value>, fallback: f64) -> f64 {
 
 fn bool_field(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(Value::as_bool).unwrap_or(fallback)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// An IR pack of two mic positions, as a cab block stores it.
+    fn cab_tone() -> Value {
+        json!({
+            "id": 7,
+            "title": "Cab",
+            "format": "ir",
+            "models": [
+                {"id": 71, "name": "SM57", "model_url": "https://models.example/71.wav"},
+                {"id": 72, "name": "R121", "model_url": "https://models.example/72.wav"},
+            ],
+        })
+    }
+
+    fn block_value(active: i64, ir_b: i64) -> Value {
+        json!({
+            "blockId": "blk-1",
+            "kind": "tone",
+            "activeModelId": active,
+            "irBModelId": ir_b,
+            "tone": cab_tone(),
+        })
+    }
+
+    fn block_tree(active: i64, ir_b: i64) -> JuceTree {
+        let tone = Tone::from_value(cab_tone()).expect("tone");
+        JuceTree {
+            identifier: "CHAINBLOCK".to_owned(),
+            properties: vec![
+                ("id".to_owned(), JuceValue::String("blk-1".to_owned())),
+                ("type".to_owned(), JuceValue::String("TONE".to_owned())),
+                (
+                    "toneJson".to_owned(),
+                    JuceValue::String(tone.to_json().expect("tone json")),
+                ),
+                ("activeModelId".to_owned(), JuceValue::Int64(active)),
+                ("irBModelId".to_owned(), JuceValue::Int64(ir_b)),
+            ],
+            children: Vec::new(),
+        }
+    }
+
+    fn juce_chain(block: JuceTree) -> JuceTree {
+        JuceTree {
+            identifier: "ChainSnapshot".to_owned(),
+            properties: Vec::new(),
+            children: vec![JuceTree {
+                identifier: "ChainBlocks".to_owned(),
+                properties: Vec::new(),
+                children: vec![block],
+            }],
+        }
+    }
+
+    #[test]
+    fn a_json_block_drops_a_second_ir_that_is_the_active_model() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 71)],
+        }))
+        .expect("chain");
+
+        assert_eq!(chain.left[0].active_model_id, Some(ModelId(71)));
+        assert_eq!(chain.left[0].ir_b, None, "one model cannot be both IRs");
+    }
+
+    #[test]
+    fn a_json_block_keeps_a_second_ir_that_differs_from_the_active_model() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 72)],
+        }))
+        .expect("chain");
+
+        assert_eq!(
+            chain.left[0].ir_b,
+            Some(IrB {
+                model_id: ModelId(72)
+            })
+        );
+    }
+
+    #[test]
+    fn a_juce_block_drops_a_second_ir_that_is_the_active_model() {
+        let chain = ChainSnapshot::from_juce_tree(&juce_chain(block_tree(71, 71))).expect("chain");
+        assert_eq!(chain.left[0].ir_b, None, "one model cannot be both IRs");
+    }
+
+    #[test]
+    fn a_normalized_pair_writes_no_second_ir_into_a_reused_tree() {
+        let chain = ChainSnapshot::from_ui_value(json!({
+            "chain": [block_value(71, 71)],
+        }))
+        .expect("chain");
+        // A tree from an earlier save still names B.
+        let mut tree = JuceTree {
+            identifier: "CHAINBLOCK".to_owned(),
+            properties: vec![("irBModelId".to_owned(), JuceValue::Int64(71))],
+            children: Vec::new(),
+        };
+        chain.left[0].write_ir_pair_juce(&mut tree);
+
+        assert!(
+            tree.properties
+                .iter()
+                .all(|(name, _)| name != IR_B_MODEL_ID),
+            "the normalized pair writes no second IR: {:?}",
+            tree.properties
+        );
+    }
 }

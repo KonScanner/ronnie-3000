@@ -1183,6 +1183,10 @@ impl ChromeController {
         replace: bool,
     ) -> Result<(), UiError> {
         let dropped = if replace {
+            // The file wins over a load that is still downloading. The generation moves before
+            // the dispatch, so a download that passed its check while the dispatch runs can no
+            // longer publish after the file.
+            self.load_flow.abandon();
             self.backend
                 .dispatch(UiAction::ReplaceWithFile {
                     target_block_id: BlockId(target_id.to_owned()),
@@ -1195,10 +1199,6 @@ impl ChromeController {
         if let Err(error) = dropped {
             self.hints.set_toast(Some(FILE_REFUSED.to_owned()));
             return Err(error);
-        }
-        if replace && self.load_flow.phase() == LoadPhase::Loading {
-            // A download that lands later must not take the place of the file.
-            self.load_flow.cancel();
         }
         self.place_block(target_id, placement);
         let chain = self.backend.chain_state(0).chain;
@@ -3870,5 +3870,159 @@ fn show_toast(ui: &mut egui::Ui, chrome: &ChromeController) {
                 0.0
             };
         super::toast::show(ui, toast, bottom_offset);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use ronie_core::{
+        ChainSide, ModelBytes, ModelId, Tone,
+        params::{ParameterId, ParameterValue},
+    };
+
+    use super::*;
+    use crate::backend::{
+        ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiBackend, UiError, UiReceipt,
+    };
+
+    fn scenario(id: &str) -> crate::testbed::UiScenario {
+        crate::testbed::load_scenarios(include_str!("../../../../fixtures/ui-scenarios.json"))
+            .expect("scenarios")
+            .into_iter()
+            .find(|scenario| scenario.id == id)
+            .expect("scenario exists")
+    }
+
+    /// Writes a short mono 16-bit WAV impulse response, a file that a replace takes.
+    fn write_ir(path: &std::path::Path) {
+        let samples = [0_i16, 1000, -1000, 0];
+        let mut bytes = Vec::from(b"RIFF".as_slice());
+        bytes.extend_from_slice(&(36 + samples.len() as u32 * 2).to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&48_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&96_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&2_u16.to_le_bytes());
+        bytes.extend_from_slice(&16_u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&(samples.len() as u32 * 2).to_le_bytes());
+        for sample in samples {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        std::fs::write(path, bytes).expect("WAV");
+    }
+
+    fn remote_tone() -> Tone {
+        Tone::from_value(serde_json::json!({
+            "id": 5,
+            "title": "Remote",
+            "format": "nam",
+            "models": [{"id": 7, "name": "Amp", "model_url": "https://models.example/7.nam"}],
+        }))
+        .expect("tone")
+    }
+
+    /// Publishes a download once, for a test that wants it to land at a chosen step.
+    type PublishHook = Box<dyn FnOnce() -> Result<bool, UiError> + Send>;
+
+    /// A backend that runs a hook right after it carries out a file replace, as a background
+    /// download that passed its generation check while the dispatch was running.
+    struct ReplacingProbe {
+        inner: Arc<MockBackend>,
+        publish: Arc<Mutex<Option<PublishHook>>>,
+    }
+
+    impl UiBackend for ReplacingProbe {
+        fn chain_state(&self, known_revision: u64) -> ChainViewState {
+            self.inner.chain_state(known_revision)
+        }
+
+        fn meter_levels(&self) -> MeterSnapshot {
+            self.inner.meter_levels()
+        }
+
+        fn dispatch(&self, action: UiAction) -> Result<UiReceipt, UiError> {
+            let replaced = matches!(action, UiAction::ReplaceWithFile { .. });
+            let receipt = self.inner.dispatch(action)?;
+            if replaced {
+                let hook = self.publish.lock().expect("lock").take();
+                if let Some(hook) = hook {
+                    hook()?;
+                }
+            }
+            Ok(receipt)
+        }
+
+        fn parameter(&self, id: ParameterId) -> Option<ParameterValue> {
+            self.inner.parameter(id)
+        }
+
+        fn set_parameter(
+            &self,
+            id: ParameterId,
+            value: ParameterValue,
+            gesture: GesturePhase,
+        ) -> Result<(), UiError> {
+            self.inner.set_parameter(id, value, gesture)
+        }
+    }
+
+    #[test]
+    fn a_file_replace_wins_over_a_download_that_lands_during_its_dispatch() {
+        let mock = Arc::new(MockBackend::from_scenario(&scenario("main-mono")));
+        let publish: Arc<Mutex<Option<PublishHook>>> = Arc::default();
+        let chrome_backend = Arc::new(ReplacingProbe {
+            inner: mock.clone(),
+            publish: publish.clone(),
+        });
+        let mut chrome = ChromeController::new(chrome_backend, Vec::new(), false, true);
+        let target = mock
+            .chain_state(0)
+            .chain
+            .left
+            .iter()
+            .find(|block| !block.is_insert)
+            .expect("a tone block")
+            .id
+            .clone();
+
+        chrome
+            .load_flow_mut()
+            .select_replace(ChainSide::Left, &target.0);
+        let ticket = chrome
+            .load_flow_mut()
+            .begin_remote_load(remote_tone())
+            .expect("a background load");
+        let replacement = ticket.clone();
+        *publish.lock().expect("lock") = Some(Box::new(move || {
+            replacement.publish(
+                remote_tone(),
+                ModelId(7),
+                ModelBytes::from(b"model".to_vec()),
+            )
+        }));
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("closet-cab.wav");
+        write_ir(&path);
+        chrome
+            .replace_with_file(&target.0, &path)
+            .expect("the file replaces the tone");
+
+        let tone = mock
+            .chain_state(0)
+            .chain
+            .block(&target)
+            .and_then(|block| block.tone.clone())
+            .expect("the block keeps a tone");
+        assert!(
+            tone.local,
+            "the file's tone must stay, not the download: {tone:?}"
+        );
+        assert_eq!(tone.title, "closet-cab");
     }
 }

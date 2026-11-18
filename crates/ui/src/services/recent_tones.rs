@@ -107,9 +107,16 @@ mod tests {
     }
 
     fn local(title: &str, file: &str) -> Tone {
+        // A file URL names an absolute path of this system, so a Windows path needs a drive.
+        let path = format!("/stash/{file}");
+        let url = if cfg!(windows) {
+            format!("file:///C:{path}")
+        } else {
+            format!("file://{path}")
+        };
         Tone::from_value(json!({
             "id": 0, "title": title, "format": "nam", "gear": "amp",
-            "models": [{"id": 1, "name": "m", "model_url": format!("file:///stash/{file}")}]
+            "models": [{"id": 1, "name": "m", "model_url": url}]
         }))
         .expect("tone")
     }

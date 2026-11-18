@@ -38,7 +38,7 @@ for skin in "$@"; do
   rm -rf "$raw" "$out"
   mkdir -p "$raw" "$out"
   echo "== $skin ($script)"
-  "$BLENDER" -b -P "$HERE/$script" -- "$skin" "$raw" "$SAMPLES" > "$raw.log" 2>&1 || {
+  "$BLENDER" -b --python-exit-code 1 -P "$HERE/$script" -- "$skin" "$raw" "$SAMPLES" > "$raw.log" 2>&1 || {
     tail -20 "$raw.log" >&2
     exit 1
   }

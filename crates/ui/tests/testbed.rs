@@ -47,6 +47,26 @@ fn each_fixture_parameter_is_a_number_in_its_range() {
     }
 }
 
+/// Paths that would ship the home directory or the user name of the person who recorded a
+/// public fixture. The content is searched in lower case.
+const PRIVATE_PATHS: &[&str] = &[
+    "/home/",
+    "/users/",
+    "\\users\\",
+    "c:\\",
+    "/root/",
+    "%userprofile%",
+];
+
+/// The first private path that `content` contains, if any.
+fn private_path(content: &str) -> Option<&'static str> {
+    let lower = content.to_lowercase();
+    PRIVATE_PATHS
+        .iter()
+        .copied()
+        .find(|needle| lower.contains(needle))
+}
+
 #[test]
 fn public_fixtures_have_no_private_names_or_urls() {
     let scenarios = include_str!("../../../fixtures/ui-scenarios.json");
@@ -56,10 +76,32 @@ fn public_fixtures_have_no_private_names_or_urls() {
         let lower = content.to_lowercase();
         assert!(!lower.contains(&restricted));
         assert!(!lower.contains("t3k-fixtures.local"));
-        assert!(!lower.contains("/home/"));
+        assert!(
+            private_path(content).is_none(),
+            "a fixture ships a private path"
+        );
         assert!(!lower.contains("access_token"));
         assert!(!lower.contains("refresh_token"));
     }
+}
+
+#[test]
+fn a_planted_private_path_fails_the_guard() {
+    for planted in [
+        "/home/mallory/captures/amp.nam",
+        "/Users/mallory/captures/amp.nam",
+        "C:\\Users\\mallory\\captures\\amp.nam",
+        // A Windows path in JSON escapes every backslash.
+        "C:\\\\Users\\\\mallory\\\\captures\\\\amp.nam",
+        "/root/captures/amp.nam",
+        "%USERPROFILE%\\captures\\amp.nam",
+    ] {
+        assert!(
+            private_path(planted).is_some(),
+            "{planted} passes the private-path guard"
+        );
+    }
+    assert_eq!(private_path("/fixtures/captures/amp.nam"), None);
 }
 
 #[test]

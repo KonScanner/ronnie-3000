@@ -128,6 +128,9 @@ fn execute() -> Result<(), String> {
             _ => return Err(format!("unknown argument: {argument}")),
         }
     }
+    if layout.is_some() && native_scenario.is_none() {
+        return Err("--layout needs --native-scenario".to_owned());
+    }
     if let Some(id) = native_scenario {
         let scenario = select(Some(&id))?.remove(0);
         let mut run = ronie_ui::native_scenario::NativeScenario::new(

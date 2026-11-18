@@ -228,58 +228,87 @@ fn a_frame_uv_walks_the_strip_row_by_row() {
     assert!((ninth.min.x).abs() < 1e-6 && (ninth.min.y - 0.25).abs() < 1e-6);
 }
 
+/// Maker and model names that a render script must not print: the skin artwork is original,
+/// not a depiction of a real product.
+const BANNED_NAMES: &[&str] = &[
+    "big muff",
+    "rat 2",
+    "dyna comp",
+    "centaur",
+    "klon",
+    "ep boost",
+    "tube screamer",
+    "ts808",
+    "5150",
+    "rectifier",
+    "jcm",
+    "plexi",
+    "ac30",
+    "ac15",
+    "twin reverb",
+    "deluxe",
+    "svt",
+    "greenback",
+    "v30",
+    "marshall",
+    "vox",
+    "fender",
+    "mesa",
+    "ampeg",
+    "celestion",
+    "boss",
+    "ibanez",
+    "evh",
+    "peavey",
+    "electro-harmonix",
+];
+
+/// The banned names that `text` prints, in the order of [`BANNED_NAMES`].
+fn banned_names_in(text: &str) -> Vec<&'static str> {
+    let lower = text.to_lowercase();
+    BANNED_NAMES
+        .iter()
+        .copied()
+        .filter(|name| lower.contains(name))
+        .collect()
+}
+
 #[test]
 fn the_render_scripts_print_no_maker_or_model_names() {
     let scripts = [
-        include_str!("../../../tools/render/pedals.py"),
-        include_str!("../../../tools/render/gear.py"),
+        ("README.md", include_str!("../../../tools/render/README.md")),
+        (
+            "build_skins.sh",
+            include_str!("../../../tools/render/build_skins.sh"),
+        ),
+        ("common.py", include_str!("../../../tools/render/common.py")),
+        ("gear.py", include_str!("../../../tools/render/gear.py")),
+        ("pedals.py", include_str!("../../../tools/render/pedals.py")),
     ];
-    let banned = [
-        "big muff",
-        "rat 2",
-        "dyna comp",
-        "centaur",
-        "klon",
-        "ep boost",
-        "tube screamer",
-        "ts808",
-        "5150",
-        "rectifier",
-        "jcm",
-        "plexi",
-        "ac30",
-        "ac15",
-        "twin reverb",
-        "deluxe",
-        "svt",
-        "greenback",
-        "v30",
-        "marshall",
-        "vox",
-        "fender",
-        "mesa",
-        "ampeg",
-        "celestion",
-        "boss",
-        "ibanez",
-        "evh",
-        "peavey",
-        "electro-harmonix",
-    ];
-    for script in scripts {
-        let quoted: Vec<String> = script
-            .split('"')
-            .skip(1)
-            .step_by(2)
-            .map(str::to_lowercase)
-            .collect();
-        for name in banned {
-            assert!(
-                !quoted.iter().any(|text| text.contains(name)),
-                "a render script prints \"{name}\""
-            );
-        }
+    for (file, script) in scripts {
+        let found = banned_names_in(script);
+        assert!(found.is_empty(), "{file} prints {found:?}");
     }
+}
+
+#[test]
+fn the_name_checker_catches_a_planted_name() {
+    // The test builds the name here, so no render script contains it: only the checker can
+    // satisfy this control. Each quote style is planted alone, because the old check looked at
+    // double-quoted literals only.
+    let name = ["Big", "Muff"].join(" ");
+    for planted in [
+        format!("LABEL = '{name}'"),
+        format!("CAPTION = \"{name} drive\""),
+        format!("## The {name} skin"),
+    ] {
+        assert_eq!(
+            banned_names_in(&planted),
+            vec!["big muff"],
+            "the checker misses {planted:?}"
+        );
+    }
+    assert!(banned_names_in("LABEL = 'big clean'").is_empty());
 }
 
 #[test]

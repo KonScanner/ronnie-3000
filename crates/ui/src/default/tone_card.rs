@@ -572,15 +572,7 @@ fn text_width(ui: &egui::Ui, text: &str, size: f32) -> f32 {
 
 pub(crate) fn compact_count(value: u64) -> String {
     if value < 10_000 {
-        let digits = value.to_string();
-        let mut output = String::new();
-        for (index, character) in digits.chars().enumerate() {
-            if index > 0 && (digits.len() - index).is_multiple_of(3) {
-                output.push(',');
-            }
-            output.push(character);
-        }
-        return output;
+        return super::block::format_count(value);
     }
     if value >= 1_000_000 {
         return format!("{:.1}M", value as f64 / 1_000_000.0);
@@ -648,6 +640,19 @@ fn stat_icon(painter: &egui::Painter, center: egui::Pos2, index: usize, scale: f
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn compact_counts_group_under_ten_thousand_and_compact_above() {
+        for (value, text) in [
+            (999, "999"),
+            (1_000, "1,000"),
+            (9_999, "9,999"),
+            (10_000, "10K"),
+            (1_000_000, "1.0M"),
+        ] {
+            assert_eq!(super::compact_count(value), text, "{value}");
+        }
+    }
+
     #[test]
     fn a_heart_label_names_the_tone_and_needs_no_title() {
         assert_eq!(

@@ -4,6 +4,15 @@ use ronie_core::Tone;
 use ronie_core::gear::{GearCategory, GearFamily, GearHints, MatchSource, ToneType, identify};
 use serde_json::json;
 
+/// A file URL of an absolute path on this system. A Windows path needs a drive.
+fn file_url(path: &str) -> String {
+    if cfg!(windows) {
+        format!("file:///C:{path}")
+    } else {
+        format!("file://{path}")
+    }
+}
+
 fn catalog(gear: &str, title: &str, makes: &[&str]) -> GearHints {
     GearHints {
         gear: Some(gear.to_owned()),
@@ -233,7 +242,7 @@ fn hints_take_nam_metadata_from_the_active_model() {
         "models": [{
             "id": 7,
             "name": "lead",
-            "model_url": "file:///tmp/stash/abc-1.nam",
+            "model_url": file_url("/tmp/stash/abc-1.nam"),
             "gear": "amp",
             "gear_make": "Marshall",
             "gear_model": "JCM800 2203",

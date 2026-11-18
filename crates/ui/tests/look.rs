@@ -1,7 +1,7 @@
 //! The runtime look: light Stage colours and the dark reference colours.
 
 use eframe::egui::{self, Color32};
-use ronie_ui::theme::{Look, LookKind};
+use ronie_ui::theme::{Look, LookKind, palette};
 
 fn luminance(color: Color32) -> f64 {
     let channel = |value: u8| {
@@ -67,6 +67,59 @@ fn reference_look_keeps_todays_black_chrome() {
     let look = Look::reference();
     assert_eq!(look.background, Color32::BLACK);
     assert_eq!(look.utility, Color32::BLACK);
+}
+
+#[test]
+fn reference_tokens_keep_the_palette() {
+    // The reference layout is today's chrome: every token must be the palette constant that
+    // the code used before the Stage layout moved colours into `Look`. A wrong constant in
+    // `Look::reference()` fails here, so the Linux tests prove the claim of no visible change.
+    let look = Look::reference();
+    let rgb = |r, g, b| Color32::from_rgb(r, g, b);
+    assert_eq!(look.kind, LookKind::Reference);
+    assert_eq!(look.background, Color32::BLACK);
+    assert_eq!(look.spotlight, None);
+    assert_eq!(look.panel, palette::SURFACE_RAISED);
+    assert_eq!(look.panel_hover, palette::PLATE_HOVER);
+    assert_eq!(look.edge, palette::HAIRLINE);
+    assert_eq!(look.control_edge, palette::PANEL_EDGE);
+    assert_eq!(look.card_edge, palette::PANEL_EDGE);
+    assert_eq!(look.edge_strong, palette::TEXT_SUBTLE);
+    assert_eq!(look.fill_soft, palette::CONTROL_FILL);
+    assert_eq!(look.fill_disabled, rgb(19, 19, 20));
+    assert_eq!(look.chip_hover, palette::HAIRLINE);
+    assert_eq!(look.row_hover, palette::HOVER_FILL);
+    assert_eq!(look.wash, palette::HOVER_FILL);
+    assert_eq!(look.text, Color32::WHITE);
+    assert_eq!(look.text_muted, palette::TEXT_MUTED);
+    assert_eq!(look.text_body, palette::CHROME);
+    assert_eq!(look.text_idle, palette::TEXT_MUTED);
+    assert_eq!(look.text_subtle, palette::TEXT_SUBTLE);
+    assert_eq!(look.solid, Color32::WHITE);
+    assert_eq!(look.solid_content, Color32::BLACK);
+    assert_eq!(look.danger, palette::FIRE);
+    assert_eq!(look.danger_edge, palette::EMBER);
+    assert_eq!(look.menu, palette::PANEL);
+    assert_eq!(look.popover_shadow, Color32::from_black_alpha(140));
+    assert_eq!(look.menu_outline, Some(palette::PANEL_EDGE));
+    assert_eq!(look.slot_fill, palette::CONTROL_FILL);
+    assert_eq!(look.utility, Color32::BLACK);
+    assert_eq!(look.utility_hairline, None);
+    assert_eq!(look.utility_text, Color32::WHITE);
+    assert_eq!(look.accent, palette::FIRE);
+    assert_eq!(look.icon_selected, Color32::WHITE);
+    assert_eq!(look.icon_on, palette::TEXT_MUTED);
+    assert_eq!(look.icon_bypassed, palette::TEXT_SUBTLE);
+    assert_eq!(look.veil, palette::KNOB_VEIL);
+    assert_eq!(look.knob_track, palette::SURFACE_RAISED);
+    assert_eq!(look.knob_arc, palette::FLAME);
+    assert_eq!(look.knob_cap, palette::SURFACE_RAISED);
+    assert_eq!(look.knob_cap_edge, Color32::BLACK);
+    assert_eq!(look.knob_cap_highlight, palette::KNOB_METAL);
+    assert_eq!(look.knob_shadow, Color32::from_black_alpha(153));
+    assert_eq!(look.knob_pointer, Color32::WHITE);
+    assert_eq!(look.knob_label, palette::CHROME);
+    assert_eq!(look.knob_value, palette::TEXT_MUTED);
 }
 
 #[test]

@@ -76,7 +76,7 @@ pub enum GearGlyph {
 #[must_use]
 pub fn gear_glyph(gear: &str) -> GearGlyph {
     match gear {
-        "amp+cab" | "full-rig" => GearGlyph::FullRig,
+        "amp+cab" | "full-rig" | "amp-cab" => GearGlyph::FullRig,
         "amp" => GearGlyph::Amp,
         "cab" | "cabinet" => GearGlyph::Cabinet,
         "pedal" => GearGlyph::Pedal,
@@ -709,4 +709,16 @@ fn dashed_border(painter: &egui::Painter, rect: Rect, color: Color32) {
         7.0,
         5.0,
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GearGlyph, gear_glyph};
+
+    #[test]
+    fn a_local_full_rig_capture_shows_the_full_rig_glyph() {
+        for gear in ["amp+cab", "full-rig", "amp-cab"] {
+            assert_eq!(gear_glyph(gear), GearGlyph::FullRig, "{gear}");
+        }
+    }
 }
