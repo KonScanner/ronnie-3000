@@ -1,6 +1,6 @@
 //! Standalone settings persistence and sentinel tests.
 
-use ronie_app::{
+use ronnie_app::{
     audio::{AudioBackendKind, DeviceConfig},
     audio_settings::StandaloneAudioSettings,
 };
@@ -31,7 +31,7 @@ fn audio_setup_and_enabled_midi_round_trip() {
         .set_midi_enabled("pads", false)
         .expect("disable MIDI");
 
-    let xml = ronie_core::PropertiesFile::read(&path)
+    let xml = ronnie_core::PropertiesFile::read(&path)
         .expect("properties")
         .get("audioSetup")
         .expect("audioSetup key")
@@ -53,7 +53,7 @@ fn older_setup(kind: &str, stereo: bool) -> (tempfile::TempDir, std::path::PathB
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("audio.settings");
     let channels = if stereo { 2 } else { 1 };
-    ronie_core::SettingsStore::new(path.clone())
+    ronnie_core::SettingsStore::new(path.clone())
         .merge_key(
             "audioSetup",
             &format!(
@@ -183,7 +183,7 @@ fn setup_xml(buffer: u32) -> String {
 fn saved_settings(buffer: u32) -> (tempfile::TempDir, std::path::PathBuf) {
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("audio.settings");
-    ronie_core::SettingsStore::new(path.clone())
+    ronnie_core::SettingsStore::new(path.clone())
         .merge_key("audioSetup", &setup_xml(buffer))
         .expect("seed audio setup");
     (directory, path)
@@ -193,8 +193,8 @@ fn load(path: &std::path::Path) -> StandaloneAudioSettings {
     StandaloneAudioSettings::load(path).expect("load settings")
 }
 
-fn properties(path: &std::path::Path) -> ronie_core::PropertiesFile {
-    ronie_core::PropertiesFile::read(path).expect("properties")
+fn properties(path: &std::path::Path) -> ronnie_core::PropertiesFile {
+    ronnie_core::PropertiesFile::read(path).expect("properties")
 }
 
 fn choose_buffer(path: &std::path::Path, frames: u32) {
@@ -247,7 +247,7 @@ fn the_buffer_move_runs_one_time() {
     load(&path);
 
     assert_eq!(std::fs::read(&path).expect("settings"), after_move);
-    ronie_core::SettingsStore::new(path.clone())
+    ronnie_core::SettingsStore::new(path.clone())
         .merge_key("audioSetup", &setup_xml(2048))
         .expect("value after the move");
     assert_eq!(load(&path).config().buffer_frames, Some(2048));
@@ -314,7 +314,7 @@ fn a_saved_zero_stays_no_choice_and_records_the_marker() {
 fn the_buffer_move_keeps_the_other_keys_in_the_file() {
     for saved in [1024, 128] {
         let (_directory, path) = saved_settings(saved);
-        let store = ronie_core::SettingsStore::new(path.clone());
+        let store = ronnie_core::SettingsStore::new(path.clone());
         let others = [
             ("calibrateInput", "1.0"),
             ("multiCore", "false"),

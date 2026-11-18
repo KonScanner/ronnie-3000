@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use ronie_core::{BlockId, ChainSide, ModelBytes, ModelId, Tone};
+use ronnie_core::{BlockId, ChainSide, ModelBytes, ModelId, Tone, ToneId};
 
 use crate::backend::{UiAction, UiBackend, UiError};
 
@@ -31,6 +31,11 @@ pub struct LoadTarget {
     /// Whether the load replaces the tone of the block in place, keeping its params, rather than
     /// filling it as a new block.
     pub replace: bool,
+    /// The tone that the block held when a replace was selected. The replace lands only while the
+    /// block still holds this tone, so a late download cannot overwrite a newer change of the
+    /// block, such as the undo that restored an earlier tone. `None` for an insert fill, and for a
+    /// replace whose target held no tone when it was selected.
+    pub replaces: Option<ToneId>,
 }
 
 /// The one current generation of a flow.
@@ -118,21 +123,31 @@ impl LoadTicket {
             |downloaded| {
                 let target = resolve_target(self.backend.as_ref(), &self.target)
                     .ok_or_else(|| UiError::UnknownTarget(self.target.block_id.clone()))?;
-                Ok(Some(if self.target.replace {
-                    UiAction::ReplaceTone {
+                if self.target.replace {
+                    // The block can hold another tone now, because the user undid the change that
+                    // selected this target or picked another tone. That newer tone wins, and this
+                    // download ends as one that did not land, with nothing to tell the user.
+                    let Some(replaces) = self.target.replaces else {
+                        return Ok(None);
+                    };
+                    if held_tone(self.backend.as_ref(), &target) != Some(replaces) {
+                        return Ok(None);
+                    }
+                    Ok(Some(UiAction::ReplaceTone {
                         target_block_id: target,
                         tone: downloaded.tone,
                         model_id: downloaded.model_id,
+                        replaces,
                         bytes: Some(downloaded.bytes),
-                    }
+                    }))
                 } else {
-                    UiAction::LoadToneWithBytes {
+                    Ok(Some(UiAction::LoadToneWithBytes {
                         target_insert_id: target,
                         tone: downloaded.tone,
                         model_id: downloaded.model_id,
                         bytes: downloaded.bytes,
-                    }
-                }))
+                    }))
+                }
             },
         )
     }
@@ -180,6 +195,16 @@ fn publish_model(
     }
     backend.settle_audio()?;
     Ok(true)
+}
+
+/// The tone that block `block_id` holds, if it holds one.
+fn held_tone(backend: &dyn UiBackend, block_id: &BlockId) -> Option<ToneId> {
+    backend
+        .chain_state(0)
+        .chain
+        .block(block_id)
+        .and_then(|block| block.tone.as_ref())
+        .map(|tone| tone.id)
 }
 
 /// The remembered block, or the first open insert of its lane when the block is gone. A
@@ -432,14 +457,37 @@ impl LoadFlow {
         if self.phase == LoadPhase::Loading {
             self.gate.advance();
         }
+        // A replace names the tone that its block holds when the load starts; see
+        // [`Self::capture_replaces`]. A menu that stays open while the chain changes must not
+        // name the tone that it showed.
         self.pending = Some(LoadTarget {
             side,
             block_id: target_block_id.to_owned(),
             replace,
+            replaces: None,
         });
         self.browser_open = true;
         self.closed = false;
         self.phase = LoadPhase::Idle;
+    }
+
+    /// Records the tone that the pending replace target holds now, so that the load lands only
+    /// while the block still holds that tone.
+    ///
+    /// The load starts when the user picks a tone, and not when tone selection opens: an undo
+    /// while the browser was open must not make the replace refuse the tone that the block
+    /// holds now.
+    fn capture_replaces(&mut self) {
+        let Some(target) = &self.pending else {
+            return;
+        };
+        if !target.replace {
+            return;
+        }
+        let held = held_tone(self.backend.as_ref(), &BlockId(target.block_id.clone()));
+        if let Some(target) = self.pending.as_mut() {
+            target.replaces = held;
+        }
     }
 
     /// Pending target.
@@ -456,7 +504,7 @@ impl LoadFlow {
 
     /// Tone currently being acquired, if a load is active.
     #[must_use]
-    pub fn loading_tone_id(&self) -> Option<ronie_core::ToneId> {
+    pub fn loading_tone_id(&self) -> Option<ronnie_core::ToneId> {
         (self.phase == LoadPhase::Loading)
             .then(|| self.last_tone.as_ref().map(|tone| tone.id))
             .flatten()
@@ -498,6 +546,7 @@ impl LoadFlow {
         if tone.models.is_empty() {
             return Err(UiError::InvalidAction("tone has no models".to_owned()));
         }
+        self.capture_replaces();
         self.closed = false;
         let generation = self.gate.advance();
         self.last_tone = Some(tone);
@@ -512,10 +561,12 @@ impl LoadFlow {
     /// # Errors
     /// Returns an invalid-action error for a missing target.
     pub fn begin_remote_load(&mut self, tone: Tone) -> Result<LoadTicket, UiError> {
-        let target = self
-            .pending
-            .clone()
-            .ok_or_else(|| UiError::InvalidAction("no load target is selected".to_owned()))?;
+        self.capture_replaces();
+        let Some(target) = self.pending.clone() else {
+            return Err(UiError::InvalidAction(
+                "no load target is selected".to_owned(),
+            ));
+        };
         self.closed = false;
         let generation = self.gate.advance();
         self.last_tone = Some(tone);
@@ -558,13 +609,40 @@ impl LoadFlow {
         self.landed.take()
     }
 
-    /// Records a failed load, which can retry. Returns false for a generation that is not current.
+    /// Records a failed load, which can retry.
+    ///
+    /// Returns false for a generation that is not current, and for a replace whose block no
+    /// longer holds the tone that it started from. Such a load ends with nothing to say: the
+    /// newer tone stays, and the user gets no error and no retry.
     pub fn fail_load(&mut self, generation: u64) -> bool {
         if self.closed || generation != self.gate.current() {
             return false;
         }
+        if self.replace_target_moved() {
+            // The replace lost its block. Ending as cancelled closes tone selection, so that a
+            // later pick cannot start an insert fill on the tone block that the replace left.
+            self.cancel();
+            self.pending = None;
+            return false;
+        }
         self.phase = LoadPhase::Failed;
         true
+    }
+
+    /// Whether the pending replace target no longer holds the tone that it started from.
+    ///
+    /// A replace target that held no tone when it was selected can match no tone now, so it has
+    /// moved.
+    fn replace_target_moved(&self) -> bool {
+        let Some(target) = &self.pending else {
+            return false;
+        };
+        if !target.replace {
+            return false;
+        }
+        target.replaces.is_none_or(|replaces| {
+            held_tone(self.backend.as_ref(), &BlockId(target.block_id.clone())) != Some(replaces)
+        })
     }
 
     /// Ends a background load whose target is gone, with no failure to show. Returns false for a
@@ -659,20 +737,27 @@ impl LoadFlow {
             return false;
         };
         let loaded = tone.clone();
-        let result = self.backend.dispatch(if target.replace {
-            UiAction::ReplaceTone {
+        let result = if target.replace {
+            // A replace names the tone that its block held when the target was selected, and the
+            // editor refuses it when the block holds another tone now.
+            let Some(replaces) = target.replaces else {
+                self.phase = LoadPhase::Failed;
+                return false;
+            };
+            self.backend.dispatch(UiAction::ReplaceTone {
                 target_block_id: target_insert_id,
                 tone,
                 model_id,
+                replaces,
                 bytes: None,
-            }
+            })
         } else {
-            UiAction::LoadTone {
+            self.backend.dispatch(UiAction::LoadTone {
                 target_insert_id,
                 tone,
                 model_id,
-            }
-        });
+            })
+        };
         if result.is_err() {
             self.phase = LoadPhase::Failed;
             return false;

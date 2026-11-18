@@ -1,5 +1,5 @@
 [package]
-name = "ronie-plugin-nice"
+name = "ronnie-plugin-nice"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,10 +17,10 @@ base64.workspace = true
 egui.workspace = true
 nice-plug.workspace = true
 nice-plug-egui.workspace = true
-ronie-core.workspace = true
-ronie-dsp.workspace = true
-ronie-plugin.workspace = true
-ronie-ui.workspace = true
+ronnie-core.workspace = true
+ronnie-dsp.workspace = true
+ronnie-plugin.workspace = true
+ronnie-ui.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 x11rb.workspace = true

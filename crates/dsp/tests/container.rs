@@ -1,9 +1,9 @@
 //! Slimmable container lifecycle tests.
 #![allow(unsafe_code)]
 
-use ronie_core::{DspError, NamArchitecture, NamDocument, NamMetadata, VersionSupport};
-use ronie_dsp::{CompiledModel, ModelEngine, compile_model};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::{DspError, NamArchitecture, NamDocument, NamMetadata, VersionSupport};
+use ronnie_dsp::{CompiledModel, ModelEngine, compile_model};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json::{Value, json};
 use std::{
     alloc::{GlobalAlloc, Layout, System},
@@ -282,7 +282,7 @@ fn tier_switch_is_atomic_and_allocation_free() {
 #[test]
 fn single_model_rejects_size_change_before_preparation() {
     let _guard = lock();
-    let document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+    let document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
     let compiled = compile_model(&document).expect("compiled single model");
     let mut engine = ModelEngine::new(&compiled).expect("single engine");
 

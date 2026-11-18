@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot, InputMode, IrB,
     JuceTree, JuceValue, MidiSource, ModelId, ModelSource, SKIN_OVERRIDE, SessionSnapshot, Tone,
     ToneError, references_model,
@@ -582,7 +582,7 @@ fn a_block_with_b_round_trips_through_juce() {
         "B is an Int64 property: {:?}",
         tree.properties
     );
-    let codec = ronie_core::JuceCodec::default();
+    let codec = ronnie_core::JuceCodec::default();
     let bytes = codec.write_tree(&juce_chain(tree.clone())).expect("encode");
     let decoded = codec.read_tree(&bytes).expect("decode");
     let snapshot = ChainSnapshot::from_juce_tree(&decoded).expect("the tree parses");
@@ -660,7 +660,7 @@ fn a_skin_override_round_trips_through_juce() {
         "the override is a string property: {:?}",
         tree.properties
     );
-    let codec = ronie_core::JuceCodec::default();
+    let codec = ronnie_core::JuceCodec::default();
     let bytes = codec.write_tree(&juce_chain(tree.clone())).expect("encode");
     let decoded = codec.read_tree(&bytes).expect("decode");
     let snapshot = ChainSnapshot::from_juce_tree(&decoded).expect("the tree parses");

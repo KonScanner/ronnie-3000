@@ -1,4 +1,4 @@
-use ronie_core::{EqBand, EqBandType, EqParams};
+use ronnie_core::{EqBand, EqBandType, EqParams};
 
 const BANDS: usize = 6;
 

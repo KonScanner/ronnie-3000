@@ -6,11 +6,11 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PhaseEngine, compile_model,
     rt::{Job, RtWorkerPool},
 };
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_document;
 
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
 static DEALLOCATIONS: AtomicUsize = AtomicUsize::new(0);

@@ -26,10 +26,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::BlockId;
-use ronie_dsp::block::SpectrumTap;
-use ronie_plugin::ProcessorBackend;
-use ronie_ui::{
+use ronnie_core::BlockId;
+use ronnie_dsp::block::SpectrumTap;
+use ronnie_plugin::ProcessorBackend;
+use ronnie_ui::{
     backend::{ChainFault, DeviceAction, MeterSnapshot, UiError},
     default::SystemDeviceState,
 };
@@ -138,7 +138,7 @@ impl AudioEngine {
         });
         let worker_core = Arc::clone(&core);
         let chain_worker = std::thread::Builder::new()
-            .name("ronie-audio-chain".to_owned())
+            .name("ronnie-audio-chain".to_owned())
             .spawn(move || run_chain_worker(&worker_core))
             .map_err(|error| UiError::Control(format!("starting the chain worker: {error}")))?;
         Ok(Self {
@@ -459,7 +459,7 @@ impl Core {
     fn start_device_worker(self: &Arc<Self>, worker: u64) {
         let core = Arc::clone(self);
         let started = std::thread::Builder::new()
-            .name("ronie-audio-devices".to_owned())
+            .name("ronnie-audio-devices".to_owned())
             .spawn(move || {
                 let _guard = DeviceWorkerGuard {
                     core: &core,
@@ -617,10 +617,10 @@ mod tests {
         mpsc,
     };
 
-    use ronie_core::{InputMode, ModelBytes, ModelId, Tone};
-    use ronie_dsp::PrepareSpec;
-    use ronie_plugin::{RonieProcessor, SessionChainPlan};
-    use ronie_ui::backend::{ChainFaultKind, UiAction, UiBackend};
+    use ronnie_core::{InputMode, ModelBytes, ModelId, Tone};
+    use ronnie_dsp::PrepareSpec;
+    use ronnie_plugin::{RonnieProcessor, SessionChainPlan};
+    use ronnie_ui::backend::{ChainFaultKind, UiAction, UiBackend};
 
     use super::*;
 
@@ -679,7 +679,7 @@ mod tests {
     impl Rig {
         fn new() -> Self {
             let directory = tempfile::tempdir().expect("tempdir");
-            let session = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+            let session = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 128,
                 oversampling: 1,
@@ -777,7 +777,7 @@ mod tests {
         started.recv_timeout(LIMIT).expect("a compile");
         assert_eq!(
             compiler.lock().expect("name").as_deref(),
-            Some("ronie-audio-chain")
+            Some("ronnie-audio-chain")
         );
 
         for _ in 0..20 {
@@ -985,7 +985,7 @@ mod tests {
     /// What one compile of the hook below read and made.
     struct Compiled {
         generation: u64,
-        planned: ronie_plugin::AudioSessionState,
+        planned: ronnie_plugin::AudioSessionState,
         stereo: bool,
     }
 

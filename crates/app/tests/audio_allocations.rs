@@ -2,10 +2,10 @@
 
 #![allow(unsafe_code)]
 
-use ronie_app::audio::{
+use ronnie_app::audio::{
     AudioBackendKind, AudioError, AudioEvent, AudioWorker, DeviceConfig, NonFiniteReport,
 };
-use ronie_dsp::rt_chain::ChainControls;
+use ronnie_dsp::rt_chain::ChainControls;
 
 struct CountingAllocator;
 
@@ -27,18 +27,18 @@ unsafe impl std::alloc::GlobalAlloc for CountingAllocator {
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
 
-fn identity_block(id: &str) -> ronie_core::ChainBlock {
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+fn identity_block(id: &str) -> ronnie_core::ChainBlock {
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 1,
         "title": "Identity IR",
         "format": "ir",
         "models": [{"id": 1, "name": "Identity"}],
     }))
     .expect("tone");
-    ronie_core::ChainBlock::tone(id, tone, ronie_core::ModelId(1))
+    ronnie_core::ChainBlock::tone(id, tone, ronnie_core::ModelId(1))
 }
 
-fn chain_with_a_block_that_makes_nan() -> ronie_dsp::prepare::PreparedChainChange {
+fn chain_with_a_block_that_makes_nan() -> ronnie_dsp::prepare::PreparedChainChange {
     let mut block = identity_block("bad");
     block.params.output_gain = f64::NAN;
     chain_of(1, vec![block])
@@ -46,10 +46,10 @@ fn chain_with_a_block_that_makes_nan() -> ronie_dsp::prepare::PreparedChainChang
 
 fn chain_of(
     generation: u64,
-    blocks: Vec<ronie_core::ChainBlock>,
-) -> ronie_dsp::prepare::PreparedChainChange {
-    let model = ronie_dsp::ir::compile_ir(
-        &ronie_core::AudioDocument {
+    blocks: Vec<ronnie_core::ChainBlock>,
+) -> ronnie_dsp::prepare::PreparedChainChange {
+    let model = ronnie_dsp::ir::compile_ir(
+        &ronnie_core::AudioDocument {
             sample_rate: 48_000.0,
             channels: vec![vec![1.0]],
         },
@@ -58,26 +58,26 @@ fn chain_of(
     .expect("identity IR");
     let models = blocks
         .iter()
-        .map(|_| Some(ronie_dsp::block::BlockModel::Ir(model.clone())))
+        .map(|_| Some(ronnie_dsp::block::BlockModel::Ir(model.clone())))
         .collect();
-    let empty = ronie_dsp::lane::LaneSnapshot {
+    let empty = ronnie_dsp::lane::LaneSnapshot {
         blocks: Vec::new(),
         models: Vec::new(),
     };
-    ronie_dsp::prepare::PreparedChainChange::new(
+    ronnie_dsp::prepare::PreparedChainChange::new(
         generation,
-        ronie_dsp::PrepareSpec {
+        ronnie_dsp::PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
-            input_mode: ronie_core::InputMode::Left,
+            input_mode: ronnie_core::InputMode::Left,
             stereo_input: false,
             stereo_output: true,
         },
-        ronie_dsp::lane::LaneSnapshot { blocks, models },
+        ronnie_dsp::lane::LaneSnapshot { blocks, models },
         empty,
         false,
-        ronie_dsp::LatencyReport {
+        ronnie_dsp::LatencyReport {
             samples: 0,
             tail_seconds: 0.0,
         },
@@ -202,7 +202,7 @@ fn prepared_callbacks_have_no_allocations_or_ui_thread_calls() {
         blamed.telemetry().non_finite_report(),
         NonFiniteReport {
             generation: 1,
-            block: Some((ronie_core::ChainSide::Left, 0)),
+            block: Some((ronnie_core::ChainSide::Left, 0)),
         }
     );
 
@@ -224,7 +224,7 @@ fn prepared_callbacks_have_no_allocations_or_ui_thread_calls() {
     assert_eq!(report.generation, 1);
     assert_eq!(
         report.blocks.positions().collect::<Vec<_>>(),
-        [(ronie_core::ChainSide::Left, 1)]
+        [(ronnie_core::ChainSide::Left, 1)]
     );
 
     // The bypassed block does not fail again, and the report stays.
@@ -246,7 +246,7 @@ fn prepared_callbacks_have_no_allocations_or_ui_thread_calls() {
     next.blocks.left.fail_next_for_test(0);
     failing
         .command_sender()
-        .try_send(ronie_dsp::rt_chain::ChainCommand::Replace(next))
+        .try_send(ronnie_dsp::rt_chain::ChainCommand::Replace(next))
         .expect("queue the chain");
     ALLOCATIONS.store(0, std::sync::atomic::Ordering::SeqCst);
     failing
@@ -258,7 +258,7 @@ fn prepared_callbacks_have_no_allocations_or_ui_thread_calls() {
     assert_eq!(report.generation, 2);
     assert_eq!(
         report.blocks.positions().collect::<Vec<_>>(),
-        [(ronie_core::ChainSide::Left, 0)]
+        [(ronnie_core::ChainSide::Left, 0)]
     );
 
     // An open tuner tap copies the raw input and allocates nothing.

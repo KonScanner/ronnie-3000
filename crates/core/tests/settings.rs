@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use ronie_core::{
+use ronnie_core::{
     HttpResponse, OAuthConfig, OAuthError, OAuthFlow, OAuthTokens, PropertiesFile,
     RecordedTransport, SecretString, SessionError, SessionStore, SettingsStore, TokenRefresher,
 };
@@ -234,7 +234,7 @@ impl TokenRefresher for TransientRefresh {
         _refresh: SecretString,
         _now_ms: i64,
     ) -> Result<OAuthTokens, OAuthError> {
-        Err(OAuthError::Http(ronie_core::HttpError::ConnectTimeout))
+        Err(OAuthError::Http(ronnie_core::HttpError::ConnectTimeout))
     }
 }
 
@@ -254,14 +254,14 @@ async fn transient_refresh_failure_preserves_last_good_tokens() {
     assert!(matches!(
         result,
         Err(SessionError::OAuth(OAuthError::Http(
-            ronie_core::HttpError::ConnectTimeout
+            ronnie_core::HttpError::ConnectTimeout
         )))
     ));
     assert!(session.read_tokens().expect("read").is_some());
 }
 
 fn flow_over(
-    responses: Vec<Result<HttpResponse, ronie_core::HttpError>>,
+    responses: Vec<Result<HttpResponse, ronnie_core::HttpError>>,
 ) -> OAuthFlow<RecordedTransport> {
     OAuthFlow::new(
         OAuthConfig::new(
@@ -438,7 +438,7 @@ fn root_relative_settings_reject_traversal_and_absolute_paths() {
             .is_err()
     );
     assert!(
-        SettingsStore::in_root(temp.path(), ronie_core::UI_PREFERENCES_SETTINGS)
+        SettingsStore::in_root(temp.path(), ronnie_core::UI_PREFERENCES_SETTINGS)
             .read()
             .is_ok()
     );

@@ -472,7 +472,7 @@ impl ReqwestTransport {
 fn refused_redirect_note(target: &Url) -> String {
     let host = target.host_str().unwrap_or("with no name");
     format!(
-        "Ronnie refused a redirect to the host {host}. To allow this host, add its HTTPS origin to RONIE_MODEL_ORIGINS."
+        "Ronnie refused a redirect to the host {host}. To allow this host, add its HTTPS origin to RONNIE_MODEL_ORIGINS."
     )
 }
 

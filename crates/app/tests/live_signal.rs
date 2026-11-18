@@ -4,15 +4,15 @@
 //! result through `UiBackend`, as the UI does. The mock supplies fixture values, so it proves
 //! nothing here.
 
-use ronie_app::standalone_backend::StandaloneBackend;
-use ronie_core::{
+use ronnie_app::standalone_backend::StandaloneBackend;
+use ronnie_core::{
     InputMode, ModelBytes, ModelId, PREFERENCES_SETTINGS, Tone,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_dsp::analysis::TunerReading;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_dsp::analysis::TunerReading;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     backend::{DeviceAction, GesturePhase, MeterSnapshot, UiAction, UiBackend},
     default::{TunerFeed, TunerStatus},
 };
@@ -29,7 +29,7 @@ struct Rig {
 impl Rig {
     fn new() -> Self {
         let root = tempfile::tempdir().expect("temporary root");
-        let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: f64::from(RATE),
             max_host_frames: 128,
             oversampling: 1,
@@ -78,7 +78,7 @@ impl Rig {
     }
 
     /// Loads a tone with real bytes into the first slot, and waits for its chain.
-    fn load_tone(&self) -> ronie_core::BlockId {
+    fn load_tone(&self) -> ronnie_core::BlockId {
         let target = self.backend.chain_state(0).chain.left[0].id.clone();
         self.backend
             .dispatch(UiAction::LoadToneWithBytes {
@@ -415,7 +415,7 @@ fn the_tuner_works_at_another_stream_rate_and_after_a_new_stream() {
     assert!(tuner_reading_of(&mut rig, 440.0, 0.25).frequency_hz > 0.0);
     rig.backend
         .dispatch(UiAction::Device(DeviceAction::Configure(
-            ronie_ui::backend::AudioDeviceConfig {
+            ronnie_ui::backend::AudioDeviceConfig {
                 sample_rate: Some(96_000.0),
                 buffer_frames: Some(256),
                 ..Default::default()
@@ -451,7 +451,7 @@ fn each_change_of_a_knob_gesture_reaches_the_audio_at_once() {
 }
 
 /// What the EQ page does: it polls while audio runs, and it waits for one full window.
-fn spectrum_of(rig: &mut Rig, block: &ronie_core::BlockId, hertz: f32, level: f32) -> [f32; 64] {
+fn spectrum_of(rig: &mut Rig, block: &ronnie_core::BlockId, hertz: f32, level: f32) -> [f32; 64] {
     spectrum_until(rig, block, hertz, level, |_| true)
 }
 
@@ -460,7 +460,7 @@ fn spectrum_of(rig: &mut Rig, block: &ronie_core::BlockId, hertz: f32, level: f3
 /// 10 seconds, and the caller then fails on the bins.
 fn spectrum_until(
     rig: &mut Rig,
-    block: &ronie_core::BlockId,
+    block: &ronnie_core::BlockId,
     hertz: f32,
     level: f32,
     ready: impl Fn(&[f32; 64]) -> bool,

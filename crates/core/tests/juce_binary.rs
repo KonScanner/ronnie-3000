@@ -1,6 +1,6 @@
 //! Deterministic JUCE variant and ValueTree binary codec tests.
 
-use ronie_core::{CodecError, JuceCodec, JuceTree, JuceValue};
+use ronnie_core::{CodecError, JuceCodec, JuceTree, JuceValue};
 
 fn codec() -> JuceCodec {
     JuceCodec {

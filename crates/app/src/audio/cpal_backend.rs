@@ -18,7 +18,7 @@ use super::{
     AudioBackendKind, AudioError, AudioEvent, AudioTelemetry, AudioWorker, DEFAULT_BUFFER_FRAMES,
     DeviceConfig, RawDevice, SYSTEM_DEFAULT_DEVICE, clean_alsa_devices, clean_server_devices,
 };
-use ronie_dsp::rt_chain::ChainCommandSender;
+use ronnie_dsp::rt_chain::ChainCommandSender;
 
 /// Prepared callback size when the host chooses its own buffer and reports no range.
 const HOST_CHOSEN_CALLBACK_FRAMES: u32 = 1024;

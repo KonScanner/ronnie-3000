@@ -1,13 +1,13 @@
 //! Measures the time of one audio callback at 256 frames and 48 kHz, on this thread.
 //!
-//! Run with `cargo run --release -p ronie-app --example callback_cost`. The budget of one callback
+//! Run with `cargo run --release -p ronnie-app --example callback_cost`. The budget of one callback
 //! is 5333 microseconds.
 
 use std::time::{Duration, Instant};
 
-use ronie_app::audio::{AudioBackendKind, AudioWorker, DeviceConfig};
-use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_app::audio::{AudioBackendKind, AudioWorker, DeviceConfig};
+use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     LatencyReport, PrepareSpec, block::BlockModel, ir::compile_ir, lane::LaneSnapshot,
     prepare::PreparedChainChange, rt_chain::ChainControls,
 };

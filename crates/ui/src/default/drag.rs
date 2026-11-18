@@ -1,6 +1,6 @@
 //! Revision-safe pointer, keyboard, and touch drag state.
 
-use ronie_core::{BlockId, ChainSide};
+use ronnie_core::{BlockId, ChainSide};
 
 /// Result of one drag phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

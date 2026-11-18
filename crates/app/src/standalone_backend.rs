@@ -6,13 +6,13 @@ use std::{
     time::Duration,
 };
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, InputMode, LocalStash, ModelBytes, ModelId, PREFERENCES_SETTINGS, SettingsStore, Tone,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     backend::{
         ChainFault, ChainViewState, DeviceAction, GesturePhase, HostControl, MeterSnapshot,
         NavigationAction, UiAction, UiBackend, UiError, UiReceipt,
@@ -45,7 +45,7 @@ pub fn standalone_processor(root: &Path) -> Result<ProcessorBackend, UiError> {
             root.join("stash").display()
         ))
     })?;
-    let processor = RonieProcessor::with_stash(
+    let processor = RonnieProcessor::with_stash(
         PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
@@ -251,7 +251,7 @@ impl UiBackend for StandaloneBackend {
         self.engine.meter_snapshot()
     }
 
-    fn tuner_reading(&self) -> ronie_dsp::analysis::TunerReading {
+    fn tuner_reading(&self) -> ronnie_dsp::analysis::TunerReading {
         match (self.engine.telemetry(), self.tuner.lock()) {
             (Some(stream), Ok(mut tuner)) => tuner.read(&stream),
             _ => self.processor.tuner_reading(),
@@ -414,7 +414,7 @@ mod tests {
     }
 
     fn processor() -> ProcessorBackend {
-        ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
@@ -503,7 +503,7 @@ mod tests {
         let compiles = Arc::new(AtomicUsize::new(0));
         let counted = Arc::clone(&compiles);
         let (backend, _directory) =
-            backend_with_a_bad_model(Arc::new(move |plan: &ronie_plugin::SessionChainPlan| {
+            backend_with_a_bad_model(Arc::new(move |plan: &ronnie_plugin::SessionChainPlan| {
                 counted.fetch_add(1, Ordering::SeqCst);
                 let _ = started_tx.send(std::thread::current().id());
                 let _ = gate.lock().expect("gate").recv_timeout(LIMIT);
@@ -562,7 +562,7 @@ mod tests {
         let compiles = Arc::new(AtomicUsize::new(0));
         let counted = Arc::clone(&compiles);
         let (backend, _directory) =
-            backend_with_a_bad_model(Arc::new(move |plan: &ronie_plugin::SessionChainPlan| {
+            backend_with_a_bad_model(Arc::new(move |plan: &ronnie_plugin::SessionChainPlan| {
                 assert!(
                     counted.fetch_add(1, Ordering::SeqCst) > 0,
                     "this panic is the test"
@@ -623,7 +623,7 @@ mod tests {
                     .processor
                     .take_restore()
                     .expect("read retained restore"),
-                Some(ronie_plugin::SessionRestore::Compile)
+                Some(ronnie_plugin::SessionRestore::Compile)
             ),
             "the request must remain owned by the processor after lock failure"
         );

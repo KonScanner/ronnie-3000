@@ -1133,8 +1133,34 @@ fn juce_bool_prop(tree: &JuceTree, name: &str) -> Option<bool> {
         Some(JuceValue::Bool(value)) => Some(*value),
         Some(JuceValue::Int(value)) => Some(*value != 0),
         Some(JuceValue::Int64(value)) => Some(*value != 0),
+        // An XML round trip writes every attribute as a string; JUCE reads it back with
+        // `var::toBool`, so the typed decode must read it the same way.
+        Some(JuceValue::String(value)) => Some(juce_string_bool(value)),
         _ => None,
     }
+}
+
+/// JUCE `var::toBool` for a string: a leading integer other than zero, or "true" or "yes".
+fn juce_string_bool(value: &str) -> bool {
+    juce_string_int(value) != 0
+        || value.trim().eq_ignore_ascii_case("true")
+        || value.trim().eq_ignore_ascii_case("yes")
+}
+
+/// JUCE `String::getIntValue`: the leading integer, or zero when the string does not start with
+/// one. The sign and the digits are read, and anything after them is ignored.
+fn juce_string_int(value: &str) -> i64 {
+    let text = value.trim_start();
+    let bytes = text.as_bytes();
+    let mut end = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let digits = end;
+    while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+        end += 1;
+    }
+    if end == digits {
+        return 0;
+    }
+    text[..end].parse().unwrap_or(0)
 }
 
 fn parse_lane(
@@ -1334,6 +1360,51 @@ mod tests {
     fn a_juce_block_drops_a_second_ir_that_is_the_active_model() {
         let chain = ChainSnapshot::from_juce_tree(&juce_chain(block_tree(71, 71))).expect("chain");
         assert_eq!(chain.left[0].ir_b, None, "one model cannot be both IRs");
+    }
+
+    #[test]
+    fn a_juce_block_reads_booleans_that_an_xml_round_trip_wrote_as_strings() {
+        let mut tree = block_tree(71, 72);
+        for (name, value) in [
+            ("enabled", "0"),
+            ("normalize", "1"),
+            ("irBInvert", "1"),
+            ("irBlend", "0.65"),
+        ] {
+            tree.properties
+                .push((name.to_owned(), JuceValue::String(value.to_owned())));
+        }
+
+        let chain = ChainSnapshot::from_juce_tree(&juce_chain(tree)).expect("chain");
+        let block = &chain.left[0];
+        assert!(
+            !block.params.enabled,
+            "a disabled block stays disabled after an XML round trip"
+        );
+        assert!(block.params.normalize);
+        assert!(block.params.ir_b_invert, "IR B polarity survives");
+        assert!((block.params.ir_blend - 0.65).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn a_string_boolean_follows_juce_var_to_bool() {
+        for (text, expected) in [
+            ("1", true),
+            ("0", false),
+            (" 1 ", true),
+            ("-1", true),
+            ("2", true),
+            ("1junk", true),
+            ("true", true),
+            ("TRUE", true),
+            ("yes", true),
+            ("no", false),
+            ("false", false),
+            ("", false),
+            ("abc", false),
+        ] {
+            assert_eq!(juce_string_bool(text), expected, "{text:?}");
+        }
     }
 
     #[test]

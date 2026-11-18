@@ -237,7 +237,7 @@ impl<T: HttpTransport + Send + Sync> ModelFetcher for DownloadClient<T> {
 fn refused_model_note(url: &Url) -> String {
     let host = url.host_str().unwrap_or("with no name");
     format!(
-        "Ronnie refused a model on the host {host}. To allow this host, add its HTTPS origin to RONIE_MODEL_ORIGINS."
+        "Ronnie refused a model on the host {host}. To allow this host, add its HTTPS origin to RONNIE_MODEL_ORIGINS."
     )
 }
 

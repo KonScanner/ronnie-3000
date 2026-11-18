@@ -8,8 +8,8 @@
 //! Build the plugin first. The allocation check stops REAPER when the audio thread allocates:
 //!
 //! ```text
-//! cargo build -p ronie-plugin-nice --features assert_process_allocs
-//! cargo run -p ronie-host-test -- --reaper <folder with the reaper program>
+//! cargo build -p ronnie-plugin-nice --features assert_process_allocs
+//! cargo run -p ronnie-host-test -- --reaper <folder with the reaper program>
 //! ```
 //!
 //! REAPER is not part of this repository. Use the Linux download from reaper.fm.

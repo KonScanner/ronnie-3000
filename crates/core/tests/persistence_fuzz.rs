@@ -1,7 +1,7 @@
 //! Combined persistence, filesystem, and network adversarial tests.
 
 use proptest::{prelude::*, test_runner::FileFailurePersistence};
-use ronie_core::{
+use ronnie_core::{
     DownloadClient, FetchRequest, HttpError, ModelSource, OriginPolicy, RecordedTransport,
     SecretString, StateCodec, Tone, decode_wav, read_preset, read_preset_header,
 };
@@ -24,12 +24,12 @@ proptest! {
 
     #[test]
     fn valid_prefix_truncation_is_bounded(bytes in any::<Vec<u8>>()) {
-        let preset = ronie_core::JuceTree {
+        let preset = ronnie_core::JuceTree {
             identifier: "T3KPreset".into(),
-            properties: vec![("id".into(), ronie_core::JuceValue::String("user:one".into()))],
+            properties: vec![("id".into(), ronnie_core::JuceValue::String("user:one".into()))],
             children: Vec::new(),
         };
-        let encoded = ronie_core::write_preset_v2(&preset).expect("fixture");
+        let encoded = ronnie_core::write_preset_v2(&preset).expect("fixture");
         for end in 0..encoded.len() {
             let _ = read_preset_header(&encoded[..end]);
             let _ = read_preset(&encoded[..end]);
@@ -47,30 +47,30 @@ proptest! {
         cut in any::<usize>(),
     ) {
         let mut properties = vec![
-            ("id".into(), ronie_core::JuceValue::String("cab".into())),
-            ("type".into(), ronie_core::JuceValue::String("IR".into())),
-            ("toneJson".into(), ronie_core::JuceValue::String(IR_TONE.into())),
-            ("activeModelId".into(), ronie_core::JuceValue::Int64(1)),
+            ("id".into(), ronnie_core::JuceValue::String("cab".into())),
+            ("type".into(), ronnie_core::JuceValue::String("IR".into())),
+            ("toneJson".into(), ronnie_core::JuceValue::String(IR_TONE.into())),
+            ("activeModelId".into(), ronnie_core::JuceValue::Int64(1)),
             ("irBlend".into(), blend),
             ("irALevel".into(), a_level),
             ("irBLevel".into(), b_level),
             ("irBInvert".into(), invert),
         ];
         if let Some(b) = b {
-            properties.push(("irBModelId".into(), ronie_core::JuceValue::Int64(b)));
+            properties.push(("irBModelId".into(), ronnie_core::JuceValue::Int64(b)));
         }
-        let block = ronie_core::JuceTree {
+        let block = ronnie_core::JuceTree {
             identifier: "ChainBlock".into(),
             properties,
             children: Vec::new(),
         };
-        let root = ronie_core::JuceTree {
+        let root = ronnie_core::JuceTree {
             identifier: "Root".into(),
             properties: Vec::new(),
-            children: vec![ronie_core::JuceTree {
+            children: vec![ronnie_core::JuceTree {
                 identifier: "ChainSnapshot".into(),
                 properties: Vec::new(),
-                children: vec![ronie_core::JuceTree {
+                children: vec![ronnie_core::JuceTree {
                     identifier: "ChainBlocks".into(),
                     properties: Vec::new(),
                     children: vec![block],
@@ -78,7 +78,7 @@ proptest! {
             }],
         };
         let mut encoded = b"T3KB".to_vec();
-        encoded.extend(ronie_core::JuceCodec::default().write_tree(&root).expect("fixture"));
+        encoded.extend(ronnie_core::JuceCodec::default().write_tree(&root).expect("fixture"));
         let codec = StateCodec::new();
         let document = codec.decode_session(&encoded).expect("a B never breaks a session");
         let cab = &document.snapshot.chain.left[0];
@@ -96,13 +96,13 @@ proptest! {
 
 const IR_TONE: &str = r#"{"id":7,"title":"Cab","format":"ir","models":[{"id":1,"name":"A","model_url":"https://fixtures.local/1.wav"},{"id":2,"name":"B","model_url":"https://fixtures.local/2.wav"}]}"#;
 
-fn juce_value() -> impl Strategy<Value = ronie_core::JuceValue> {
+fn juce_value() -> impl Strategy<Value = ronnie_core::JuceValue> {
     prop_oneof![
-        any::<bool>().prop_map(ronie_core::JuceValue::Bool),
-        any::<i32>().prop_map(ronie_core::JuceValue::Int),
-        any::<i64>().prop_map(ronie_core::JuceValue::Int64),
-        any::<f64>().prop_map(ronie_core::JuceValue::Double),
-        "[^\\x00]{0,8}".prop_map(ronie_core::JuceValue::String),
+        any::<bool>().prop_map(ronnie_core::JuceValue::Bool),
+        any::<i32>().prop_map(ronnie_core::JuceValue::Int),
+        any::<i64>().prop_map(ronnie_core::JuceValue::Int64),
+        any::<f64>().prop_map(ronnie_core::JuceValue::Double),
+        "[^\\x00]{0,8}".prop_map(ronnie_core::JuceValue::String),
     ]
 }
 
@@ -136,21 +136,21 @@ async fn network_failures_never_expose_bearer_secrets() {
 fn interrupted_preset_write_preserves_previous_bytes_and_secrets() {
     use std::os::unix::fs::PermissionsExt;
 
-    use ronie_core::write_preset_v2_file;
+    use ronnie_core::write_preset_v2_file;
     use tempfile::TempDir;
 
     let temp = TempDir::new().expect("temp dir");
     let path = temp.path().join("secret.t3kpreset");
-    let preset = ronie_core::JuceTree {
+    let preset = ronnie_core::JuceTree {
         identifier: "T3KPreset".into(),
         properties: vec![
             (
                 "id".into(),
-                ronie_core::JuceValue::String("user:secret".into()),
+                ronnie_core::JuceValue::String("user:secret".into()),
             ),
             (
                 "token".into(),
-                ronie_core::JuceValue::String("do-not-leak".into()),
+                ronnie_core::JuceValue::String("do-not-leak".into()),
             ),
         ],
         children: Vec::new(),
@@ -179,21 +179,21 @@ fn interrupted_preset_write_preserves_previous_bytes_and_secrets() {
 
 #[test]
 fn secret_bearing_debug_output_is_redacted() {
-    let request = ronie_core::HttpRequest {
+    let request = ronnie_core::HttpRequest {
         headers: vec![("Authorization".into(), "Bearer request-secret".into())],
-        ..ronie_core::HttpRequest::get(
+        ..ronnie_core::HttpRequest::get(
             Url::parse("https://api.example/model").expect("URL"),
-            ronie_core::ResponseKind::Model,
+            ronnie_core::ResponseKind::Model,
         )
     };
-    let pkce = ronie_core::Pkce {
+    let pkce = ronnie_core::Pkce {
         verifier: "verifier-secret".into(),
         challenge: "public-challenge".into(),
         state: "state-secret".into(),
     };
-    let callback = ronie_core::CallbackOutcome::Code("callback-secret".into());
-    let response = ronie_core::HttpResponse::new(200, b"response-secret".to_vec());
-    let mut properties = ronie_core::PropertiesFile::default();
+    let callback = ronnie_core::CallbackOutcome::Code("callback-secret".into());
+    let response = ronnie_core::HttpResponse::new(200, b"response-secret".to_vec());
+    let mut properties = ronnie_core::PropertiesFile::default();
     properties.set("tokens", "properties-secret");
 
     let response_evidence = format!("{response:?}");

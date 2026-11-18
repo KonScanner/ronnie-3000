@@ -1,6 +1,6 @@
 //! MIDI packet filtering and connection-queue contract tests.
 
-use ronie_app::{
+use ronnie_app::{
     audio::AudioError,
     midi::{MidiEvent, MidiInputManager},
 };

@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ronie_core::ChainSide;
-use ronie_ui::{
+use ronnie_core::ChainSide;
+use ronnie_ui::{
     backend::{MockBackend, UiBackend},
     default::{ChainGallery, DragOutcome},
     testbed::load_scenarios,
@@ -152,7 +152,7 @@ fn stale_ids_and_cancellation_never_mutate_the_chain() {
     gallery.begin_drag("blk-l1", false);
     gallery.drag_by(6.0);
     backend
-        .dispatch(ronie_ui::backend::UiAction::Undo)
+        .dispatch(ronnie_ui::backend::UiAction::Undo)
         .expect("external revision");
     assert_eq!(gallery.drop(ChainSide::Right, 0), DragOutcome::Stale);
 }

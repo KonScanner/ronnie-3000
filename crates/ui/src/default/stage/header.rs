@@ -1,7 +1,7 @@
 //! Stage header: logo, the chain as gear icons, and the preset manager.
 
 use eframe::egui::{self, Align2, Color32, Rect, Stroke};
-use ronie_core::{ChainBlock, ChainSide};
+use ronnie_core::{ChainBlock, ChainSide};
 
 use crate::backend::ChainViewState;
 use crate::theme::Look;
@@ -372,7 +372,10 @@ fn show_plus(
 }
 
 /// The lane that holds the selected block: lane B when the block sits there, else lane A.
-pub(super) fn lane_of(state: &ChainViewState, selected: Option<&ronie_core::BlockId>) -> ChainSide {
+pub(super) fn lane_of(
+    state: &ChainViewState,
+    selected: Option<&ronnie_core::BlockId>,
+) -> ChainSide {
     if selected.is_some_and(|id| state.chain.right.iter().any(|block| &block.id == id)) {
         ChainSide::Right
     } else {
@@ -395,7 +398,7 @@ pub(super) fn insert_of(state: &ChainViewState, side: ChainSide) -> Option<Strin
 /// The insert block of the lane that holds the selected block.
 pub(super) fn lane_insert(
     state: &ChainViewState,
-    selected: Option<&ronie_core::BlockId>,
+    selected: Option<&ronnie_core::BlockId>,
 ) -> Option<String> {
     insert_of(state, lane_of(state, selected))
 }
@@ -426,8 +429,9 @@ fn show_presets(
         "Next preset",
         has_presets,
     );
-    draw_chevron(&painter, previous.rect, false, !has_presets);
-    draw_chevron(&painter, next.rect, true, !has_presets);
+    let chevron = chevron_color(has_presets, look);
+    draw_chevron(&painter, previous.rect, false, chevron);
+    draw_chevron(&painter, next.rect, true, chevron);
     painter.vline(
         left + 27.0,
         (row_top + 5.0)..=(row_top + 17.0),
@@ -573,6 +577,16 @@ fn show_presets(
     }
 }
 
+/// The colour of a preset arrow: the layout text when it steps, and the muted text when the
+/// preset list is empty. A fixed white would vanish on the light header.
+fn chevron_color(has_presets: bool, look: Look) -> Color32 {
+    if has_presets {
+        look.text
+    } else {
+        look.text_muted
+    }
+}
+
 /// A curved arrow: pointing left for undo, mirrored for redo.
 fn draw_undo(painter: &egui::Painter, rect: Rect, mirrored: bool, color: Color32) {
     let center = rect.center();
@@ -608,4 +622,25 @@ fn hit(ui: &mut egui::Ui, rect: Rect, label: &'static str, enabled: bool) -> egu
     );
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_preset_arrow_uses_the_colours_of_its_layout() {
+        let light = Look::stage();
+        assert_eq!(
+            chevron_color(true, light),
+            light.text,
+            "an enabled arrow is the ink of the light header, not a fixed white"
+        );
+        assert_ne!(chevron_color(true, light), Color32::WHITE);
+        assert_eq!(chevron_color(false, light), light.text_muted);
+
+        let dark = Look::stage_dark();
+        assert_eq!(chevron_color(true, dark), Color32::WHITE);
+        assert_eq!(chevron_color(false, dark), dark.text_muted);
+    }
 }

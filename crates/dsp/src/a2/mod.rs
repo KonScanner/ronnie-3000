@@ -122,7 +122,7 @@ pub struct CompiledA2 {
     pub(crate) head_bias: f32,
     pub(crate) head_scale: f32,
     pub(crate) expected_sample_rate: f64,
-    pub(crate) metadata: ronie_core::NamMetadata,
+    pub(crate) metadata: ronnie_core::NamMetadata,
 }
 
 impl CompiledA2 {

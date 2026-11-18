@@ -3,12 +3,12 @@
 #![allow(missing_docs)]
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec, block::BlockModel, compile_model, ir::compile_ir,
     lane::LaneSnapshot, prepare::PreparedChainChange, rt_chain::RtChain,
 };
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json::json;
 
 fn block(id: &str, title: &str, format: &str) -> ChainBlock {
@@ -89,7 +89,7 @@ fn cab_kernel(seed: f32) -> Vec<f32> {
         .collect()
 }
 
-fn cab(seed: f32) -> std::sync::Arc<ronie_dsp::ir::CompiledIr> {
+fn cab(seed: f32) -> std::sync::Arc<ronnie_dsp::ir::CompiledIr> {
     compile_ir(
         &AudioDocument {
             sample_rate: 48_000.0,

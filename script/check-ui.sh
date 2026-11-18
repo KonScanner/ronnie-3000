@@ -17,7 +17,7 @@ esac
 
 baseline=.ui-baseline
 work=target/ui-suite
-testbed=target/debug/ronie-ui-testbed
+testbed=target/debug/ronnie-ui-testbed
 
 # The size that each scenario needs at the 1024-point width of the suite.
 window_of() {
@@ -54,22 +54,22 @@ in_private_display() {
 }
 
 capture_all() {
-  rm -rf "$work/ronie"
-  mkdir -p "$work/ronie"
+  rm -rf "$work/ronnie"
+  mkdir -p "$work/ronnie"
   jq -r '.scenarios[].id' fixtures/ui-scenarios.json | while IFS= read -r id; do
     in_private_display "$testbed" \
       --native-scenario "$id" \
       --native-window "$(window_of "$id")" \
-      --native-capture "$work/ronie/$id.png" \
-      --native-report "$work/ronie/$id.json"
-    jq -e '.passed == true and .capture_saved == true and .frame_count > 0 and .max_frame_ms >= 0 and .rss_kib > 0 and .accessibility.passed == true and .accessibility.unnamed_focusable == 0' "$work/ronie/$id.json" >/dev/null
+      --native-capture "$work/ronnie/$id.png" \
+      --native-report "$work/ronnie/$id.json"
+    jq -e '.passed == true and .capture_saved == true and .frame_count > 0 and .max_frame_ms >= 0 and .rss_kib > 0 and .accessibility.passed == true and .accessibility.unnamed_focusable == 0' "$work/ronnie/$id.json" >/dev/null
   done
 }
 
 # Writes the report and lists each changed scenario, because a small change can pass the limits.
 compare_with() {
   local status=0
-  "$testbed" --compare-dir "$1" "$work/ronie" "$work/report.json" || status=$?
+  "$testbed" --compare-dir "$1" "$work/ronnie" "$work/report.json" || status=$?
   jq --arg suite "$2" '.suite = $suite' "$work/report.json" >"$work/report.json.new"
   mv "$work/report.json.new" "$work/report.json"
   jq -r '.scenarios | map(select(.mismatched > 0)) | "Scenarios with a changed pixel: \(length)", (.[] | "  \(.id): \(.mismatch_ratio), worst tile \(.worst_tile_ratio), passed \(.passed)")' "$work/report.json"
@@ -78,7 +78,7 @@ compare_with() {
   return "$status"
 }
 
-cargo build -p ronie-app --bin ronie-ui-testbed
+cargo build -p ronnie-app --bin ronnie-ui-testbed
 
 case "$mode" in
   save)
@@ -86,7 +86,7 @@ case "$mode" in
     capture_all
     rm -rf "$baseline"
     mkdir -p "$baseline"
-    cp "$work"/ronie/*.png "$baseline"/
+    cp "$work"/ronnie/*.png "$baseline"/
     git describe --always --dirty >"$baseline/commit.txt"
     echo "Saved $(jq '.scenarios | length' fixtures/ui-scenarios.json) images in $baseline from $(cat "$baseline/commit.txt")."
     ;;
@@ -102,7 +102,7 @@ case "$mode" in
     compare_with "$baseline" ronnie-baseline
     ;;
   reference)
-    reference_exe="${RONIE_REFERENCE_UI_EXE:-/tmp/ronie-reference-ui-build/UiTestbed_artefacts/Debug/UiTestbed}"
+    reference_exe="${RONNIE_REFERENCE_UI_EXE:-/tmp/ronnie-reference-ui-build/UiTestbed_artefacts/Debug/UiTestbed}"
     if [[ ! -x "$reference_exe" ]]; then
       echo "Baseline UI testbed is unavailable: $reference_exe" >&2
       exit 1
@@ -113,7 +113,7 @@ case "$mode" in
     capture_all
     "$testbed" --selftest
     "$testbed" --bench
-    cargo test -p ronie-app --test standalone_smoke -- --include-ignored --test-threads=1
+    cargo test -p ronnie-app --test standalone_smoke -- --include-ignored --test-threads=1
     compare_with "$work/reference" reference-default
     ;;
 esac

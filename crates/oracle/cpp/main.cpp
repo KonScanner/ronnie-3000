@@ -79,7 +79,7 @@ int main(int argc, char** argv)
   {
     if (argc != 7)
     {
-      std::cerr << "usage: ronie-reference <model-file> <stream> <block-size> <frame-count> <seed> <output-raw-f64>\n";
+      std::cerr << "usage: ronnie-reference <model-file> <stream> <block-size> <frame-count> <seed> <output-raw-f64>\n";
       return 2;
     }
     static_assert(sizeof(NAM_SAMPLE) == sizeof(double));

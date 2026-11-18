@@ -1,6 +1,6 @@
 //! Stereo-chain Align delay, deck, lifecycle, and correlation tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     image::{Align, AlignParams},
 };

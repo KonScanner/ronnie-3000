@@ -1,8 +1,8 @@
 //! Prepared topology allocation and invalid-callback tests.
 #![allow(unsafe_code)]
 
-use ronie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::BlockModel,
     ir::compile_ir,

@@ -2,7 +2,7 @@
 
 use criterion::{Criterion, black_box};
 use eframe::egui::{Color32, ColorImage};
-use ronie_ui::{
+use ronnie_ui::{
     default::{BannerStore, ModalScrim},
     testbed::{BLOCKED_FIXTURES, load_scenarios, run_all},
     visual::compare_images,
@@ -44,7 +44,7 @@ fn main() {
         .iter()
         .find(|scenario| scenario.id == "banner-buffer")
         .expect("buffer banner");
-    let device = ronie_ui::default::AudioDeviceState::from_ui_value(&scenario.state["device"])
+    let device = ronnie_ui::default::AudioDeviceState::from_ui_value(&scenario.state["device"])
         .expect("device state");
     criterion.bench_function("banner-priority-evaluation", |bencher| {
         bencher.iter(|| {

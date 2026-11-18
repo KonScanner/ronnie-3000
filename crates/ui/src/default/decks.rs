@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke};
-use ronie_core::{
+use ronnie_core::{
     Instrument, Tuning,
     params::{ParameterId, ParameterValue},
 };

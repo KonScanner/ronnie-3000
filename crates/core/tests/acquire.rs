@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use ronie_core::{
+use ronnie_core::{
     AcquireError, AcquisitionCoordinator, AcquisitionRequest, BlockId, ByteCacheKey, FetchError,
     FetchRequest, ModelByteCache, ModelBytes, ModelFetcher, ModelId, ModelNamespace, ModelSource,
     SecretString,

@@ -1,4 +1,4 @@
-use ronie_core::{DspResult, NamDocument};
+use ronnie_core::{DspResult, NamDocument};
 
 use crate::compile_model;
 

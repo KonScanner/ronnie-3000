@@ -3,7 +3,7 @@ use crate::{
     PrepareSpec,
     block::{BlockControls, BlockModel, PreparedBlock, prepare_block},
 };
-use ronie_core::{BlockId, ChainBlock};
+use ronnie_core::{BlockId, ChainBlock};
 
 /// Immutable model and settings for one lane.
 #[derive(Clone)]

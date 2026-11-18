@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ronie_core::BlockId;
+use ronnie_core::BlockId;
 
 use crate::{
     ChainError, LatencyReport, PrepareSpec,

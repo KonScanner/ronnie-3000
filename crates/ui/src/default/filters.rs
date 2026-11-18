@@ -3,7 +3,7 @@
 pub use crate::services::catalog::FilterMenu;
 
 use eframe::egui::{self, Color32, Rect, Sense};
-use ronie_core::Taxonomy;
+use ronnie_core::Taxonomy;
 
 use super::popover::{Placement, Popover, Surface, Trigger};
 use crate::services::{
@@ -153,11 +153,11 @@ impl FilterBar {
             }
             if self.expanded {
                 let sort_label = match store.query().sort {
-                    Some(ronie_core::ToneSort::BestMatch) => "Best match",
-                    Some(ronie_core::ToneSort::Trending) => "Trending",
-                    Some(ronie_core::ToneSort::Popular) => "Popular",
-                    Some(ronie_core::ToneSort::Newest) => "Newest",
-                    Some(ronie_core::ToneSort::Oldest) => "Oldest",
+                    Some(ronnie_core::ToneSort::BestMatch) => "Best match",
+                    Some(ronnie_core::ToneSort::Trending) => "Trending",
+                    Some(ronnie_core::ToneSort::Popular) => "Popular",
+                    Some(ronnie_core::ToneSort::Newest) => "Newest",
+                    Some(ronnie_core::ToneSort::Oldest) => "Oldest",
                     None if store.query().text.is_empty() => "Trending",
                     None => "Best match",
                 };
@@ -655,10 +655,10 @@ impl FilterBar {
         match menu {
             FilterMenu::Sort => {
                 store.query_mut().sort = match id {
-                    "trending" => Some(ronie_core::ToneSort::Trending),
-                    "downloads-all-time" => Some(ronie_core::ToneSort::Popular),
-                    "newest" => Some(ronie_core::ToneSort::Newest),
-                    "oldest" => Some(ronie_core::ToneSort::Oldest),
+                    "trending" => Some(ronnie_core::ToneSort::Trending),
+                    "downloads-all-time" => Some(ronnie_core::ToneSort::Popular),
+                    "newest" => Some(ronnie_core::ToneSort::Newest),
+                    "oldest" => Some(ronnie_core::ToneSort::Oldest),
                     _ => None,
                 };
             }
@@ -695,7 +695,7 @@ impl FilterBar {
         &self,
         store: &CatalogStore,
         menu: FilterMenu,
-        rows: &[ronie_core::TaxonomyEntry],
+        rows: &[ronnie_core::TaxonomyEntry],
         search: &str,
         options: &mut Vec<MenuOption>,
     ) {
@@ -730,24 +730,24 @@ impl FilterBar {
                     .query()
                     .sort
                     .unwrap_or(if store.query().text.is_empty() {
-                        ronie_core::ToneSort::Trending
+                        ronnie_core::ToneSort::Trending
                     } else {
-                        ronie_core::ToneSort::BestMatch
+                        ronnie_core::ToneSort::BestMatch
                     });
                 [
-                    (ronie_core::ToneSort::BestMatch, "best-match", "Best match"),
-                    (ronie_core::ToneSort::Trending, "trending", "Trending"),
+                    (ronnie_core::ToneSort::BestMatch, "best-match", "Best match"),
+                    (ronnie_core::ToneSort::Trending, "trending", "Trending"),
                     (
-                        ronie_core::ToneSort::Popular,
+                        ronnie_core::ToneSort::Popular,
                         "downloads-all-time",
                         "Popular",
                     ),
-                    (ronie_core::ToneSort::Newest, "newest", "Newest"),
-                    (ronie_core::ToneSort::Oldest, "oldest", "Oldest"),
+                    (ronnie_core::ToneSort::Newest, "newest", "Newest"),
+                    (ronnie_core::ToneSort::Oldest, "oldest", "Oldest"),
                 ]
                 .into_iter()
                 .filter(|(sort, _, _)| {
-                    *sort != ronie_core::ToneSort::BestMatch || !store.query().text.is_empty()
+                    *sort != ronnie_core::ToneSort::BestMatch || !store.query().text.is_empty()
                 })
                 .map(|(sort, id, label)| MenuOption {
                     id: id.to_owned(),
@@ -1279,7 +1279,7 @@ mod tests {
             });
             output.textures_delta.clear();
         }
-        assert_eq!(store.query().sort, Some(ronie_core::ToneSort::Popular));
+        assert_eq!(store.query().sort, Some(ronnie_core::ToneSort::Popular));
         assert_eq!(filters.open_menu(), None);
     }
 }

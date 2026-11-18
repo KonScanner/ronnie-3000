@@ -2,11 +2,11 @@
 
 use std::{num::NonZeroUsize, sync::Arc};
 
-use ronie_core::{
+use ronnie_core::{
     ContentId, ContentPreparationKey, DspError, InstructionSet, ModelBytes, PreparationKey,
 };
-use ronie_dsp::{CompiledModelCache, ModelEngine};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_dsp::{CompiledModelCache, ModelEngine};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 
 fn bytes() -> ModelBytes {
     let document = synthetic_a2_document(3).expect("synthetic document");

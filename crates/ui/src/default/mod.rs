@@ -72,7 +72,7 @@ pub use modals::{BackdropUser, ModalCapture, ModalKind, ModalScrim, ModalStack};
 pub use model_select::{ModelOption, ModelSelect};
 pub use overlays::{DismissReason, Overlay};
 pub use plugin_settings::PluginSettingsController;
-pub use ronie_core::Profile;
+pub use ronnie_core::Profile;
 pub use settings::{SettingsController, SettingsTab};
 pub use sign_in::{SignInAction, SignInView};
 pub use spectrum::SpectrumFeed;

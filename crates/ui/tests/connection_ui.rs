@@ -1,6 +1,6 @@
 //! Offline gate, retry backoff, update notices, and cached-user tests.
 
-use ronie_ui::default::{ConnectionGate, ConnectionProblem, UpdateCheck};
+use ronnie_ui::default::{ConnectionGate, ConnectionProblem, UpdateCheck};
 
 #[test]
 fn offline_gate_queues_action_and_retries_after_backoff() {
@@ -69,15 +69,15 @@ fn invalid_update_payloads_and_old_versions_stay_silent() {
     assert!(check.notice().is_none());
 }
 
-fn chrome() -> ronie_ui::default::ChromeController {
+fn chrome() -> ronnie_ui::default::ChromeController {
     let scenario =
-        ronie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
+        ronnie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
             .expect("scenarios")
             .into_iter()
             .find(|scenario| scenario.id == "main-empty")
             .expect("main-empty");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario));
-    ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true)
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario));
+    ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true)
 }
 
 fn update_payload() -> serde_json::Value {
@@ -99,7 +99,7 @@ fn chrome_retry_releases_the_queued_action_after_backoff() {
     assert_eq!(chrome.connection().problem(), None);
     chrome.set_online(false);
     assert!(!chrome.require_connection("browse"));
-    chrome.handle_connection_action(ronie_ui::default::ConnectionAction::Dismiss, 3_000);
+    chrome.handle_connection_action(ronnie_ui::default::ConnectionAction::Dismiss, 3_000);
     assert_eq!(chrome.connection().pending_action(), None);
 }
 
@@ -109,14 +109,14 @@ fn chrome_update_download_stays_open_and_remind_later_snoozes() {
     chrome.apply_update_payload(update_payload(), 1_000);
     let opened = chrome
         .handle_update_action(
-            ronie_ui::default::UpdateAction::Download("https://api.example/update".to_owned()),
+            ronnie_ui::default::UpdateAction::Download("https://api.example/update".to_owned()),
             2_000,
         )
         .expect("download");
     assert_eq!(opened.as_deref(), Some("https://api.example/update"));
     assert!(chrome.updates().notice().is_some());
     chrome
-        .handle_update_action(ronie_ui::default::UpdateAction::Remind(1), 2_000)
+        .handle_update_action(ronnie_ui::default::UpdateAction::Remind(1), 2_000)
         .expect("snooze");
     assert!(chrome.updates().notice().is_none());
     assert_eq!(chrome.updates().snooze_until(), 2_000 + 86_400_000);
@@ -125,7 +125,7 @@ fn chrome_update_download_stays_open_and_remind_later_snoozes() {
 #[test]
 fn update_snooze_survives_a_new_checker_and_expires() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let mut check = UpdateCheck::with_settings("1.0.0", settings.clone());
     check.remind_later(1, 1_000).expect("persist snooze");
 

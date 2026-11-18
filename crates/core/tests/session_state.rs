@@ -1,6 +1,6 @@
 //! Session-state codec, migration, and offline restoration tests.
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ByteCacheKey, JuceCodec, JuceTree, JuceValue, ModelByteCache, ModelId, ModelNamespace,
     ModelSource, RestoreCaches, RestoreError, SessionSnapshot, StateCodec, StateError, Tone,
 };
@@ -143,7 +143,7 @@ fn state_bytes(schema: i32, block_tree: JuceTree, with_legacy: bool) -> Vec<u8> 
         ],
     );
     let root = tree(
-        "RonieState",
+        "RonnieState",
         vec![
             ("schemaVersion".into(), JuceValue::Int(schema)),
             ("inputMode".into(), string("dual")),
@@ -173,7 +173,7 @@ fn current_state_round_trip_migrates_legacy_ids_and_preserves_unknown_fields() {
 
     assert_eq!(
         document.snapshot.input_mode,
-        ronie_core::InputMode::DualMono
+        ronnie_core::InputMode::DualMono
     );
     assert_eq!(document.snapshot.editor_scale, 1.0);
     assert_eq!(document.snapshot.editor_extra_height, 36);
@@ -232,7 +232,7 @@ fn local_restoration_reseeds_full_list_and_excludes_auditions() {
     let cache = ModelByteCache::new(1024);
     let current = document.snapshot.clone();
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -284,7 +284,7 @@ fn catalog_restoration_keeps_only_active_bytes() {
     let document = StateCodec::new().decode_session(&bytes).expect("document");
     let cache = ModelByteCache::new(1024);
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -327,7 +327,7 @@ fn absent_bytes_produce_a_retryable_source_job() {
     let document = StateCodec::new().decode_session(&bytes).expect("document");
     let cache = ModelByteCache::new(1024);
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -353,7 +353,7 @@ fn missing_source_and_bytes_leave_current_state_untouched() {
     let current = document.snapshot.clone();
     let before = current.clone();
 
-    let result = ronie_core::restore_offline(
+    let result = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -389,10 +389,10 @@ fn restoration_uses_existing_cache_bytes_before_declaring_a_missing_model() {
         namespace: ModelNamespace::Catalog,
     };
     cache
-        .insert(key, ronie_core::ModelBytes::from(b"cached".as_slice()))
+        .insert(key, ronnie_core::ModelBytes::from(b"cached".as_slice()))
         .expect("seed cache");
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -422,16 +422,16 @@ fn restoration_does_not_confuse_same_id_models_across_namespaces() {
     let mut document = StateCodec::new().decode_session(&bytes).expect("document");
     document.model_cache.insert(
         0,
-        ronie_core::ReferencedModelBytes {
+        ronnie_core::ReferencedModelBytes {
             block_id: BlockId("collision".into()),
             model_id: ModelId(100),
             namespace: ModelNamespace::Local,
-            bytes: ronie_core::ModelBytes::from(b"local".as_slice()),
+            bytes: ronnie_core::ModelBytes::from(b"local".as_slice()),
         },
     );
     let cache = ModelByteCache::new(1024);
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -473,7 +473,7 @@ fn changed_active_model_requires_reconciliation() {
         .active_model_id = Some(ModelId(101));
     let cache = ModelByteCache::new(1024);
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -506,11 +506,11 @@ fn changed_active_bytes_require_reconciliation() {
                 model_id: ModelId(100),
                 namespace: ModelNamespace::Catalog,
             },
-            ronie_core::ModelBytes::from(b"old".as_slice()),
+            ronnie_core::ModelBytes::from(b"old".as_slice()),
         )
         .expect("old bytes");
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -566,7 +566,7 @@ fn restore_offline_prepares_b() {
     let cache = ModelByteCache::new(1024);
     let current = document.snapshot.clone();
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &cache,
@@ -606,9 +606,9 @@ fn restore_offline_prepares_b() {
 
     let stale = ModelByteCache::new(1024);
     stale
-        .insert(b_key, ronie_core::ModelBytes::from(b"old-b".as_slice()))
+        .insert(b_key, ronnie_core::ModelBytes::from(b"old-b".as_slice()))
         .expect("old B bytes");
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &stale,
@@ -623,7 +623,7 @@ fn restore_offline_prepares_b() {
 
     let mut other_b = current.clone();
     other_b.chain.left[0].ir_b = None;
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &ModelByteCache::new(1024),
@@ -650,7 +650,7 @@ fn restore_offline_plays_a_alone_when_b_has_no_bytes_or_source() {
     let document = StateCodec::new().decode_session(&bytes).expect("document");
     let current = document.snapshot.clone();
 
-    let plan = ronie_core::restore_offline(
+    let plan = ronnie_core::restore_offline(
         &document,
         RestoreCaches {
             bytes: &ModelByteCache::new(1024),

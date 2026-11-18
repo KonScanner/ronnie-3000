@@ -1,6 +1,6 @@
 //! Mono-to-stereo Spread deck and transition tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     image::{Spread, SpreadParams, deck_crossover_hz},
 };
@@ -329,13 +329,13 @@ fn correlation_and_idle_lifecycle_are_reported() {
 fn private_spread_output_matches_reference() {
     use std::collections::BTreeMap;
 
-    use ronie_core::InputMode;
-    use ronie_dsp::{
+    use ronnie_core::InputMode;
+    use ronnie_dsp::{
         PrepareSpec,
         image::ImageControls,
         output::{OutputControls, OutputStage},
     };
-    use ronie_oracle::{ChainOracle, ChainScenario, OracleError};
+    use ronnie_oracle::{ChainOracle, ChainScenario, OracleError};
 
     let oracle = match ChainOracle::new() {
         Ok(oracle) => oracle,

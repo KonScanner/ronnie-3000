@@ -1,5 +1,5 @@
 [package]
-name = "ronie-app"
+name = "ronnie-app"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,10 +17,10 @@ midir.workspace = true
 quick-xml.workspace = true
 raw-window-handle.workspace = true
 rfd.workspace = true
-ronie-core.workspace = true
-ronie-dsp.workspace = true
-ronie-plugin.workspace = true
-ronie-ui.workspace = true
+ronnie-core.workspace = true
+ronnie-dsp.workspace = true
+ronnie-plugin.workspace = true
+ronnie-ui.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 url.workspace = true
@@ -30,7 +30,7 @@ url.workspace = true
 cpal = { workspace = true, features = ["jack", "pulseaudio"] }
 
 [dev-dependencies]
-ronie-dsp = { workspace = true, features = ["fault-injection"] }
-ronie-oracle.workspace = true
+ronnie-dsp = { workspace = true, features = ["fault-injection"] }
+ronnie-oracle.workspace = true
 tempfile.workspace = true
 winit.workspace = true

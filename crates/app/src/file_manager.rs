@@ -12,7 +12,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use ronie_ui::backend::UiError;
+use ronnie_ui::backend::UiError;
 
 /// Asks the desktop to show one folder.
 ///
@@ -37,23 +37,34 @@ fn folder_opener(os: &str) -> &'static str {
 }
 
 fn open_folder_with(program: &OsStr, folder: &Path) -> Result<(), UiError> {
-    let mut child = Command::new(program)
+    let mut child = spawn_folder_opener(program, folder)
+        .map_err(|error| UiError::Control(format!("starting the file manager: {error}")))?;
+    // An opener can run for a long time, and a child that ends must not stay as a zombie.
+    let _ = std::thread::Builder::new()
+        .name("ronnie-file-manager".to_owned())
+        .spawn(move || child.wait());
+    Ok(())
+}
+
+/// Starts `program` with `folder` as its one argument, and with no shell.
+fn spawn_folder_opener(program: &OsStr, folder: &Path) -> std::io::Result<std::process::Child> {
+    Command::new(program)
         .arg(folder)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|error| UiError::Control(format!("starting the file manager: {error}")))?;
-    // An opener can run for a long time, and a child that ends must not stay as a zombie.
-    let _ = std::thread::Builder::new()
-        .name("ronie-file-manager".to_owned())
-        .spawn(move || child.wait());
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    use std::{
+        os::unix::fs::PermissionsExt,
+        time::{Duration, Instant},
+    };
 
     #[test]
     fn each_operating_system_has_its_own_folder_opener() {
@@ -63,15 +74,37 @@ mod tests {
         assert_eq!(folder_opener("windows"), "explorer");
     }
 
+    /// Starts `program` once, and retries while Linux refuses the start with `ETXTBSY`.
+    ///
+    /// A test thread that forks while this test holds the script open for writing leaves the
+    /// child with the write handle until its own exec, and Linux then refuses to start the
+    /// script with "Text file busy". New forks cannot get the handle after the write, so one run
+    /// that starts proves that later runs also start. The fake scripts have no effect with a
+    /// probe argument.
+    #[cfg(unix)]
+    fn wait_until_executable(program: &OsStr) {
+        let deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            match spawn_folder_opener(program, Path::new("probe")) {
+                Ok(mut child) => {
+                    let _ = child.wait();
+                    return;
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::ExecutableFileBusy
+                        && Instant::now() < deadline =>
+                {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(error) => panic!("fake opener should start: {error}"),
+            }
+        }
+    }
+
     /// The fake opener is a shell script, so that this test runs only on a Unix system.
     #[cfg(unix)]
     #[test]
     fn the_opener_gets_the_folder_as_one_argument_with_no_shell() {
-        use std::{
-            os::unix::fs::PermissionsExt,
-            time::{Duration, Instant},
-        };
-
         let directory = tempfile::tempdir().expect("directory");
         let record = directory.path().join("record");
         let opener = directory.path().join("fake-opener");
@@ -87,9 +120,14 @@ mod tests {
             .expect("permissions");
         let folder = directory.path().join("a folder; with $(a) shell word");
 
+        // A test thread that forks at the same time can hold the write handle of the script open
+        // until its exec, and Linux then refuses to start the script with "Text file busy". One
+        // started run proves that every later run starts, so this waits for that run first.
+        wait_until_executable(opener.as_os_str());
         open_folder_with(opener.as_os_str(), &folder).expect("start");
 
         let deadline = Instant::now() + Duration::from_secs(20);
+
         let text = loop {
             match std::fs::read_to_string(&record) {
                 Ok(text) if text.ends_with("shell word") => break text,

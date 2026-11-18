@@ -215,10 +215,10 @@ fn experimental(painter: &egui::Painter, rect: Rect, color: Color32) {
 pub(super) fn draw_family(
     painter: &egui::Painter,
     rect: Rect,
-    family: ronie_core::gear::GearFamily,
+    family: ronnie_core::gear::GearFamily,
     color: Color32,
 ) {
-    use ronie_core::gear::GearFamily as F;
+    use ronnie_core::gear::GearFamily as F;
     let stroke = Stroke::new(unit(rect, 1.1), color);
     let fine = Stroke::new(unit(rect, 0.6), color);
     match family {

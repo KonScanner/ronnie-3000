@@ -1,9 +1,9 @@
 //! The tones that the player loaded lately, newest first. The Stage add menu shows them as
 //! the library.
 
-use ronie_core::{
+use ronnie_core::{
     ModelSource, Tone, ToneModel,
-    gear::{GearCategory, GearHints, identify},
+    gear::{GearCategory, identify_tone},
 };
 
 /// The tones that were loaded lately, newest first.
@@ -70,9 +70,8 @@ impl RecentTones {
 }
 
 fn category_of(tone: &Tone) -> GearCategory {
-    identify(&GearHints::from_tone(tone, tone.models.first()))
-        .family
-        .category()
+    let (_, identity) = identify_tone(tone, tone.models.first());
+    identity.family.category()
 }
 
 fn stash_name(model: Option<&ToneModel>) -> Option<&str> {

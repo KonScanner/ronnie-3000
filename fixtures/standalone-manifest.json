@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "command": "cargo test -p ronie-app --test standalone_end_to_end -- --nocapture",
+  "command": "cargo test -p ronnie-app --test standalone_end_to_end -- --nocapture",
   "scope": "Ten deterministic local standalone scenarios plus focused concurrency and queue tests. These results establish local behavior, not complete compatibility.",
   "scenarios": [
     {
@@ -102,8 +102,8 @@
       "reason": "Linux plugin formats and non-Linux platforms remain separate implementation plans."
     }
   ],
-  "community_command": "cargo test -p ronie-app --test community_end_to_end -- --nocapture",
-  "community_matrix_command": "cargo test -p ronie-core --test acquisition_end_to_end --test oauth --test download && cargo test -p ronie-ui --test community --test auth_e2e",
+  "community_command": "cargo test -p ronnie-app --test community_end_to_end -- --nocapture",
+  "community_matrix_command": "cargo test -p ronnie-core --test acquisition_end_to_end --test oauth --test download && cargo test -p ronnie-ui --test community --test auth_e2e",
   "community_scope": "Recorded answers with fake values, the real dummy backend, and real UI frames with no window. These results establish local behavior only. They say nothing about a live service or physical audio.",
   "community_scenarios": [
     {

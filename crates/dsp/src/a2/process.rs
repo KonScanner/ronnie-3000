@@ -1,4 +1,4 @@
-use ronie_core::DspResult;
+use ronnie_core::DspResult;
 use std::{num::NonZeroUsize, sync::Arc};
 
 use super::{A2Channels, A2Engine, CompiledA2};
@@ -77,7 +77,7 @@ impl A2Model {
 
     /// Loudness and calibration metadata for this model.
     #[must_use]
-    pub fn metadata(&self) -> &ronie_core::NamMetadata {
+    pub fn metadata(&self) -> &ronnie_core::NamMetadata {
         match self {
             Self::Nano(engine) => engine.metadata(),
             Self::Standard(engine) => engine.metadata(),
@@ -88,7 +88,7 @@ impl A2Model {
     ///
     /// # Errors
     ///
-    /// Returns [`ronie_core::DspError::NotPrepared`] before preparation.
+    /// Returns [`ronnie_core::DspError::NotPrepared`] before preparation.
     pub fn reset_prepared(&mut self, prewarm: bool) -> DspResult<()> {
         match self {
             Self::Nano(engine) => engine.reset_prepared(prewarm),

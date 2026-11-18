@@ -1,8 +1,8 @@
 //! Local A2 and slimmable-container validation tests.
 
-use ronie_core::{DspError, parse_nam};
-use ronie_dsp::validate_a2_document;
-use ronie_oracle::synthetic::synthetic_a2_json;
+use ronnie_core::{DspError, parse_nam};
+use ronnie_dsp::validate_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_json;
 use serde_json::json;
 
 #[test]

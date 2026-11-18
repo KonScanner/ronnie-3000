@@ -1,6 +1,6 @@
 use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
-use ronie_core::{BlockId, BlockParams};
+use ronnie_core::{BlockId, BlockParams};
 
 use crate::{
     prepare::PreparedChainChange,

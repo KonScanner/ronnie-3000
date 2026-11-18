@@ -2,14 +2,14 @@
 
 use std::path::Path;
 
-use ronie_app::standalone_backend::{StandaloneBackend, standalone_processor};
-use ronie_core::{
+use ronnie_app::standalone_backend::{StandaloneBackend, standalone_processor};
+use ronnie_core::{
     JuceCodec, JuceValue, ModelByteCache, PREFERENCES_SETTINGS, PresetStore, RestoreCaches,
     StateCodec,
     params::{ParameterCatalog, ParameterId, ParameterValue},
     restore_offline,
 };
-use ronie_ui::backend::{ChainFaultKind, GesturePhase, UiAction, UiBackend, UiError};
+use ronnie_ui::backend::{ChainFaultKind, GesturePhase, UiAction, UiBackend, UiError};
 
 fn try_backend(root: &Path) -> Result<StandaloneBackend, UiError> {
     StandaloneBackend::dummy(
@@ -96,7 +96,7 @@ fn local_rig_restores_offline_and_preserves_future_fields_on_update() {
     let root = directory.path();
     let inputs = root.join("inputs");
     std::fs::create_dir(&inputs).expect("input directory");
-    let nam = ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
+    let nam = ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
     let wav = wav();
     std::fs::write(inputs.join("amp.nam"), &nam).expect("NAM fixture");
     std::fs::write(inputs.join("cab.wav"), &wav).expect("WAV fixture");
@@ -117,7 +117,7 @@ fn local_rig_restores_offline_and_preserves_future_fields_on_update() {
     {
         backend
             .dispatch(UiAction::DropFile {
-                target_insert_id: ronie_core::BlockId(insert.clone()),
+                target_insert_id: ronnie_core::BlockId(insert.clone()),
                 path,
             })
             .expect("load local model");
@@ -130,8 +130,8 @@ fn local_rig_restores_offline_and_preserves_future_fields_on_update() {
         .expect("amplifier block");
     let mut params = amp.params.clone();
     params.eq.enabled = true;
-    params.eq.bands = vec![ronie_core::EqBand {
-        kind: ronie_core::EqBandType::Bell,
+    params.eq.bands = vec![ronnie_core::EqBand {
+        kind: ronnie_core::EqBandType::Bell,
         freq_hz: 1250.0,
         gain_db: 3.5,
         q: 0.8,
@@ -316,12 +316,14 @@ fn standalone_session_restores_parameters_midi_and_active_preset_after_close() {
             )
             .expect("edit session parameter");
         backend
-            .dispatch(UiAction::Midi(ronie_ui::backend::MidiAction::SetChannel(7)))
+            .dispatch(UiAction::Midi(ronnie_ui::backend::MidiAction::SetChannel(
+                7,
+            )))
             .expect("set MIDI channel");
         backend
-            .dispatch(UiAction::Midi(ronie_ui::backend::MidiAction::SetMapping {
+            .dispatch(UiAction::Midi(ronnie_ui::backend::MidiAction::SetMapping {
                 target_id: "inputLevel".to_owned(),
-                source: ronie_core::MidiSource::Cc,
+                source: ronnie_core::MidiSource::Cc,
                 number: 20,
             }))
             .expect("map MIDI controller");
@@ -517,7 +519,7 @@ fn preset_updates_strip_known_non_preset_parameters_and_preserve_current_scopes(
         .find(|child| child.identifier == "Params")
         .expect("preset parameters");
     for (id, value) in [("osFactor", 0.0), ("targetLoudness", -60.0)] {
-        params.children.push(ronie_core::JuceTree {
+        params.children.push(ronnie_core::JuceTree {
             identifier: "Param".into(),
             properties: vec![
                 ("id".into(), JuceValue::String(id.into())),
@@ -526,7 +528,7 @@ fn preset_updates_strip_known_non_preset_parameters_and_preserve_current_scopes(
             children: Vec::new(),
         });
     }
-    params.children.push(ronie_core::JuceTree {
+    params.children.push(ronnie_core::JuceTree {
         identifier: "Param".into(),
         properties: vec![
             ("id".into(), JuceValue::String("futureParameter".into())),
@@ -534,7 +536,7 @@ fn preset_updates_strip_known_non_preset_parameters_and_preserve_current_scopes(
         ],
         children: Vec::new(),
     });
-    params.children.push(ronie_core::JuceTree {
+    params.children.push(ronnie_core::JuceTree {
         identifier: "FutureParamsNode".into(),
         properties: vec![("retained".into(), JuceValue::Bool(true))],
         children: Vec::new(),
@@ -629,7 +631,7 @@ fn clamped_preset_move_is_a_revision_free_no_op() {
 fn nam_only_rig(root: &Path) -> (PresetStore, String) {
     let inputs = root.join("inputs");
     std::fs::create_dir_all(&inputs).expect("input directory");
-    let nam = ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
+    let nam = ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
     std::fs::write(inputs.join("amp.nam"), nam).expect("NAM fixture");
     let backend = backend(root);
     let insert = backend
@@ -644,7 +646,7 @@ fn nam_only_rig(root: &Path) -> (PresetStore, String) {
         .clone();
     backend
         .dispatch(UiAction::DropFile {
-            target_insert_id: ronie_core::BlockId(insert),
+            target_insert_id: ronnie_core::BlockId(insert),
             path: inputs.join("amp.nam"),
         })
         .expect("load local NAM");
@@ -661,12 +663,12 @@ fn nam_only_rig(root: &Path) -> (PresetStore, String) {
 
 const BAD_MODEL: &[u8] = b"not a NAM model";
 
-fn corrupt_first_cached_model(document: &mut ronie_core::JuceTree) {
+fn corrupt_first_cached_model(document: &mut ronnie_core::JuceTree) {
     replace_first_cached_model(document, BAD_MODEL);
 }
 
 /// Replaces the first embedded model and returns the bytes that it held.
-fn replace_first_cached_model(document: &mut ronie_core::JuceTree, bytes: &[u8]) -> Vec<u8> {
+fn replace_first_cached_model(document: &mut ronnie_core::JuceTree, bytes: &[u8]) -> Vec<u8> {
     let snapshot = document
         .children
         .iter_mut()
@@ -697,7 +699,7 @@ fn replace_first_cached_model(document: &mut ronie_core::JuceTree, bytes: &[u8])
     panic!("fixture has no cached model");
 }
 
-fn encode_state(document: &ronie_core::JuceTree) -> Vec<u8> {
+fn encode_state(document: &ronnie_core::JuceTree) -> Vec<u8> {
     let mut bytes = b"T3KB".to_vec();
     bytes.extend_from_slice(
         &JuceCodec::default()
@@ -755,7 +757,7 @@ fn a_preset_with_an_embedded_model_that_cannot_compile_runs_the_block_as_bypass(
 }
 
 /// Removes each embedded model of a document.
-fn remove_cached_models(document: &mut ronie_core::JuceTree) {
+fn remove_cached_models(document: &mut ronnie_core::JuceTree) {
     if document.identifier == "CachedModel" {
         document.properties.retain(|(name, _)| name != "data");
     }
@@ -836,7 +838,7 @@ fn session_with_unusable_model(root: &Path) -> Vec<u8> {
     valid
 }
 
-fn tone_block(backend: &StandaloneBackend) -> ronie_core::ChainBlock {
+fn tone_block(backend: &StandaloneBackend) -> ronnie_core::ChainBlock {
     backend
         .chain_state(0)
         .chain
@@ -882,17 +884,17 @@ fn a_saved_model_that_cannot_compile_runs_as_bypass_and_does_not_stop_the_launch
 /// Runs what the shell runs at launch, and returns the text of the banner and whether the first
 /// window has room for it.
 fn launch_banner(backend: std::sync::Arc<StandaloneBackend>) -> (Option<String>, bool) {
-    let options = ronie_ui::shell::NativeShellOptions {
+    let options = ronnie_ui::shell::NativeShellOptions {
         backend: Some(backend.clone()),
         ..Default::default()
     };
-    let room = ronie_ui::shell::initial_window_has_banner(&options);
+    let room = ronnie_ui::shell::initial_window_has_banner(&options);
     let mut chrome =
-        ronie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
     let mut device = None;
     let mut faults = Vec::new();
-    ronie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut device, 1_000);
-    ronie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut faults, 1_000);
+    ronnie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut device, 1_000);
+    ronnie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut faults, 1_000);
     let text = chrome
         .banners()
         .active()
@@ -1051,7 +1053,7 @@ fn overwrite_stash(root: &Path, bytes: &[u8]) {
 
 #[test]
 fn a_corrupt_local_copy_does_not_replace_valid_embedded_bytes() {
-    let other_model = ronie_oracle::synthetic::synthetic_a2_json(3).expect("synthetic NAM");
+    let other_model = ronnie_oracle::synthetic::synthetic_a2_json(3).expect("synthetic NAM");
     let cases: [(&str, &[u8]); 3] = [
         ("garbage", BAD_MODEL),
         ("truncated", &other_model[..other_model.len() / 2]),
@@ -1328,8 +1330,8 @@ fn unknown_session_fields_survive_close_and_reopen() {
 fn a_preset_with_downloaded_bytes_reloads_after_a_restart_with_no_network() {
     let directory = tempfile::tempdir().expect("temporary standalone root");
     let root = directory.path();
-    let nam = ronie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let nam = ronnie_oracle::synthetic::synthetic_a2_json(8).expect("synthetic NAM");
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 5,
         "title": "Remote",
         "format": "nam",
@@ -1350,7 +1352,7 @@ fn a_preset_with_downloaded_bytes_reloads_after_a_restart_with_no_network() {
         .dispatch(UiAction::LoadToneWithBytes {
             target_insert_id: target.clone(),
             tone,
-            model_id: ronie_core::ModelId(7),
+            model_id: ronnie_core::ModelId(7),
             bytes: nam.into(),
         })
         .expect("load with bytes");

@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, time::Instant};
 
-use ronie_ui::{
+use ronnie_ui::{
     native_scenario::run_logic_selftest,
     shell::{NativeShellOptions, run_native},
     testbed::{UiScenario, load_scenarios, run, run_all},
@@ -107,8 +107,8 @@ fn execute() -> Result<(), String> {
             }
             "--layout" => {
                 layout = match args.next().as_deref() {
-                    Some("stage") => Some(ronie_ui::shell::ViewMode::RonieFlow),
-                    Some("reference") => Some(ronie_ui::shell::ViewMode::ReferenceDefault),
+                    Some("stage") => Some(ronnie_ui::shell::ViewMode::RonnieFlow),
+                    Some("reference") => Some(ronnie_ui::shell::ViewMode::ReferenceDefault),
                     _ => return Err("--layout needs stage or reference".into()),
                 };
             }
@@ -133,7 +133,7 @@ fn execute() -> Result<(), String> {
     }
     if let Some(id) = native_scenario {
         let scenario = select(Some(&id))?.remove(0);
-        let mut run = ronie_ui::native_scenario::NativeScenario::new(
+        let mut run = ronnie_ui::native_scenario::NativeScenario::new(
             &scenario,
             native_capture,
             native_report,
@@ -149,7 +149,7 @@ fn execute() -> Result<(), String> {
     }
     if let Some((reference, candidate, report)) = compare_directory {
         let scenarios = select(scenario.as_deref())?;
-        ronie_ui::native_scenario::compare_suite(&reference, &candidate, &report, &scenarios)?;
+        ronnie_ui::native_scenario::compare_suite(&reference, &candidate, &report, &scenarios)?;
         println!(
             "{}",
             serde_json::json!({"passed": true, "scenarios": scenarios.len()})

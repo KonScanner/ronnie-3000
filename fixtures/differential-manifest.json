@@ -24,14 +24,14 @@
     "infinity": "signs must match",
     "finite_pairs_only_for_max_abs_error": true
   },
-  "public_command": "cargo test -p ronie-dsp --test differential -- --nocapture",
-  "private_command": "script/build-oracle.sh && cargo test -p ronie-dsp --test differential -- --include-ignored --nocapture",
+  "public_command": "cargo test -p ronnie-dsp --test differential -- --nocapture",
+  "private_command": "script/build-oracle.sh && cargo test -p ronnie-dsp --test differential -- --include-ignored --nocapture",
   "private_status": "35 local A2 example cases passed on fast and generic paths; exact official fixture verification requires operator assets",
   "milestone": {
     "commands": [
       "script/check.sh",
       "cargo test --workspace -- --include-ignored",
-      "cargo bench -p ronie-dsp --bench a2"
+      "cargo bench -p ronnie-dsp --bench a2"
     ],
     "public_differential": "verified: 70 synthetic cases across both A2 tiers and all stream/block combinations, plus a 4096-frame stream",
     "private_differential": "verified locally: 35 cases passed on fast and generic paths",

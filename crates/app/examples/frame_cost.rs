@@ -3,7 +3,7 @@
 //! Run an optimized build with no window:
 //!
 //! ```text
-//! cargo run --release -p ronie-app --example frame_cost
+//! cargo run --release -p ronnie-app --example frame_cost
 //! ```
 //!
 //! Other modes: `--actions MODEL.nam` times edits with a real model, and `--blur` times the backdrop
@@ -22,19 +22,19 @@ use std::{
 };
 
 use eframe::egui;
-use ronie_app::{
+use ronnie_app::{
     audio::{AudioBackendKind, DummyBackend},
     standalone_backend::StandaloneBackend,
 };
-use ronie_core::{
+use ronnie_core::{
     BlockId, ChainSnapshot, HttpError, HttpRequest, HttpResponse, HttpTransport, InputMode,
     ModelBytes, ModelId, OAuthConfig, OriginPolicy, PREFERENCES_SETTINGS, SettingsStore, Tone,
     UI_PREFERENCES_SETTINGS,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     backend::{
         ChainFault, ChainViewState, GesturePhase, HostControl, MeterSnapshot, UiAction, UiBackend,
         UiError, UiReceipt,
@@ -200,7 +200,7 @@ impl UiBackend for CountingBackend {
     fn spectrum_bins(&self, block_id: &BlockId) -> [f32; 64] {
         self.timed("spectrum_bins", |inner| inner.spectrum_bins(block_id))
     }
-    fn tuner_reading(&self) -> ronie_dsp::analysis::TunerReading {
+    fn tuner_reading(&self) -> ronnie_dsp::analysis::TunerReading {
         self.timed("tuner_reading", UiBackend::tuner_reading)
     }
     fn supports(&self, control: HostControl) -> bool {
@@ -269,7 +269,7 @@ struct Bench {
 impl Bench {
     fn new(tones: usize) -> Self {
         let root = tempfile::tempdir().expect("temporary root");
-        let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
@@ -496,13 +496,13 @@ fn measure(bench: &mut Bench, page: Page, pixels_per_point: f32, accesskit: bool
         let begin = Instant::now();
         bench.chrome.poll_auth();
         bench.chrome.poll_community();
-        ronie_ui::shell::sync_device_banner(
+        ronnie_ui::shell::sync_device_banner(
             bench.counting.as_ref(),
             &mut bench.chrome,
             &mut shown_device,
             0,
         );
-        ronie_ui::shell::sync_chain_faults(
+        ronnie_ui::shell::sync_chain_faults(
             bench.counting.as_ref(),
             &mut bench.chrome,
             &mut shown_faults,
@@ -524,7 +524,7 @@ fn measure(bench: &mut Bench, page: Page, pixels_per_point: f32, accesskit: bool
             |ui| {
                 egui::CentralPanel::default()
                     .frame(egui::Frame::NONE.fill(egui::Color32::BLACK))
-                    .show(ui, |ui| ronie_ui::default::show(ui, chrome));
+                    .show(ui, |ui| ronnie_ui::default::show(ui, chrome));
             },
         );
         let after_pass = Instant::now();
@@ -776,7 +776,7 @@ mod window {
         cpu_ms: Vec<f64>,
         hover: bool,
         started: Instant,
-        modal_capture: ronie_ui::default::ModalCapture,
+        modal_capture: ronnie_ui::default::ModalCapture,
         backdrop_tx: std::sync::mpsc::Sender<std::sync::Arc<egui::ColorImage>>,
         backdrop_rx: std::sync::mpsc::Receiver<std::sync::Arc<egui::ColorImage>>,
         capture_ms: Vec<f64>,
@@ -848,12 +848,14 @@ mod window {
             }
             egui::CentralPanel::default()
                 .frame(egui::Frame::NONE.fill(egui::Color32::BLACK))
-                .show(ui, |ui| ronie_ui::default::show(ui, &mut self.bench.chrome));
+                .show(ui, |ui| {
+                    ronnie_ui::default::show(ui, &mut self.bench.chrome)
+                });
             if let Ok(image) = self.backdrop_rx.try_recv()
                 && self.modal_capture.complete(false)
             {
                 let blur = Instant::now();
-                let blurred = ronie_ui::default::ModalScrim::blur_snapshot(&image);
+                let blurred = ronnie_ui::default::ModalScrim::blur_snapshot(&image);
                 let texture =
                     context.load_texture("modal-backdrop", blurred, egui::TextureOptions::LINEAR);
                 self.bench.chrome.set_modal_backdrop(Some(texture));
@@ -945,7 +947,7 @@ mod window {
                     cpu_ms: Vec::new(),
                     hover,
                     started: Instant::now(),
-                    modal_capture: ronie_ui::default::ModalCapture::default(),
+                    modal_capture: ronnie_ui::default::ModalCapture::default(),
                     backdrop_tx,
                     backdrop_rx,
                     capture_ms: Vec::new(),
@@ -979,7 +981,7 @@ fn main() {
             let image =
                 egui::ColorImage::new(size, vec![egui::Color32::from_gray(64); size[0] * size[1]]);
             let begin = Instant::now();
-            let _ = ronie_ui::default::ModalScrim::blur_snapshot(&image);
+            let _ = ronnie_ui::default::ModalScrim::blur_snapshot(&image);
             println!(
                 "| {}x{} | {:.1} |",
                 size[0],
@@ -995,7 +997,7 @@ fn main() {
     if has("--window") {
         assert!(
             std::env::var_os("WAYLAND_DISPLAY").is_none()
-                && std::env::var_os("RONIE_PRIVATE_DISPLAY").is_some(),
+                && std::env::var_os("RONNIE_PRIVATE_DISPLAY").is_some(),
             "--window runs only on a private display: see the header of this file"
         );
         let pages = match value("--page").map(String::as_str) {

@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::{
+use ronnie_core::{
     OPTIMIZE_PREFERENCE,
     params::{ParameterId, ParameterValue},
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{GesturePhase, MockBackend, UiAction, UiBackend},
     default::{ChromeController, TunerState, tuning},
     driver::UiDriver,

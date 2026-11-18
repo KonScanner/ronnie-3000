@@ -8,8 +8,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::SettingsStore;
-use ronie_ui::{
+use ronnie_core::SettingsStore;
+use ronnie_ui::{
     backend::{MockBackend, UiAction, UiBackend},
     default::{ChromeController, system_settings::UPDATE_CHECK_LABEL},
     driver::UiDriver,
@@ -191,7 +191,7 @@ fn a_snoozed_stored_payload_stays_hidden_after_a_restart() {
     let mut chrome = chrome_with(&backend, feed.clone(), Some(settings.clone()));
     chrome.poll_updates(NOW_MS);
     let _ = chrome
-        .handle_update_action(ronie_ui::default::UpdateAction::Remind(7), NOW_MS)
+        .handle_update_action(ronnie_ui::default::UpdateAction::Remind(7), NOW_MS)
         .expect("snooze");
     assert!(chrome.updates().notice().is_none());
 

@@ -1,22 +1,22 @@
 //! Reference parameter and processor contract tests.
 
-use ronie_core::{
+use ronnie_core::{
     InputMode,
     params::{Mapping, ParameterCatalog, ParameterId, ParameterValue, Smoothing},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{
     backend::{ProcessorBackend, UiBackend},
     params,
-    processor::RonieProcessor,
+    processor::RonnieProcessor,
 };
 
 #[test]
 fn settings_store_seeds_and_persists_machine_defaults_and_preferences() {
     let directory =
-        std::env::temp_dir().join(format!("ronie-processor-settings-{}", std::process::id()));
+        std::env::temp_dir().join(format!("ronnie-processor-settings-{}", std::process::id()));
     std::fs::create_dir_all(&directory).expect("create settings directory");
-    let settings = ronie_core::SettingsStore::new(directory.join("preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(directory.join("preferences.settings"));
     settings
         .merge_key("calibrateInput", "1.0")
         .expect("seed calibration");
@@ -30,7 +30,7 @@ fn settings_store_seeds_and_persists_machine_defaults_and_preferences() {
     settings
         .merge_key("t3k.showPitchControl", "true")
         .expect("seed preference");
-    let backend = ProcessorBackend::with_settings(RonieProcessor::new(spec()), settings.clone())
+    let backend = ProcessorBackend::with_settings(RonnieProcessor::new(spec()), settings.clone())
         .expect("settings backend");
     assert_eq!(
         backend.parameter(ParameterId("calibrateInput")),
@@ -45,25 +45,25 @@ fn settings_store_seeds_and_persists_machine_defaults_and_preferences() {
     assert_eq!(backend.preference("t3k.showPitchControl"), Some(true));
 
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetParameter {
+        .dispatch(ronnie_ui::backend::UiAction::SetParameter {
             id: ParameterId("inputCalibrationLevel"),
             value: ParameterValue(13.5),
-            gesture: ronie_ui::backend::GesturePhase::Change,
+            gesture: ronnie_ui::backend::GesturePhase::Change,
         })
         .expect("calibration value");
     backend
-        .dispatch(ronie_ui::backend::UiAction::PersistMachineDefault(
+        .dispatch(ronnie_ui::backend::UiAction::PersistMachineDefault(
             ParameterId("inputCalibrationLevel"),
         ))
         .expect("persist calibration");
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetMultiCore(true))
+        .dispatch(ronnie_ui::backend::UiAction::SetMultiCore(true))
         .expect("persist multicore");
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetNamFullSize(false))
+        .dispatch(ronnie_ui::backend::UiAction::SetNamFullSize(false))
         .expect("persist size");
     backend
-        .dispatch(ronie_ui::backend::UiAction::SetPreference {
+        .dispatch(ronnie_ui::backend::UiAction::SetPreference {
             key: "t3k.showPitchControl".to_owned(),
             value: false,
         })
@@ -690,7 +690,7 @@ fn complete_parameter_catalog_matches_reference_v1() {
 
 #[test]
 fn processor_tracks_parameters_gestures_and_revision() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let initial = backend.chain_state(u64::MAX);
     assert!(initial.changed);
     assert_eq!(initial.preparation, spec());
@@ -728,7 +728,7 @@ fn processor_tracks_parameters_gestures_and_revision() {
 
 #[test]
 fn processor_presets_and_chain_actions_have_typed_receipts() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let saved = backend
         .dispatch(params::UiAction::SavePreset {
             name: "Stadium Lead".to_owned(),
@@ -765,14 +765,14 @@ fn processor_presets_and_chain_actions_have_typed_receipts() {
 #[test]
 fn an_unknown_preset_is_an_unknown_target_with_or_without_a_store() {
     let directory =
-        std::env::temp_dir().join(format!("ronie-processor-presets-{}", std::process::id()));
-    let store = std::sync::Arc::new(ronie_core::PresetStore::new(
+        std::env::temp_dir().join(format!("ronnie-processor-presets-{}", std::process::id()));
+    let store = std::sync::Arc::new(ronnie_core::PresetStore::new(
         directory.join("presets"),
         directory.join("system"),
     ));
     let processors = [
-        RonieProcessor::new(spec()),
-        RonieProcessor::new(spec()).with_preset_store(store),
+        RonnieProcessor::new(spec()),
+        RonnieProcessor::new(spec()).with_preset_store(store),
     ];
     for mut processor in processors {
         let missing = "user:no-such-preset".to_owned();
@@ -800,10 +800,10 @@ fn an_unknown_preset_is_an_unknown_target_with_or_without_a_store() {
     let _ = std::fs::remove_dir_all(&directory);
 }
 
-type ReadLevel = fn(&ronie_dsp::rt_chain::ChainControls) -> f32;
-type ReadSwitch = fn(&ronie_dsp::rt_chain::ChainControls) -> bool;
+type ReadLevel = fn(&ronnie_dsp::rt_chain::ChainControls) -> f32;
+type ReadSwitch = fn(&ronnie_dsp::rt_chain::ChainControls) -> bool;
 
-fn audio_state(backend: &ProcessorBackend) -> ronie_plugin::AudioSessionState {
+fn audio_state(backend: &ProcessorBackend) -> ronnie_plugin::AudioSessionState {
     backend.audio_state().expect("audio state")
 }
 
@@ -819,7 +819,7 @@ fn set(backend: &ProcessorBackend, id: &'static str, value: f32) {
 
 #[test]
 fn every_audio_parameter_reaches_its_chain_control() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let defaults = audio_state(&backend).controls;
     assert_eq!(defaults.input.input_gain, 1.0);
     assert_eq!(defaults.output.output_level, 0.5);
@@ -879,7 +879,7 @@ fn every_audio_parameter_reaches_its_chain_control() {
 fn a_mono_rig_moves_chain_mixing_to_the_routing_stage_only() {
     let mut mono = spec();
     mono.stereo_output = false;
-    let backend = ProcessorBackend::new(RonieProcessor::new(mono));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(mono));
     set(&backend, "chainInvertLeft", 1.0);
     set(&backend, "chainSoloRight", 1.0);
     set(&backend, "outputBalance", 1.0);
@@ -894,9 +894,9 @@ fn a_mono_rig_moves_chain_mixing_to_the_routing_stage_only() {
 
 #[test]
 fn a_block_setting_is_not_a_structure_change_but_a_tone_is() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let first = audio_state(&backend);
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 42,
         "title": "Remote tone",
         "format": "ir",
@@ -908,7 +908,7 @@ fn a_block_setting_is_not_a_structure_change_but_a_tone_is() {
         .dispatch(params::UiAction::LoadTone {
             target_insert_id: target.clone(),
             tone,
-            model_id: ronie_core::ModelId(7),
+            model_id: ronnie_core::ModelId(7),
         })
         .expect("load tone");
     let loaded = audio_state(&backend);
@@ -934,8 +934,8 @@ fn a_block_setting_is_not_a_structure_change_but_a_tone_is() {
     assert_eq!(chain.unavailable[0].0, target);
 }
 
-fn catalog_ir_tone() -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn catalog_ir_tone() -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": 42,
         "title": "Remote tone",
         "format": "ir",
@@ -947,7 +947,7 @@ fn catalog_ir_tone() -> ronie_core::Tone {
     .expect("tone")
 }
 
-fn wav_bytes() -> ronie_core::ModelBytes {
+fn wav_bytes() -> ronnie_core::ModelBytes {
     let samples = [16_000_i16, 0, 0, 16_000];
     let mut bytes = b"RIFF".to_vec();
     bytes.extend_from_slice(&(36_u32 + samples.len() as u32 * 2).to_le_bytes());
@@ -969,15 +969,15 @@ fn wav_bytes() -> ronie_core::ModelBytes {
 
 fn load_with_bytes(
     backend: &ProcessorBackend,
-    tone: ronie_core::Tone,
-    bytes: ronie_core::ModelBytes,
+    tone: ronnie_core::Tone,
+    bytes: ronnie_core::ModelBytes,
 ) {
     let target = backend.chain_state(0).chain.left[0].id.clone();
     backend
         .dispatch(params::UiAction::LoadToneWithBytes {
             target_insert_id: target,
             tone,
-            model_id: ronie_core::ModelId(7),
+            model_id: ronnie_core::ModelId(7),
             bytes,
         })
         .expect("load with bytes");
@@ -985,7 +985,7 @@ fn load_with_bytes(
 
 #[test]
 fn downloaded_bytes_reach_a_prepared_chain_from_the_byte_cache() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let revision = backend.chain_state(0).revision;
 
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
@@ -998,7 +998,7 @@ fn downloaded_bytes_reach_a_prepared_chain_from_the_byte_cache() {
 
 #[test]
 fn a_block_copy_receives_downloaded_bytes() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     let block = backend.chain_state(0).chain.left[0].id.clone();
 
@@ -1012,7 +1012,7 @@ fn a_block_copy_receives_downloaded_bytes() {
 
 #[test]
 fn a_refused_byte_load_changes_nothing() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let revision = backend.chain_state(0).revision;
     let insert = backend.chain_state(0).chain.left[0].id.clone();
     let mut local = catalog_ir_tone();
@@ -1020,30 +1020,30 @@ fn a_refused_byte_load_changes_nothing() {
     let cases = [
         (
             "unknown target",
-            ronie_core::BlockId("missing".to_owned()),
+            ronnie_core::BlockId("missing".to_owned()),
             catalog_ir_tone(),
-            ronie_core::ModelId(7),
+            ronnie_core::ModelId(7),
             wav_bytes(),
         ),
         (
             "model is not in the tone",
             insert.clone(),
             catalog_ir_tone(),
-            ronie_core::ModelId(8),
+            ronnie_core::ModelId(8),
             wav_bytes(),
         ),
         (
             "local tone",
             insert.clone(),
             local,
-            ronie_core::ModelId(7),
+            ronnie_core::ModelId(7),
             wav_bytes(),
         ),
         (
             "no bytes",
             insert,
             catalog_ir_tone(),
-            ronie_core::ModelId(7),
+            ronnie_core::ModelId(7),
             Vec::new().into(),
         ),
     ];
@@ -1067,25 +1067,25 @@ fn a_refused_byte_load_changes_nothing() {
 
 #[test]
 fn model_validation_compiles_the_bytes_without_a_change() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let revision = backend.chain_state(0).revision;
     let tone = catalog_ir_tone();
 
     backend
-        .validate_model(&tone, ronie_core::ModelId(7), &wav_bytes())
+        .validate_model(&tone, ronnie_core::ModelId(7), &wav_bytes())
         .expect("a real impulse response");
     assert!(
         backend
             .validate_model(
                 &tone,
-                ronie_core::ModelId(7),
+                ronnie_core::ModelId(7),
                 &b"not a model".to_vec().into()
             )
             .is_err()
     );
     assert!(
         backend
-            .validate_model(&tone, ronie_core::ModelId(8), &wav_bytes())
+            .validate_model(&tone, ronnie_core::ModelId(8), &wav_bytes())
             .is_err(),
         "the model is not in the tone"
     );
@@ -1095,15 +1095,15 @@ fn model_validation_compiles_the_bytes_without_a_change() {
 
 fn restored_backend(root: &std::path::Path) -> ProcessorBackend {
     ProcessorBackend::with_settings(
-        RonieProcessor::new(spec()),
-        ronie_core::SettingsStore::standalone(root, ronie_core::PREFERENCES_SETTINGS),
+        RonnieProcessor::new(spec()),
+        ronnie_core::SettingsStore::standalone(root, ronnie_core::PREFERENCES_SETTINGS),
     )
     .expect("settings backend")
 }
 
 fn stored_bytes(root: &std::path::Path) -> Vec<(i64, Vec<u8>)> {
     let bytes = std::fs::read(root.join("session.state")).expect("saved session");
-    ronie_core::StateCodec::new()
+    ronnie_core::StateCodec::new()
         .decode_session(&bytes)
         .expect("session")
         .model_cache
@@ -1115,7 +1115,7 @@ fn stored_bytes(root: &std::path::Path) -> Vec<(i64, Vec<u8>)> {
 /// Replaces the embedded bytes of the first cached model in a saved session.
 fn replace_stored_bytes(root: &std::path::Path, bytes: &[u8]) {
     let path = root.join("session.state");
-    let mut document = ronie_core::StateCodec::new()
+    let mut document = ronnie_core::StateCodec::new()
         .decode_session(&std::fs::read(&path).expect("saved session"))
         .expect("session")
         .raw;
@@ -1131,10 +1131,10 @@ fn replace_stored_bytes(root: &std::path::Path, bytes: &[u8]) {
         .flat_map(|cached| &mut cached.properties)
         .find(|(name, _)| name == "data")
         .expect("embedded model");
-    data.1 = ronie_core::JuceValue::Binary(bytes.to_vec());
+    data.1 = ronnie_core::JuceValue::Binary(bytes.to_vec());
     let mut encoded = b"T3KB".to_vec();
     encoded.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&document)
             .expect("session bytes"),
     );
@@ -1181,8 +1181,8 @@ fn a_new_download_repairs_a_catalog_model_that_could_not_compile() {
         .dispatch(params::UiAction::SelectModelWithBytes {
             block_id: block,
             tone: catalog_ir_tone(),
-            model_id: ronie_core::ModelId(7),
-            replaces: Some(ronie_core::ModelId(7)),
+            model_id: ronnie_core::ModelId(7),
+            replaces: Some(ronnie_core::ModelId(7)),
             bytes: wav_bytes(),
         })
         .expect("new download");
@@ -1203,7 +1203,7 @@ fn downloaded_bytes_survive_a_restart_and_a_new_download_replaces_them() {
 
     let restarted = restored_backend(root);
     let block = restarted.chain_state(0).chain.left[0].clone();
-    assert_eq!(block.active_model_id, Some(ronie_core::ModelId(7)));
+    assert_eq!(block.active_model_id, Some(ronnie_core::ModelId(7)));
     assert_eq!(block.tone.as_ref().expect("tone").raw["future"], "kept");
     let chain = restarted.prepare_session_chain().expect("chain");
     assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
@@ -1224,9 +1224,9 @@ fn a_failed_load_stores_no_bytes_for_the_next_launch() {
     assert!(
         backend
             .dispatch(params::UiAction::LoadToneWithBytes {
-                target_insert_id: ronie_core::BlockId("missing".to_owned()),
+                target_insert_id: ronnie_core::BlockId("missing".to_owned()),
                 tone: catalog_ir_tone(),
-                model_id: ronie_core::ModelId(7),
+                model_id: ronnie_core::ModelId(7),
                 bytes: wav_bytes(),
             })
             .is_err()
@@ -1236,8 +1236,8 @@ fn a_failed_load_stores_no_bytes_for_the_next_launch() {
     assert!(stored_bytes(root).is_empty());
 }
 
-fn catalog_ir_tone_on(model: i64) -> ronie_core::Tone {
-    ronie_core::Tone::from_value(serde_json::json!({
+fn catalog_ir_tone_on(model: i64) -> ronnie_core::Tone {
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": 42,
         "title": "Remote tone",
         "format": "ir",
@@ -1249,7 +1249,7 @@ fn catalog_ir_tone_on(model: i64) -> ronie_core::Tone {
     .expect("tone")
 }
 
-fn other_wav_bytes() -> ronie_core::ModelBytes {
+fn other_wav_bytes() -> ronnie_core::ModelBytes {
     let mut bytes = wav_bytes().to_vec();
     let last = bytes.len() - 1;
     bytes[last] ^= 1;
@@ -1258,19 +1258,19 @@ fn other_wav_bytes() -> ronie_core::ModelBytes {
 
 fn switch_to_eight(
     backend: &ProcessorBackend,
-) -> Result<ronie_ui::backend::UiReceipt, params::UiError> {
+) -> Result<ronnie_ui::backend::UiReceipt, params::UiError> {
     backend.dispatch(params::UiAction::SelectModelWithBytes {
         block_id: backend.chain_state(0).chain.left[0].id.clone(),
         tone: catalog_ir_tone_on(8),
-        model_id: ronie_core::ModelId(8),
-        replaces: Some(ronie_core::ModelId(7)),
+        model_id: ronnie_core::ModelId(8),
+        replaces: Some(ronnie_core::ModelId(7)),
         bytes: other_wav_bytes(),
     })
 }
 
 #[test]
 fn a_switch_with_bytes_reaches_a_prepared_chain_and_keeps_the_block_settings() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     let mut block = backend.chain_state(0).chain.left[0].clone();
     block.params.mix = 0.25;
@@ -1287,29 +1287,29 @@ fn a_switch_with_bytes_reaches_a_prepared_chain_and_keeps_the_block_settings() {
     let state = backend.chain_state(0);
     assert_eq!(state.revision, revision + 1);
     let switched = &state.chain.left[0];
-    assert_eq!(switched.active_model_id, Some(ronie_core::ModelId(8)));
+    assert_eq!(switched.active_model_id, Some(ronnie_core::ModelId(8)));
     assert_eq!(switched.params.mix, 0.25);
     assert_eq!(switched.id, block.id);
     let tone = switched.tone.as_ref().expect("tone");
     assert_eq!(tone.models.len(), 1);
-    assert_eq!(tone.models[0].id, ronie_core::ModelId(8));
+    assert_eq!(tone.models[0].id, ronnie_core::ModelId(8));
     let chain = backend.prepare_session_chain().expect("chain");
     assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
 }
 
 #[test]
 fn an_undo_of_a_switch_returns_to_the_old_model_with_its_bytes() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     switch_to_eight(&backend).expect("switch");
 
     backend.dispatch(params::UiAction::Undo).expect("undo");
 
     let block = backend.chain_state(0).chain.left[0].clone();
-    assert_eq!(block.active_model_id, Some(ronie_core::ModelId(7)));
+    assert_eq!(block.active_model_id, Some(ronnie_core::ModelId(7)));
     assert_eq!(
         block.tone.as_ref().expect("tone").models[0].id,
-        ronie_core::ModelId(7)
+        ronnie_core::ModelId(7)
     );
     let chain = backend.prepare_session_chain().expect("chain");
     assert!(chain.unavailable.is_empty(), "{:?}", chain.unavailable);
@@ -1317,21 +1317,21 @@ fn an_undo_of_a_switch_returns_to_the_old_model_with_its_bytes() {
 
 #[test]
 fn a_switch_that_is_out_of_date_or_not_a_catalog_model_changes_nothing() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     let block = backend.chain_state(0).chain.left[0].id.clone();
     let insert = backend.chain_state(0).chain.left[1].id.clone();
     let revision = backend.chain_state(0).revision;
-    let eight = ronie_core::ModelId(8);
-    let seven = Some(ronie_core::ModelId(7));
+    let eight = ronnie_core::ModelId(8);
+    let seven = Some(ronnie_core::ModelId(7));
     let mut other_tone = catalog_ir_tone_on(8);
-    other_tone.id = ronie_core::ToneId(43);
+    other_tone.id = ronnie_core::ToneId(43);
     let mut local = catalog_ir_tone_on(8);
     local.local = true;
     let cases = [
         (
             "no block",
-            ronie_core::BlockId("missing".to_owned()),
+            ronnie_core::BlockId("missing".to_owned()),
             catalog_ir_tone_on(8),
             eight,
             seven,
@@ -1358,7 +1358,7 @@ fn a_switch_that_is_out_of_date_or_not_a_catalog_model_changes_nothing() {
             block.clone(),
             catalog_ir_tone_on(8),
             eight,
-            Some(ronie_core::ModelId(6)),
+            Some(ronnie_core::ModelId(6)),
             other_wav_bytes(),
         ),
         (
@@ -1373,7 +1373,7 @@ fn a_switch_that_is_out_of_date_or_not_a_catalog_model_changes_nothing() {
             "not in the tone",
             block.clone(),
             catalog_ir_tone_on(8),
-            ronie_core::ModelId(9),
+            ronnie_core::ModelId(9),
             seven,
             other_wav_bytes(),
         ),
@@ -1418,7 +1418,7 @@ fn a_switched_model_survives_a_restart_and_only_its_bytes_are_stored() {
 
     let restarted = restored_backend(root);
     let block = restarted.chain_state(0).chain.left[0].clone();
-    assert_eq!(block.active_model_id, Some(ronie_core::ModelId(8)));
+    assert_eq!(block.active_model_id, Some(ronnie_core::ModelId(8)));
     let tone = block.tone.as_ref().expect("tone");
     assert_eq!(tone.models.len(), 1);
     assert_eq!(tone.raw["future"], "kept");
@@ -1428,15 +1428,15 @@ fn a_switched_model_survives_a_restart_and_only_its_bytes_are_stored() {
 
 #[test]
 fn a_host_restore_leaves_the_compile_pending() {
-    let saved = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let saved = ProcessorBackend::new(RonnieProcessor::new(spec()));
     let bytes = saved.session_bytes().expect("bytes");
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
 
     backend.restore_host_session_bytes(&bytes).expect("restore");
 
     let restore = backend.take_restore().expect("restore");
     assert!(
-        matches!(restore, Some(ronie_plugin::SessionRestore::Compile)),
+        matches!(restore, Some(ronnie_plugin::SessionRestore::Compile)),
         "{restore:?}"
     );
     assert!(backend.take_restore().expect("restore").is_none());
@@ -1444,7 +1444,7 @@ fn a_host_restore_leaves_the_compile_pending() {
 
 #[test]
 fn an_unchanged_session_gives_the_same_saved_bytes() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
 
     let first = backend.session_bytes().expect("bytes");
@@ -1455,7 +1455,7 @@ fn an_unchanged_session_gives_the_same_saved_bytes() {
 
 #[test]
 fn a_new_download_of_the_same_model_gives_new_saved_bytes() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     let first = backend.session_bytes().expect("bytes");
 
@@ -1466,7 +1466,7 @@ fn a_new_download_of_the_same_model_gives_new_saved_bytes() {
 
     let second = backend.session_bytes().expect("bytes");
     assert!(!std::sync::Arc::ptr_eq(&first, &second));
-    let embedded: Vec<Vec<u8>> = ronie_core::StateCodec::new()
+    let embedded: Vec<Vec<u8>> = ronnie_core::StateCodec::new()
         .decode_session(&second)
         .expect("session")
         .model_cache
@@ -1477,7 +1477,7 @@ fn a_new_download_of_the_same_model_gives_new_saved_bytes() {
 }
 
 /// A mono 48 kHz WAV whose first and last samples sound, so it keeps `frames` after the trim.
-fn cab_wav_of(frames: usize) -> ronie_core::ModelBytes {
+fn cab_wav_of(frames: usize) -> ronnie_core::ModelBytes {
     let mut samples = vec![0_i16; frames];
     samples[0] = 16_000;
     samples[frames - 1] = 16_000;
@@ -1503,7 +1503,7 @@ fn cab_wav_of(frames: usize) -> ronie_core::ModelBytes {
 const B_FRAMES: usize = 2_400;
 const B_TAIL: f64 = B_FRAMES as f64 / 48_000.0;
 
-fn tail(change: &ronie_dsp::prepare::PreparedChainChange) -> f64 {
+fn tail(change: &ronnie_dsp::prepare::PreparedChainChange) -> f64 {
     change.latency.tail_seconds
 }
 
@@ -1526,7 +1526,7 @@ fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
     load_with_bytes(&backend, catalog_ir_tone(), wav_bytes());
     drop(backend);
     let path = root.join("session.state");
-    let mut document = ronie_core::StateCodec::new()
+    let mut document = ronnie_core::StateCodec::new()
         .decode_session(&std::fs::read(&path).expect("saved session"))
         .expect("session")
         .raw;
@@ -1543,7 +1543,7 @@ fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
         .iter_mut()
         .find(|(name, _)| name == "toneJson")
         .expect("tone json");
-    let ronie_core::JuceValue::String(text) = tone_json else {
+    let ronnie_core::JuceValue::String(text) = tone_json else {
         panic!("tone json is a string");
     };
     let mut tone: serde_json::Value = serde_json::from_str(text).expect("tone json");
@@ -1559,7 +1559,7 @@ fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
     if b.named {
         block
             .properties
-            .push(("irBModelId".to_owned(), ronie_core::JuceValue::Int64(8)));
+            .push(("irBModelId".to_owned(), ronnie_core::JuceValue::Int64(8)));
     }
     if let Some(bytes) = b.bytes {
         block
@@ -1568,13 +1568,13 @@ fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
             .find(|child| child.identifier == "ModelCache")
             .expect("model cache")
             .children
-            .push(ronie_core::JuceTree {
+            .push(ronnie_core::JuceTree {
                 identifier: "CachedModel".to_owned(),
                 properties: vec![
-                    ("modelId".to_owned(), ronie_core::JuceValue::Int64(8)),
+                    ("modelId".to_owned(), ronnie_core::JuceValue::Int64(8)),
                     (
                         "data".to_owned(),
-                        ronie_core::JuceValue::Binary(bytes.to_vec()),
+                        ronnie_core::JuceValue::Binary(bytes.to_vec()),
                     ),
                 ],
                 children: Vec::new(),
@@ -1582,16 +1582,16 @@ fn save_session_with_b(root: &std::path::Path, b: &SavedB<'_>) {
     }
     let mut encoded = b"T3KB".to_vec();
     encoded.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&document)
             .expect("session bytes"),
     );
     std::fs::write(path, encoded).expect("write session");
 }
 
-fn saved_block(root: &std::path::Path) -> ronie_core::ChainBlock {
+fn saved_block(root: &std::path::Path) -> ronnie_core::ChainBlock {
     let bytes = std::fs::read(root.join("session.state")).expect("saved session");
-    ronie_core::StateCodec::new()
+    ronnie_core::StateCodec::new()
         .decode_session(&bytes)
         .expect("session")
         .snapshot
@@ -1600,9 +1600,9 @@ fn saved_block(root: &std::path::Path) -> ronie_core::ChainBlock {
         .clone()
 }
 
-fn prepared_restore(backend: &ProcessorBackend) -> ronie_dsp::prepare::PreparedChainChange {
+fn prepared_restore(backend: &ProcessorBackend) -> ronnie_dsp::prepare::PreparedChainChange {
     match backend.take_restore().expect("restore") {
-        Some(ronie_plugin::SessionRestore::Prepared(change)) => *change,
+        Some(ronnie_plugin::SessionRestore::Prepared(change)) => *change,
         other => panic!("expected a prepared restore, got {other:?}"),
     }
 }
@@ -1626,8 +1626,8 @@ fn a_session_with_b_saves_and_restores_offline_with_both_irs() {
     let block = restarted.chain_state(0).chain.left[0].clone();
     assert_eq!(
         block.ir_b,
-        Some(ronie_core::IrB {
-            model_id: ronie_core::ModelId(8)
+        Some(ronnie_core::IrB {
+            model_id: ronnie_core::ModelId(8)
         })
     );
     assert!(!block.ir_b_missing);
@@ -1692,7 +1692,7 @@ fn a_missing_b_plays_a_alone() {
         let block = restarted.chain_state(0).chain.left[0].clone();
         assert_eq!(
             block.ir_b.map(|ir_b| ir_b.model_id),
-            Some(ronie_core::ModelId(8)),
+            Some(ronnie_core::ModelId(8)),
             "B is kept for its download (source {source})"
         );
         assert!(
@@ -1700,7 +1700,7 @@ fn a_missing_b_plays_a_alone() {
             "B reports its missing bytes (source {source})"
         );
         assert!(!block.load_failed && !block.model_loading && block.loaded);
-        if let Some(ronie_plugin::SessionRestore::Prepared(change)) =
+        if let Some(ronnie_plugin::SessionRestore::Prepared(change)) =
             restarted.take_restore().expect("restore")
         {
             assert!(tail(&change) < B_TAIL / 2.0, "A alone (source {source})");
@@ -1714,7 +1714,7 @@ fn a_missing_b_plays_a_alone() {
         drop(restarted);
         assert_eq!(
             saved_block(root).ir_b.map(|ir_b| ir_b.model_id),
-            Some(ronie_core::ModelId(8)),
+            Some(ronnie_core::ModelId(8)),
             "a save keeps B (source {source})"
         );
     }
@@ -1751,8 +1751,8 @@ fn a_cab_and_a_reverb_are_not_blended() {
 
 #[test]
 fn changing_the_skin_does_not_rebuild_the_chain() {
-    let backend = ProcessorBackend::new(RonieProcessor::new(spec()));
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let backend = ProcessorBackend::new(RonnieProcessor::new(spec()));
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 42,
         "title": "Remote tone",
         "format": "ir",
@@ -1764,7 +1764,7 @@ fn changing_the_skin_does_not_rebuild_the_chain() {
         .dispatch(params::UiAction::LoadTone {
             target_insert_id: target.clone(),
             tone,
-            model_id: ronie_core::ModelId(7),
+            model_id: ronnie_core::ModelId(7),
         })
         .expect("load tone");
     let before = audio_state(&backend);
@@ -1871,7 +1871,7 @@ fn a_preset_keeps_b_and_a_preset_with_a_missing_b_plays_a_alone() {
         let block = backend.chain_state(0).chain.left[0].clone();
         assert_eq!(
             block.ir_b.map(|ir_b| ir_b.model_id),
-            Some(ronie_core::ModelId(8))
+            Some(ronnie_core::ModelId(8))
         );
         assert_eq!(block.ir_b_missing, bytes.is_none());
         let chain = backend.prepare_session_chain().expect("chain");
@@ -1889,7 +1889,7 @@ fn a_preset_keeps_b_and_a_preset_with_a_missing_b_plays_a_alone() {
 /// session re-saved by a plugin that keeps only the active model would.
 fn name_unlisted_b(root: &std::path::Path, b: i64) {
     let path = root.join("session.state");
-    let mut document = ronie_core::StateCodec::new()
+    let mut document = ronnie_core::StateCodec::new()
         .decode_session(&std::fs::read(&path).expect("saved session"))
         .expect("session")
         .raw;
@@ -1902,10 +1902,10 @@ fn name_unlisted_b(root: &std::path::Path, b: i64) {
         .find(|block| block.properties.iter().any(|(name, _)| name == "toneId"))
         .expect("tone block")
         .properties
-        .push(("irBModelId".to_owned(), ronie_core::JuceValue::Int64(b)));
+        .push(("irBModelId".to_owned(), ronnie_core::JuceValue::Int64(b)));
     let mut encoded = b"T3KB".to_vec();
     encoded.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&document)
             .expect("session bytes"),
     );

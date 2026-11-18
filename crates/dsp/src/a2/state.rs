@@ -1,4 +1,4 @@
-use ronie_core::{DspError, DspResult};
+use ronnie_core::{DspError, DspResult};
 
 use super::{CompiledA2, HEAD_KERNEL_SIZE};
 

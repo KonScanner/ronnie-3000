@@ -12,7 +12,7 @@
 //! adapter, and it writes the tokens to the one store. The capture scenarios have their own
 //! adapter.
 
-use ronie_core::OAuthError;
+use ronnie_core::OAuthError;
 use thiserror::Error;
 use tokio::runtime::{Handle, Runtime};
 
@@ -416,7 +416,7 @@ impl Drop for Session {
 fn build_flow_runtime() -> std::io::Result<Runtime> {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
-        .thread_name("ronie-session")
+        .thread_name("ronnie-session")
         .enable_all()
         .build()
 }
@@ -496,7 +496,7 @@ mod tests {
                 .start_browser()
                 .expect_err("no flow")
                 .to_string()
-                .contains("RONIE_")
+                .contains("RONNIE_")
         );
 
         let mut restored = Session::new(SessionStatus::SignedIn);

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use ronie_core::{MidiMapping, MidiSource};
+use ronnie_core::{MidiMapping, MidiSource};
 
 use crate::backend::{MidiAction, UiAction, UiBackend, UiError};
 

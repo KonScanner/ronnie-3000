@@ -1,4 +1,4 @@
-use ronie_core::{DspError, DspResult};
+use ronnie_core::{DspError, DspResult};
 use std::{num::NonZeroUsize, sync::Arc};
 
 use super::state::{A2HistoryInfo, PreparedState};
@@ -78,7 +78,7 @@ impl<const C: usize> A2Engine<C> {
 
     /// Loudness and calibration metadata for this model.
     #[must_use]
-    pub fn metadata(&self) -> &ronie_core::NamMetadata {
+    pub fn metadata(&self) -> &ronnie_core::NamMetadata {
         &self.model.metadata
     }
 

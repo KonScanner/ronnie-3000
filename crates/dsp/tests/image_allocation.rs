@@ -1,7 +1,7 @@
 //! Prepared image and output allocation tests.
 #![allow(unsafe_code)]
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     image::{Align, AlignParams, ImageControls, ImageStage, Spread, SpreadParams},
     output::{OutputControls, OutputStage},

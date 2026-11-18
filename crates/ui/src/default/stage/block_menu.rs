@@ -2,7 +2,7 @@
 //! DUPLICATE and REMOVE, under the block's icon.
 
 use eframe::egui::{self, Color32, FontId, Rect, RichText, Stroke};
-use ronie_core::BlockId;
+use ronnie_core::BlockId;
 
 use super::add_menu::{
     Caret, HAIRLINE, HOVER, MUTED, TEXT, bold, menu_item, paint_board, text_in, tracked,

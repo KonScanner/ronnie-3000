@@ -1,7 +1,7 @@
 //! Chromatic tuner state and native takeover view.
 
 use eframe::egui::{self, Color32, FontId, Pos2, Rect, Shape, Stroke, Vec2};
-use ronie_dsp::analysis::TunerReading;
+use ronnie_dsp::analysis::TunerReading;
 
 use crate::{
     accessibility::{AccessibleNode, AccessibleRole},

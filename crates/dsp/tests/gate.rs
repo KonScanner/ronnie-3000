@@ -1,6 +1,6 @@
 //! Input gate detector, timing, range, reset, and ordering tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     input::{GateParams, InputControls, InputStage, NoiseGate},
 };

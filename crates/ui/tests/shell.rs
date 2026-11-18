@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use ronie_ui::{
+use ronnie_ui::{
     clock::UiClock,
     fonts::{FontFace, Fonts, css_baseline, normal_line_height},
     icons::{IconCache, IconId},
@@ -123,7 +123,7 @@ fn theme_and_icons_use_neutral_cached_assets() {
 
 #[test]
 fn real_default_scene_has_no_unnamed_focus_stops() {
-    let report = ronie_ui::native_scenario::run_logic_selftest();
+    let report = ronnie_ui::native_scenario::run_logic_selftest();
     assert!(report["accesskit_nodes"].as_u64().unwrap_or(0) >= 20);
     assert_eq!(report["accesskit_unnamed_focusable"], 0);
     assert_eq!(report["accesskit_passed"], true);
@@ -132,15 +132,15 @@ fn real_default_scene_has_no_unnamed_focus_stops() {
 #[test]
 fn detail_scene_has_no_unnamed_focus_stops() {
     let scenario =
-        ronie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
+        ronnie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
             .expect("scenarios")
             .into_iter()
             .find(|scenario| scenario.id == "main-detail")
             .expect("detail scenario");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario));
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     chrome.open_detail("blk-1").expect("open detail");
-    let report = ronie_ui::shell::audit_chrome_accessibility(&mut chrome);
+    let report = ronnie_ui::shell::audit_chrome_accessibility(&mut chrome);
     assert_eq!(report["unnamed_focusable"], 0);
     assert_eq!(report["passed"], true);
 }
@@ -148,19 +148,19 @@ fn detail_scene_has_no_unnamed_focus_stops() {
 #[test]
 fn eq_scene_has_no_unnamed_focus_stops() {
     let scenario =
-        ronie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
+        ronnie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
             .expect("scenarios")
             .into_iter()
             .find(|scenario| scenario.id == "main-detail-eq-sliders")
             .expect("EQ scenario");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario));
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     chrome.open_detail("blk-1").expect("open detail");
     chrome
         .detail_mut()
         .expect("detail")
-        .set_view(ronie_ui::default::BlockView::Eq);
-    let report = ronie_ui::shell::audit_chrome_accessibility(&mut chrome);
+        .set_view(ronnie_ui::default::BlockView::Eq);
+    let report = ronnie_ui::shell::audit_chrome_accessibility(&mut chrome);
     assert_eq!(report["unnamed_focusable"], 0, "{report}");
     assert_eq!(report["passed"], true);
 }
@@ -173,7 +173,7 @@ fn embedded_fonts_shape_real_text_in_egui() {
     output.textures_delta.clear();
     let galley = context.fonts_mut(|fonts| {
         fonts.layout_no_wrap(
-            "Ronie".to_owned(),
+            "Ronnie".to_owned(),
             eframe::egui::FontId::new(14.0, eframe::egui::FontFamily::Proportional),
             eframe::egui::Color32::WHITE,
         )
@@ -184,7 +184,7 @@ fn embedded_fonts_shape_real_text_in_egui() {
 
 #[test]
 fn responsive_zoom_fits_the_design_box_on_any_display_scale() {
-    use ronie_ui::shell::responsive_zoom;
+    use ronnie_ui::shell::responsive_zoom;
     let chrome = Chrome {
         banner: true,
         hints: true,
@@ -201,7 +201,7 @@ fn responsive_zoom_fits_the_design_box_on_any_display_scale() {
 
 #[test]
 fn responsive_zoom_never_makes_the_layout_smaller_than_the_design_box() {
-    use ronie_ui::shell::responsive_zoom;
+    use ronnie_ui::shell::responsive_zoom;
     let chrome = Chrome {
         banner: true,
         hints: true,
@@ -225,7 +225,7 @@ fn responsive_zoom_never_makes_the_layout_smaller_than_the_design_box() {
 
 #[test]
 fn responsive_zoom_snaps_so_a_small_drag_keeps_the_font_atlas() {
-    use ronie_ui::shell::responsive_zoom;
+    use ronnie_ui::shell::responsive_zoom;
     let chrome = Chrome::default();
     assert_eq!(
         responsive_zoom(1100.0, 1000.0, 1.0, chrome),
@@ -240,7 +240,7 @@ fn a_window_with_no_real_size_gets_the_design_zoom() {
         hints: false,
     };
     assert_eq!(
-        ronie_ui::shell::responsive_zoom(f32::NAN, f32::NAN, 1.0, chrome),
+        ronnie_ui::shell::responsive_zoom(f32::NAN, f32::NAN, 1.0, chrome),
         1.0
     );
 }
@@ -254,14 +254,14 @@ proptest::proptest! {
         banner: bool,
         hints: bool,
     ) {
-        let zoom = ronie_ui::shell::responsive_zoom(width, height, native, Chrome { banner, hints });
+        let zoom = ronnie_ui::shell::responsive_zoom(width, height, native, Chrome { banner, hints });
         proptest::prop_assert!(zoom.is_finite());
         proptest::prop_assert!((0.25..=32.0).contains(&zoom));
     }
 
     #[test]
     fn fire_ramp_accepts_any_position(position in proptest::num::f32::ANY) {
-        let color = ronie_ui::theme::palette::fire_ramp(position);
+        let color = ronnie_ui::theme::palette::fire_ramp(position);
         proptest::prop_assert_eq!(color.a(), 255);
     }
 }
@@ -284,7 +284,7 @@ fn zoom_frame(
         ..Default::default()
     };
     let mut output = context.run_ui(input, |ui| {
-        ronie_ui::shell::refit_zoom(ui.ctx(), chrome);
+        ronnie_ui::shell::refit_zoom(ui.ctx(), chrome);
         body(ui);
     });
     output.textures_delta.clear();

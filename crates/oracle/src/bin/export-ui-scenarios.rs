@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use ronie_ui::{backend::UiDrive, testbed::official_drives};
+use ronnie_ui::{backend::UiDrive, testbed::official_drives};
 use serde_json::{Value, json};
 
 fn neutral_text(text: &str) -> String {
@@ -134,8 +134,8 @@ fn read_fixture(path: &Path) -> eyre::Result<Value> {
 }
 
 fn main() -> eyre::Result<()> {
-    let input = std::env::var("RONIE_REFERENCE_UI_SCENARIOS").map_err(|_| {
-        eyre::eyre!("set RONIE_REFERENCE_UI_SCENARIOS to the official scenarios JSON")
+    let input = std::env::var("RONNIE_REFERENCE_UI_SCENARIOS").map_err(|_| {
+        eyre::eyre!("set RONNIE_REFERENCE_UI_SCENARIOS to the official scenarios JSON")
     })?;
     let source = fs::read_to_string(input)?;
     let root: Value = serde_json::from_str(&source)?;

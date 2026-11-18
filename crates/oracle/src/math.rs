@@ -1,4 +1,4 @@
-use ronie_core::NamDocument;
+use ronnie_core::NamDocument;
 
 use crate::{DifferentialCase, ModelOracle, OracleError};
 

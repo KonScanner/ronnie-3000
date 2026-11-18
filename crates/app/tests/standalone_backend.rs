@@ -1,16 +1,16 @@
 //! End-to-end standalone UI, audio-manager, and settings-store integration.
 
-use ronie_app::{audio_settings::StandaloneAudioSettings, standalone_backend::StandaloneBackend};
-use ronie_core::InputMode;
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::backend::{AudioDeviceConfig, DeviceAction, UiAction, UiBackend, UiError};
+use ronnie_app::{audio_settings::StandaloneAudioSettings, standalone_backend::StandaloneBackend};
+use ronnie_core::InputMode;
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::backend::{AudioDeviceConfig, DeviceAction, UiAction, UiBackend, UiError};
 
 #[test]
 fn dummy_device_and_midi_changes_reopen_and_persist_through_the_real_adapter() {
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("standalone.settings");
-    let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+    let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
         host_sample_rate: 48_000.0,
         max_host_frames: 128,
         oversampling: 1,
@@ -80,7 +80,7 @@ fn dummy_device_and_midi_changes_reopen_and_persist_through_the_real_adapter() {
 fn an_invalid_device_configuration_makes_no_device_request_and_changes_nothing() {
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("standalone.settings");
-    let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+    let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
         host_sample_rate: 48_000.0,
         max_host_frames: 128,
         oversampling: 1,
@@ -137,9 +137,10 @@ fn preset_restores_stay_accepted_and_pending_when_the_command_queue_fills() {
     let directory = tempfile::tempdir().expect("tempdir");
     let root = directory.path();
     let processor =
-        ronie_app::standalone_backend::standalone_processor(root).expect("standalone processor");
-    let backend = StandaloneBackend::dummy(processor, &root.join(ronie_core::PREFERENCES_SETTINGS))
-        .expect("dummy backend");
+        ronnie_app::standalone_backend::standalone_processor(root).expect("standalone processor");
+    let backend =
+        StandaloneBackend::dummy(processor, &root.join(ronnie_core::PREFERENCES_SETTINGS))
+            .expect("dummy backend");
     backend
         .dispatch(UiAction::SavePreset {
             name: "Queued".to_owned(),

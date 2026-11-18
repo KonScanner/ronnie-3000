@@ -2,20 +2,20 @@
 //!
 //! A launch takes its service values from the first source that has them:
 //!
-//! 1. the environment pair at launch (`RONIE_OAUTH_ORIGIN` and `RONIE_OAUTH_CLIENT_ID`),
+//! 1. the environment pair at launch (`RONNIE_OAUTH_ORIGIN` and `RONNIE_OAUTH_CLIENT_ID`),
 //! 2. the key that the user saved in the app, with [`DEFAULT_ORIGIN`],
 //! 3. the pair that the build holds,
 //! 4. none, and then the app has no community service.
 //!
-//! With [`DEFAULT_ORIGIN`] and no `RONIE_MODEL_ORIGINS`, the public hosts in
+//! With [`DEFAULT_ORIGIN`] and no `RONNIE_MODEL_ORIGINS`, the public hosts in
 //! [`DEFAULT_PUBLIC_ORIGINS`] can serve models and images.
 
 use std::path::{Path, PathBuf};
 
-use ronie_core::{
+use ronnie_core::{
     OAuthConfig, OriginPolicy, ReqwestTransport, SettingsStore, UI_PREFERENCES_SETTINGS,
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::UiError,
     services::{
         community::CommunityService,
@@ -27,7 +27,7 @@ use url::Url;
 /// The origin of the service that a saved key uses.
 pub const DEFAULT_ORIGIN: &str = "https://www.tone3000.com";
 /// The public hosts of the default service for model files and images, in the form of
-/// `RONIE_MODEL_ORIGINS`. They never receive a token.
+/// `RONNIE_MODEL_ORIGINS`. They never receive a token.
 pub const DEFAULT_PUBLIC_ORIGINS: &str = "https://assets.tone3000.com,https://files.tone3000.com";
 /// The settings entry that holds the key of the user.
 const USER_KEY_ENTRY: &str = "t3k_publishable_key";
@@ -35,9 +35,9 @@ const USER_KEY_ENTRY: &str = "t3k_publishable_key";
 /// The values in the environment of the build. `make build` takes them from `.env`. They are not
 /// in the repository. A publishable key is safe in a client application.
 const BUILT_IN: ServiceValues<'static> = ServiceValues {
-    origin: option_env!("RONIE_OAUTH_ORIGIN"),
-    client_id: option_env!("RONIE_OAUTH_CLIENT_ID"),
-    model_origins: option_env!("RONIE_MODEL_ORIGINS"),
+    origin: option_env!("RONNIE_OAUTH_ORIGIN"),
+    client_id: option_env!("RONNIE_OAUTH_CLIENT_ID"),
+    model_origins: option_env!("RONNIE_MODEL_ORIGINS"),
 };
 
 /// Builds the configured production service from the environment, or from the values that the
@@ -49,9 +49,9 @@ const BUILT_IN: ServiceValues<'static> = ServiceValues {
 pub fn configured_community(
     root: &Path,
 ) -> Result<Option<CommunityService<ReqwestTransport>>, UiError> {
-    let origin = environment("RONIE_OAUTH_ORIGIN")?;
-    let client_id = environment("RONIE_OAUTH_CLIENT_ID")?;
-    let model_origins = environment("RONIE_MODEL_ORIGINS")?;
+    let origin = environment("RONNIE_OAUTH_ORIGIN")?;
+    let client_id = environment("RONNIE_OAUTH_CLIENT_ID")?;
+    let model_origins = environment("RONNIE_MODEL_ORIGINS")?;
     configured_community_with_launch(
         root,
         origin.as_deref(),
@@ -215,16 +215,16 @@ pub fn configured_community_with_values(
             return Ok(None);
         }
         return Err(UiError::Control(
-            "RONIE_OAUTH_ORIGIN and RONIE_OAUTH_CLIENT_ID must be configured together".to_owned(),
+            "RONNIE_OAUTH_ORIGIN and RONNIE_OAUTH_CLIENT_ID must be configured together".to_owned(),
         ));
     };
     if client_id.trim().is_empty() {
         return Err(UiError::Control(
-            "RONIE_OAUTH_CLIENT_ID must not be empty".to_owned(),
+            "RONNIE_OAUTH_CLIENT_ID must not be empty".to_owned(),
         ));
     }
     let origin = Url::parse(origin)
-        .map_err(|_| UiError::Control("RONIE_OAUTH_ORIGIN is not a valid URL".to_owned()))?;
+        .map_err(|_| UiError::Control("RONNIE_OAUTH_ORIGIN is not a valid URL".to_owned()))?;
     if origin.scheme() != "https"
         || origin.host_str().is_none()
         || !origin.username().is_empty()
@@ -233,7 +233,7 @@ pub fn configured_community_with_values(
         || origin.fragment().is_some()
     {
         return Err(UiError::Control(
-            "RONIE_OAUTH_ORIGIN must be an HTTPS origin without credentials, query, or fragment"
+            "RONNIE_OAUTH_ORIGIN must be an HTTPS origin without credentials, query, or fragment"
                 .to_owned(),
         ));
     }
@@ -260,7 +260,7 @@ fn parse_model_origins(value: Option<&str>) -> Result<Vec<Url>, UiError> {
             parse_model_origin(entry.trim()).ok_or_else(|| {
                 // The value can hold a credential, so the error names only its position.
                 UiError::Control(format!(
-                    "RONIE_MODEL_ORIGINS entry {} must be an HTTPS origin without credentials, \
+                    "RONNIE_MODEL_ORIGINS entry {} must be an HTTPS origin without credentials, \
                      path, query, or fragment",
                     index + 1
                 ))

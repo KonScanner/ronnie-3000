@@ -1,7 +1,7 @@
 //! Atomic chain publication and callback failure tests.
 
-use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     ChainError, LatencyReport, PlanarBuffer, PrepareSpec,
     block::BlockModel,
     ir::compile_ir,
@@ -278,7 +278,11 @@ fn a_poisoned_output_is_repaired_and_the_output_stage_state_is_cleared() {
 }
 
 /// A chain of one cab block blending two copies of one long IR, so the blend is inaudible.
-fn same_ir_pair_chain() -> (RtChain, ronie_dsp::rt_chain::ChainCommandSender, ChainBlock) {
+fn same_ir_pair_chain() -> (
+    RtChain,
+    ronnie_dsp::rt_chain::ChainCommandSender,
+    ChainBlock,
+) {
     let kernel: Vec<f32> = (0..4_800)
         .map(|index| (index as f32 * 0.37).sin() * (-(index as f32) / 1_200.0).exp())
         .collect();

@@ -1,6 +1,6 @@
 //! End-to-end acquisition, compiled-cache, session, and preset closure tests.
 
-use ronie_core::{
+use ronnie_core::{
     ApiConfig, ApiError, BlockId, ByteCacheKey, CatalogClient, JuceTree, JuceValue, ModelByteCache,
     ModelId, ModelNamespace, OAuthConfig, OAuthError, OAuthFlow, OAuthTokens, PresetStore,
     RestoreCaches, SecretString, SessionError, SessionStore, SettingsStore, StateCodec,
@@ -74,7 +74,7 @@ fn session_bytes(block_tree: JuceTree) -> Vec<u8> {
         ],
     );
     let root = tree(
-        "RonieState",
+        "RonnieState",
         vec![
             ("schemaVersion".into(), JuceValue::Int(1)),
             ("unknownRootField".into(), string("retained")),
@@ -83,7 +83,7 @@ fn session_bytes(block_tree: JuceTree) -> Vec<u8> {
     );
     let mut bytes = b"T3KB".to_vec();
     bytes.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&root)
             .expect("session tree"),
     );
@@ -93,7 +93,7 @@ fn session_bytes(block_tree: JuceTree) -> Vec<u8> {
 #[test]
 #[ignore = "requires the official source fixture directory"]
 fn signed_out_local_model_flows_through_compilation_session_and_offline_restore() {
-    let Some(root) = std::env::var_os("RONIE_REFERENCE_ROOT") else {
+    let Some(root) = std::env::var_os("RONNIE_REFERENCE_ROOT") else {
         return;
     };
     let official = std::fs::read(std::path::PathBuf::from(root).join("test/files/a2-amp-test.nam"))
@@ -102,7 +102,7 @@ fn signed_out_local_model_flows_through_compilation_session_and_offline_restore(
     let input = temp.path().join("input");
     std::fs::create_dir(&input).expect("input dir");
     std::fs::write(input.join("amp.nam"), &official).expect("local fixture");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
     let loaded = load_local_path(&input, &stash, &|_| Ok(())).expect("signed-out local load");
     assert_eq!(loaded.tone.models.len(), 1);
@@ -195,7 +195,7 @@ fn cached_catalog_model_restores_without_network() {
 
 #[derive(Clone)]
 struct SessionTokens {
-    session: SessionStore<OAuthFlow<ronie_core::RecordedTransport>>,
+    session: SessionStore<OAuthFlow<ronnie_core::RecordedTransport>>,
 }
 
 impl TokenProvider for SessionTokens {
@@ -211,8 +211,8 @@ impl TokenProvider for SessionTokens {
 
 #[tokio::test]
 async fn authenticated_model_loading_rotates_refresh_once() {
-    let refresh_transport = ronie_core::RecordedTransport::new(vec![Ok(
-        ronie_core::HttpResponse::json(
+    let refresh_transport = ronnie_core::RecordedTransport::new(vec![Ok(
+        ronnie_core::HttpResponse::json(
             200,
             json!({"access_token": "fresh-access", "refresh_token": "fresh-refresh", "expires_in": 3600}),
         ),
@@ -240,9 +240,9 @@ async fn authenticated_model_loading_rotates_refresh_once() {
             expires_at_ms: 100_000,
         })
         .expect("seed");
-    let catalog_transport = ronie_core::RecordedTransport::new(vec![
-        Ok(ronie_core::HttpResponse::new(401, Vec::new())),
-        Ok(ronie_core::HttpResponse::json(
+    let catalog_transport = ronnie_core::RecordedTransport::new(vec![
+        Ok(ronnie_core::HttpResponse::new(401, Vec::new())),
+        Ok(ronnie_core::HttpResponse::json(
             200,
             json!({
                 "id": 1,
@@ -262,7 +262,7 @@ async fn authenticated_model_loading_rotates_refresh_once() {
 
     let tokens = SessionTokens { session };
     let tone = client
-        .get_tone(ronie_core::ToneId(1), &tokens)
+        .get_tone(ronnie_core::ToneId(1), &tokens)
         .await
         .expect("refresh and load");
 
@@ -290,15 +290,15 @@ async fn authenticated_model_loading_rotates_refresh_once() {
 /// An access token that stays fresh for the length of a test.
 const FAR_FUTURE_MS: i64 = i64::MAX;
 
-fn rotated(access: &str, refresh: &str) -> ronie_core::HttpResponse {
-    ronie_core::HttpResponse::json(
+fn rotated(access: &str, refresh: &str) -> ronnie_core::HttpResponse {
+    ronnie_core::HttpResponse::json(
         200,
         json!({"access_token": access, "refresh_token": refresh, "expires_in": 3600}),
     )
 }
 
-fn tone_json() -> ronie_core::HttpResponse {
-    ronie_core::HttpResponse::json(200, json!({"id": 1, "title": "Catalog", "format": "nam"}))
+fn tone_json() -> ronnie_core::HttpResponse {
+    ronnie_core::HttpResponse::json(200, json!({"id": 1, "title": "Catalog", "format": "nam"}))
 }
 
 fn stored(access: &str, refresh: &str, expires_at_ms: i64) -> OAuthTokens {
@@ -317,12 +317,12 @@ fn expose(token: &SecretString) -> &str {
 struct SessionFixture {
     _directory: TempDir,
     settings: SettingsStore,
-    session: SessionStore<OAuthFlow<ronie_core::RecordedTransport>>,
-    refreshes: ronie_core::RecordedTransport,
+    session: SessionStore<OAuthFlow<ronnie_core::RecordedTransport>>,
+    refreshes: ronnie_core::RecordedTransport,
 }
 
 impl SessionFixture {
-    fn over(refreshes: ronie_core::RecordedTransport) -> Self {
+    fn over(refreshes: ronnie_core::RecordedTransport) -> Self {
         let directory = TempDir::new().expect("temp dir");
         let settings = SettingsStore::new(directory.path().join("ui-preferences.settings"));
         let session = SessionStore::new(settings.clone(), oauth_flow(refreshes.clone()));
@@ -334,16 +334,16 @@ impl SessionFixture {
         }
     }
 
-    fn with(responses: Vec<ronie_core::HttpResponse>) -> Self {
-        Self::over(ronie_core::RecordedTransport::new(
+    fn with(responses: Vec<ronnie_core::HttpResponse>) -> Self {
+        Self::over(ronnie_core::RecordedTransport::new(
             responses.into_iter().map(Ok).collect(),
         ))
     }
 }
 
 fn oauth_flow(
-    transport: ronie_core::RecordedTransport,
-) -> OAuthFlow<ronie_core::RecordedTransport> {
+    transport: ronnie_core::RecordedTransport,
+) -> OAuthFlow<ronnie_core::RecordedTransport> {
     OAuthFlow::new(
         OAuthConfig::new(
             url::Url::parse("https://api.example").expect("origin"),
@@ -353,7 +353,7 @@ fn oauth_flow(
     )
 }
 
-fn catalog<T: ronie_core::HttpTransport>(transport: T) -> CatalogClient<T> {
+fn catalog<T: ronnie_core::HttpTransport>(transport: T) -> CatalogClient<T> {
     CatalogClient::new(
         ApiConfig::new(
             url::Url::parse("https://api.example").expect("origin"),
@@ -363,8 +363,8 @@ fn catalog<T: ronie_core::HttpTransport>(transport: T) -> CatalogClient<T> {
     )
 }
 
-fn recorded(responses: Vec<ronie_core::HttpResponse>) -> ronie_core::RecordedTransport {
-    ronie_core::RecordedTransport::new(responses.into_iter().map(Ok).collect())
+fn recorded(responses: Vec<ronnie_core::HttpResponse>) -> ronnie_core::RecordedTransport {
+    ronnie_core::RecordedTransport::new(responses.into_iter().map(Ok).collect())
 }
 
 #[tokio::test]
@@ -387,12 +387,12 @@ async fn a_catalog_401_forces_one_refresh_and_the_retry_uses_the_new_token() {
         .set_tokens(stored("old-access", "old-refresh", FAR_FUTURE_MS))
         .expect("seed");
     let transport = recorded(vec![
-        ronie_core::HttpResponse::new(401, Vec::new()),
+        ronnie_core::HttpResponse::new(401, Vec::new()),
         tone_json(),
     ]);
 
     let tone = catalog(transport.clone())
-        .get_tone(ronie_core::ToneId(1), &fixture.session)
+        .get_tone(ronnie_core::ToneId(1), &fixture.session)
         .await
         .expect("the retry");
 
@@ -416,12 +416,12 @@ async fn a_second_401_ends_the_request_without_a_second_refresh() {
         .set_tokens(stored("old-access", "old-refresh", FAR_FUTURE_MS))
         .expect("seed");
     let transport = recorded(vec![
-        ronie_core::HttpResponse::new(401, Vec::new()),
-        ronie_core::HttpResponse::new(401, Vec::new()),
+        ronnie_core::HttpResponse::new(401, Vec::new()),
+        ronnie_core::HttpResponse::new(401, Vec::new()),
     ]);
 
     let result = catalog(transport.clone())
-        .get_tone(ronie_core::ToneId(1), &fixture.session)
+        .get_tone(ronnie_core::ToneId(1), &fixture.session)
         .await;
 
     assert!(
@@ -436,7 +436,7 @@ async fn a_second_401_ends_the_request_without_a_second_refresh() {
 async fn two_callers_with_an_expired_token_share_one_refresh() {
     let started = std::sync::Arc::new(tokio::sync::Notify::new());
     let release = std::sync::Arc::new(tokio::sync::Notify::new());
-    let fixture = SessionFixture::over(ronie_core::RecordedTransport::gated(
+    let fixture = SessionFixture::over(ronnie_core::RecordedTransport::gated(
         vec![Ok(rotated("new-access", "new-refresh"))],
         started.clone(),
         release.clone(),
@@ -467,16 +467,16 @@ async fn two_callers_with_an_expired_token_share_one_refresh() {
 /// A transport that holds its first requests until all of them are in flight, so that callers
 /// get their answers at the same time.
 struct TogetherTransport {
-    inner: ronie_core::RecordedTransport,
+    inner: ronnie_core::RecordedTransport,
     barrier: tokio::sync::Barrier,
     held: std::sync::atomic::AtomicUsize,
 }
 
-impl ronie_core::HttpTransport for TogetherTransport {
+impl ronnie_core::HttpTransport for TogetherTransport {
     async fn execute(
         &self,
-        request: ronie_core::HttpRequest,
-    ) -> Result<ronie_core::HttpResponse, ronie_core::HttpError> {
+        request: ronnie_core::HttpRequest,
+    ) -> Result<ronnie_core::HttpResponse, ronnie_core::HttpError> {
         let response = self.inner.execute(request).await;
         let held = self
             .held
@@ -501,8 +501,8 @@ async fn two_catalog_calls_rejected_together_share_one_refresh() {
         .set_tokens(stored("old-access", "old-refresh", FAR_FUTURE_MS))
         .expect("seed");
     let recorded_calls = recorded(vec![
-        ronie_core::HttpResponse::new(401, Vec::new()),
-        ronie_core::HttpResponse::new(401, Vec::new()),
+        ronnie_core::HttpResponse::new(401, Vec::new()),
+        ronnie_core::HttpResponse::new(401, Vec::new()),
         tone_json(),
         tone_json(),
     ]);
@@ -513,8 +513,8 @@ async fn two_catalog_calls_rejected_together_share_one_refresh() {
     });
 
     let (first, second) = tokio::join!(
-        client.get_tone(ronie_core::ToneId(1), &fixture.session),
-        client.get_tone(ronie_core::ToneId(1), &fixture.session),
+        client.get_tone(ronnie_core::ToneId(1), &fixture.session),
+        client.get_tone(ronnie_core::ToneId(1), &fixture.session),
     );
 
     first.expect("first");
@@ -580,7 +580,7 @@ async fn a_rejected_token_that_is_still_stored_refreshes() {
 
 #[tokio::test]
 async fn a_dead_session_stops_after_one_refresh_and_leaks_nothing() {
-    let fixture = SessionFixture::with(vec![ronie_core::HttpResponse::json(
+    let fixture = SessionFixture::with(vec![ronnie_core::HttpResponse::json(
         400,
         json!({"error": "invalid_grant"}),
     )]);
@@ -588,10 +588,10 @@ async fn a_dead_session_stops_after_one_refresh_and_leaks_nothing() {
         .session
         .set_tokens(stored("old-access", "old-refresh", FAR_FUTURE_MS))
         .expect("seed");
-    let transport = recorded(vec![ronie_core::HttpResponse::new(401, Vec::new())]);
+    let transport = recorded(vec![ronnie_core::HttpResponse::new(401, Vec::new())]);
 
     let result = catalog(transport.clone())
-        .get_tone(ronie_core::ToneId(1), &fixture.session)
+        .get_tone(ronnie_core::ToneId(1), &fixture.session)
         .await;
 
     assert!(matches!(result, Err(ApiError::Unauthorized)), "{result:?}");
@@ -612,26 +612,26 @@ async fn a_dead_session_stops_after_one_refresh_and_leaks_nothing() {
 async fn a_failed_refresh_is_not_reported_as_a_sign_out() {
     for (response, expected) in [
         (
-            Ok(ronie_core::HttpResponse::json(
+            Ok(ronnie_core::HttpResponse::json(
                 503,
                 json!({"error": "server_error"}),
             )),
             OAuthError::ServerFailure(503),
         ),
         (
-            Err(ronie_core::HttpError::Transport),
-            OAuthError::Http(ronie_core::HttpError::Transport),
+            Err(ronnie_core::HttpError::Transport),
+            OAuthError::Http(ronnie_core::HttpError::Transport),
         ),
     ] {
-        let fixture = SessionFixture::over(ronie_core::RecordedTransport::new(vec![response]));
+        let fixture = SessionFixture::over(ronnie_core::RecordedTransport::new(vec![response]));
         fixture
             .session
             .set_tokens(stored("old-access", "old-refresh", FAR_FUTURE_MS))
             .expect("seed");
-        let transport = recorded(vec![ronie_core::HttpResponse::new(401, Vec::new())]);
+        let transport = recorded(vec![ronnie_core::HttpResponse::new(401, Vec::new())]);
 
         let result = catalog(transport)
-            .get_tone(ronie_core::ToneId(1), &fixture.session)
+            .get_tone(ronnie_core::ToneId(1), &fixture.session)
             .await;
 
         assert!(
@@ -655,7 +655,7 @@ fn folder_retry_and_preset_round_trip_preserve_valid_data() {
     std::fs::create_dir(&input).expect("input dir");
     std::fs::write(input.join("bad.nam"), b"bad").expect("bad file");
     std::fs::write(input.join("good.wav"), wav(&[1, 2, 3])).expect("good file");
-    let stash = ronie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
+    let stash = ronnie_core::LocalStash::new(temp.path().join("stash")).expect("stash");
 
     assert!(load_local_path(&input, &stash, &|_| Ok(())).is_err());
     std::fs::remove_file(input.join("bad.nam")).expect("remove bad");
@@ -722,7 +722,7 @@ fn token_and_settings_merges_keep_newer_rotation_and_cached_user() {
                 url::Url::parse("https://api.example").expect("origin"),
                 "public-key",
             ),
-            ronie_core::RecordedTransport::new(Vec::new()),
+            ronnie_core::RecordedTransport::new(Vec::new()),
         ),
     );
     session
@@ -751,11 +751,11 @@ fn token_and_settings_merges_keep_newer_rotation_and_cached_user() {
 
 #[tokio::test]
 async fn a_malformed_or_oversized_catalog_answer_leaves_the_stored_tokens() {
-    let oversized = ronie_core::RecordedTransport::with_json_limit(
-        vec![Ok(ronie_core::HttpResponse::new(200, vec![b' '; 17]))],
+    let oversized = ronnie_core::RecordedTransport::with_json_limit(
+        vec![Ok(ronnie_core::HttpResponse::new(200, vec![b' '; 17]))],
         16,
     );
-    let malformed = recorded(vec![ronie_core::HttpResponse::new(
+    let malformed = recorded(vec![ronnie_core::HttpResponse::new(
         200,
         b"{not json".to_vec(),
     )]);
@@ -767,7 +767,7 @@ async fn a_malformed_or_oversized_catalog_answer_leaves_the_stored_tokens() {
             .expect("seed");
 
         let result = catalog(transport.clone())
-            .get_tone(ronie_core::ToneId(1), &fixture.session)
+            .get_tone(ronnie_core::ToneId(1), &fixture.session)
             .await;
 
         assert!(
@@ -792,7 +792,7 @@ async fn a_malformed_or_oversized_catalog_answer_leaves_the_stored_tokens() {
 #[tokio::test]
 async fn a_rate_limit_or_a_server_failure_of_a_refresh_keeps_the_stored_tokens() {
     for status in [429, 503] {
-        let fixture = SessionFixture::with(vec![ronie_core::HttpResponse::new(
+        let fixture = SessionFixture::with(vec![ronnie_core::HttpResponse::new(
             status,
             b"busy".to_vec(),
         )]);
@@ -800,10 +800,10 @@ async fn a_rate_limit_or_a_server_failure_of_a_refresh_keeps_the_stored_tokens()
             .session
             .set_tokens(stored("kept-access", "kept-refresh", FAR_FUTURE_MS))
             .expect("seed");
-        let transport = recorded(vec![ronie_core::HttpResponse::new(401, Vec::new())]);
+        let transport = recorded(vec![ronnie_core::HttpResponse::new(401, Vec::new())]);
 
         let result = catalog(transport.clone())
-            .get_tone(ronie_core::ToneId(1), &fixture.session)
+            .get_tone(ronnie_core::ToneId(1), &fixture.session)
             .await;
 
         assert!(result.is_err(), "{status}");

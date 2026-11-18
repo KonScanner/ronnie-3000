@@ -293,7 +293,7 @@ pub fn drive_scenario(
     }
     let _ = backend.chain_state(0);
     let _ = backend.meter_levels();
-    let _ = backend.parameter(ronie_core::params::ParameterId("inputLevel"));
+    let _ = backend.parameter(ronnie_core::params::ParameterId("inputLevel"));
     Ok(driver)
 }
 

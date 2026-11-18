@@ -1,7 +1,7 @@
 //! Branch scheduling, invalidation, alignment, and structural history tests.
 
-use ronie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, BlockId, ChainBlock, ChainSide, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::BlockModel,
     ir::compile_ir,

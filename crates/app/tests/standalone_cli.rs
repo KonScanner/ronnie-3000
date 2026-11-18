@@ -2,7 +2,7 @@
 
 #[test]
 fn dummy_cli_opens_renders_and_closes() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronie"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronnie"))
         .args(["--smoke", "--dummy", "--seconds", "0"])
         .output()
         .expect("standalone command runs");
@@ -13,7 +13,7 @@ fn dummy_cli_opens_renders_and_closes() {
 
 #[test]
 fn help_includes_native_window_and_capture_options() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronie"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronnie"))
         .arg("--help")
         .output()
         .expect("standalone help runs");
@@ -28,7 +28,7 @@ fn help_includes_native_window_and_capture_options() {
 /// The old form of the smoke run must stop with an error, and not open the window.
 #[test]
 fn seconds_with_no_smoke_flag_is_an_error() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronie"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronnie"))
         .args(["--dummy", "--seconds", "0"])
         .env_remove("DISPLAY")
         .env_remove("WAYLAND_DISPLAY")
@@ -44,7 +44,7 @@ fn seconds_with_no_smoke_flag_is_an_error() {
 #[test]
 fn a_linux_driver_is_refused_on_another_system() {
     for driver in ["alsa", "jack"] {
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronie"))
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronnie"))
             .args(["--smoke", "--backend", driver, "--seconds", "0"])
             .output()
             .expect("standalone command runs");

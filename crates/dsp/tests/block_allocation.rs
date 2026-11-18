@@ -1,14 +1,14 @@
 //! Prepared block allocation and invalid-callback tests.
 #![allow(unsafe_code)]
 
-use ronie_core::{AudioDocument, BlockParams, InputMode};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, BlockParams, InputMode};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::{BlockControls, BlockModel, prepare_block},
     compile_model,
     ir::compile_ir,
 };
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_document;
 
 thread_local! {
     static ALLOCATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -114,7 +114,7 @@ fn an_open_spectrum_tap_copies_block_output_with_no_allocation_and_then_closes()
     let mut samples = [0.25; 64];
     let controls = BlockControls::default();
 
-    let process = |block: &mut ronie_dsp::block::PreparedBlock, samples: &mut [f32; 64]| {
+    let process = |block: &mut ronnie_dsp::block::PreparedBlock, samples: &mut [f32; 64]| {
         block
             .process(
                 &mut PlanarBuffer::new(samples, 1, 64).expect("buffer"),

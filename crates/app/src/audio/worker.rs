@@ -4,8 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_core::InputMode;
-use ronie_dsp::{
+use ronnie_core::InputMode;
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec,
     lane::LaneSnapshot,
     prepare::PreparedChainChange,

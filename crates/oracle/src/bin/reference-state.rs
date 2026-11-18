@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use eyre::{WrapErr, eyre};
-use ronie_oracle::state::{StateCommand, StateOracle};
+use ronnie_oracle::state::{StateCommand, StateOracle};
 
 fn main() -> eyre::Result<()> {
     let mut arguments = std::env::args_os();

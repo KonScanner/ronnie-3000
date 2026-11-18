@@ -1,7 +1,7 @@
 //! The runtime look: light Stage colours and the dark reference colours.
 
 use eframe::egui::{self, Color32};
-use ronie_ui::theme::{Look, LookKind, palette};
+use ronnie_ui::theme::{Look, LookKind, palette};
 
 fn luminance(color: Color32) -> f64 {
     let channel = |value: u8| {
@@ -129,7 +129,7 @@ fn stage_dark_uses_the_reference_palette() {
     assert_eq!(look.kind, LookKind::StageDark);
     assert_eq!(look.background, Color32::BLACK);
     assert_eq!(look.panel, rgb(0x1c, 0x1c, 0x1e));
-    assert_eq!(look.accent, ronie_ui::theme::palette::FLAME);
+    assert_eq!(look.accent, ronnie_ui::theme::palette::FLAME);
     assert_eq!(look.text, Color32::WHITE);
     assert_eq!(look.text_muted, rgb(0x8d, 0x8d, 0x93));
     assert_eq!(look.text_body, rgb(0xd0, 0xd0, 0xd4));
@@ -148,7 +148,7 @@ fn stage_dark_uses_the_reference_palette() {
     assert_eq!(look.utility, Color32::BLACK);
     assert_eq!(look.utility_hairline, Some(rgb(0x2c, 0x2c, 0x2f)));
     assert_eq!(look.knob_track, rgb(0x2c, 0x2c, 0x2f));
-    assert_eq!(look.knob_arc, ronie_ui::theme::palette::FLAME);
+    assert_eq!(look.knob_arc, ronnie_ui::theme::palette::FLAME);
     assert_eq!(look.icon_selected, Color32::WHITE);
     assert_eq!(look.icon_on, rgb(0x8d, 0x8d, 0x93));
     assert_eq!(look.icon_bypassed, rgb(0x5d, 0x5d, 0x61));

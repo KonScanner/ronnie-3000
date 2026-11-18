@@ -1,8 +1,8 @@
 //! Prepared A2 state tests.
 
-use ronie_core::DspError;
-use ronie_dsp::{A2Engine, CompiledA2};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::DspError;
+use ronnie_dsp::{A2Engine, CompiledA2};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json as _;
 use std::{num::NonZeroUsize, sync::Arc};
 
@@ -15,7 +15,7 @@ const DILATIONS: [usize; 23] = [
 
 fn compiled(channels: usize) -> Arc<CompiledA2> {
     let document = synthetic_a2_document(channels).expect("valid synthetic document");
-    Arc::new(ronie_dsp::compile_a2(&document).expect("valid compiled model"))
+    Arc::new(ronnie_dsp::compile_a2(&document).expect("valid compiled model"))
 }
 
 fn next_power_of_two(value: usize) -> usize {

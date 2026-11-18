@@ -1,7 +1,7 @@
 //! Tone-card artwork, metadata, and actions.
 
 use eframe::egui::{self, Color32, Rect, Sense, TextureHandle};
-use ronie_core::{Tone, ToneId};
+use ronnie_core::{Tone, ToneId};
 
 use super::tile::{cover_uv, draw_gear, tone_glyph};
 use crate::theme::palette;
@@ -125,7 +125,7 @@ pub(super) fn show_at(
         muted(),
     );
     let badge_x = text_x + text_width(ui, gear, 13.0 * scale) + 10.0 * scale;
-    let nam = tone.kind == ronie_core::ModelKind::Nam;
+    let nam = tone.kind == ronnie_core::ModelKind::Nam;
     let badge = Rect::from_min_size(
         egui::pos2(
             badge_x.round(),
@@ -438,7 +438,7 @@ fn title_galley(
 }
 
 pub(crate) fn model_count(tone: &Tone) -> u64 {
-    let field = if tone.kind == ronie_core::ModelKind::Nam {
+    let field = if tone.kind == ronnie_core::ModelKind::Nam {
         "a2_models_count"
     } else {
         "models_count"
@@ -699,14 +699,14 @@ mod tests {
 
     #[test]
     fn model_count_uses_the_compatible_total_for_each_format() {
-        let nam = ronie_core::Tone::from_value(serde_json::json!({
+        let nam = ronnie_core::Tone::from_value(serde_json::json!({
             "format": "nam",
             "models_count": 12,
             "a2_models_count": 6,
             "models": []
         }))
         .expect("NAM tone");
-        let ir = ronie_core::Tone::from_value(serde_json::json!({
+        let ir = ronnie_core::Tone::from_value(serde_json::json!({
             "format": "ir",
             "models_count": 24,
             "a2_models_count": 0,
@@ -729,7 +729,7 @@ mod tests {
             ..Default::default()
         };
         let mut output = context.run_ui(input, |ui| {
-            let tone = ronie_core::Tone::from_value(serde_json::json!({
+            let tone = ronnie_core::Tone::from_value(serde_json::json!({
                 "title": "A wrapped card title",
                 "format": "nam",
                 "models": []

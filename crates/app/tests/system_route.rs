@@ -8,13 +8,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ronie_app::{
+use ronnie_app::{
     audio::{AudioBackendKind, DeviceConfig, SYSTEM_DEFAULT_DEVICE},
     audio_settings::StandaloneAudioSettings,
     standalone_backend::{StandaloneBackend, standalone_processor},
 };
-use ronie_core::PREFERENCES_SETTINGS;
-use ronie_ui::backend::{DeviceAction, UiAction, UiBackend};
+use ronnie_core::PREFERENCES_SETTINGS;
+use ronnie_ui::backend::{DeviceAction, UiAction, UiBackend};
 
 const WAIT_LIMIT: Duration = Duration::from_secs(20);
 

@@ -1,16 +1,17 @@
 //! Full-chain serial/worker differential tests over host rates and numeric inputs.
 
-use ronie_core::{ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     LatencyReport, PlanarBuffer, PrepareSpec, lane::LaneSnapshot, prepare::PreparedChainChange,
     rt::RtWorkerPool, rt_chain::RtChain,
 };
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json::json;
 
 fn change(spec: PrepareSpec) -> PreparedChainChange {
-    let compiled = ronie_dsp::compile_model(&synthetic_a2_document(3).expect("synthetic document"))
-        .expect("compiled model");
+    let compiled =
+        ronnie_dsp::compile_model(&synthetic_a2_document(3).expect("synthetic document"))
+            .expect("compiled model");
     let block = ChainBlock::tone(
         "model",
         Tone::from_value(json!({
@@ -27,7 +28,7 @@ fn change(spec: PrepareSpec) -> PreparedChainChange {
         spec,
         LaneSnapshot {
             blocks: vec![block],
-            models: vec![Some(ronie_dsp::block::BlockModel::Nam(compiled))],
+            models: vec![Some(ronnie_dsp::block::BlockModel::Nam(compiled))],
         },
         LaneSnapshot {
             blocks: vec![],
@@ -129,7 +130,7 @@ fn restored_generation_matches_a_fresh_chain_bit_for_bit() {
     let mut replacement = change(spec);
     replacement.generation = 2;
     sender
-        .try_send(ronie_dsp::rt_chain::ChainCommand::Replace(replacement))
+        .try_send(ronnie_dsp::rt_chain::ChainCommand::Replace(replacement))
         .expect("queue restoration");
 
     let mut actual = samples(47, 1);

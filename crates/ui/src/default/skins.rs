@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, ColorImage, Pos2, Rect, TextureHandle, TextureOptions};
-use ronie_core::ChainBlock;
+use ronnie_core::{ChainBlock, gear::block_identity};
 
 /// The block setting a live knob turns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -99,7 +99,7 @@ impl SkinLcd {
 /// Size of a skin's body, its live knobs and its LCD.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SkinManifest {
-    /// Skin identity, as from [`ronie_core::gear::GearFamily::skin_id`].
+    /// Skin identity, as from [`ronnie_core::gear::GearFamily::skin_id`].
     pub id: String,
     /// Body width in pixels.
     pub width: u32,
@@ -271,8 +271,8 @@ pub fn knob_strip(id: &str, control: KnobControl) -> Option<ColorImage> {
 
 /// Each skin with a render: its identity, the name the skin picker shows, and the kind of gear
 /// it draws. The order is the order of the picker.
-const SKIN_NAMES: &[(&str, &str, ronie_core::gear::GearCategory)] = {
-    use ronie_core::gear::GearCategory::{Amp, Cab, Pedal};
+const SKIN_NAMES: &[(&str, &str, ronnie_core::gear::GearCategory)] = {
+    use ronnie_core::gear::GearCategory::{Amp, Cab, Pedal};
     &[
         ("od-green", "Green overdrive", Pedal),
         ("od-gold", "Gold overdrive", Pedal),
@@ -302,7 +302,7 @@ const SKIN_NAMES: &[(&str, &str, ronie_core::gear::GearCategory)] = {
 
 fn skin_entry(
     id: &str,
-) -> Option<&'static (&'static str, &'static str, ronie_core::gear::GearCategory)> {
+) -> Option<&'static (&'static str, &'static str, ronnie_core::gear::GearCategory)> {
     SKIN_NAMES.iter().find(|(each, _, _)| *each == id)
 }
 
@@ -314,7 +314,7 @@ pub fn friendly_name(id: &str) -> &'static str {
 
 /// Every skin of one kind of gear, in the order of the picker.
 #[must_use]
-pub fn skins_in(category: ronie_core::gear::GearCategory) -> Vec<&'static str> {
+pub fn skins_in(category: ronnie_core::gear::GearCategory) -> Vec<&'static str> {
     SKIN_NAMES
         .iter()
         .filter(|(id, _, each)| *each == category && asset(id).is_some())
@@ -325,30 +325,16 @@ pub fn skins_in(category: ronie_core::gear::GearCategory) -> Vec<&'static str> {
 /// The skin the block's gear family has, ignoring the block's override: what Auto draws.
 #[must_use]
 pub fn auto_skin_for(block: &ChainBlock) -> Option<BlockSkin> {
-    use ronie_core::gear::{GearHints, identify};
-
-    let tone = block.tone.as_ref()?;
-    let model = block
-        .active_model_id
-        .and_then(|id| tone.models.iter().find(|model| model.id == id));
-    let family = identify(&GearHints::from_tone(tone, model)).family;
-    BlockSkin::of(asset(family.skin_id()?)?.id, family.category())
+    let (_, identity) = block_identity(block)?;
+    let family = identity.family;
+    BlockSkin::of(asset(family.skin_id()?)?.id, identity.category)
 }
 
 /// The kind of gear a tone block holds, by the same identification as its skin; `None` for an
 /// insert or an empty block.
 #[must_use]
-pub fn gear_category(block: &ChainBlock) -> Option<ronie_core::gear::GearCategory> {
-    use ronie_core::gear::{GearHints, identify};
-
-    if block.is_insert {
-        return None;
-    }
-    let tone = block.tone.as_ref()?;
-    let model = block
-        .active_model_id
-        .and_then(|id| tone.models.iter().find(|model| model.id == id));
-    Some(identify(&GearHints::from_tone(tone, model)).category)
+pub fn gear_category(block: &ChainBlock) -> Option<ronnie_core::gear::GearCategory> {
+    Some(block_identity(block)?.1.category)
 }
 
 /// The skin of a block's gear, when the app has a render for it: the block's chosen skin when
@@ -377,12 +363,12 @@ pub struct BlockSkin {
     /// "Pedal render", "Amp render" or "Cab render".
     pub label: &'static str,
     /// The kind of gear the render shows.
-    pub category: ronie_core::gear::GearCategory,
+    pub category: ronnie_core::gear::GearCategory,
 }
 
 impl BlockSkin {
-    fn of(id: &'static str, category: ronie_core::gear::GearCategory) -> Option<Self> {
-        use ronie_core::gear::GearCategory;
+    fn of(id: &'static str, category: ronnie_core::gear::GearCategory) -> Option<Self> {
+        use ronnie_core::gear::GearCategory;
 
         let label = match category {
             GearCategory::Pedal => "Pedal render",
@@ -425,7 +411,7 @@ type SkinCache = HashMap<&'static str, Option<Arc<SkinTextures>>>;
 #[must_use]
 pub fn textures(ctx: &egui::Context, id: &str) -> Option<Arc<SkinTextures>> {
     let asset = asset(id)?;
-    let cache_id = egui::Id::unique("ronie-skin-textures");
+    let cache_id = egui::Id::unique("ronnie-skin-textures");
     if let Some(cached) = ctx.data(|data| {
         data.get_temp::<SkinCache>(cache_id)
             .and_then(|cache| cache.get(asset.id).cloned())
@@ -590,7 +576,7 @@ mod tests {
 
     #[test]
     fn every_skin_has_a_friendly_name_and_one_kind() {
-        use ronie_core::gear::GearCategory::{Amp, Cab, Pedal};
+        use ronnie_core::gear::GearCategory::{Amp, Cab, Pedal};
 
         for asset in SKINS {
             assert!(!friendly_name(asset.id).is_empty(), "{}", asset.id);

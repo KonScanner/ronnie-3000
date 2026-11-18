@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui::{self, Color32, Rect, Sense};
-use ronie_core::{ModelId, ToneId};
+use ronnie_core::{ModelId, ToneId};
 
 use super::popover::{Placement, Popover, Surface, Trigger};
 use crate::services::session::SessionStatus;
@@ -42,6 +42,8 @@ pub struct ModelSelect {
     open: bool,
     generation: u64,
     fetch_tone: Option<ToneId>,
+    /// Offset of the list when the window is too short to show all of it.
+    scroll: f32,
 }
 
 impl ModelSelect {
@@ -59,6 +61,7 @@ impl ModelSelect {
             open: false,
             generation: 0,
             fetch_tone: None,
+            scroll: 0.0,
         }
     }
 
@@ -139,6 +142,7 @@ impl ModelSelect {
     /// Opens the dropdown unless disabled.
     pub fn open(&mut self, session: SessionStatus) {
         if !self.disabled(session) {
+            self.scroll = 0.0;
             self.open = true;
         }
     }
@@ -475,13 +479,19 @@ impl ModelSelect {
         let rows = self.visible_range();
         let loading_rows = usize::from(self.loading);
         let row_count = rows.len();
-        let height = (row_count * 41 + row_count.saturating_sub(1) + loading_rows * 28) as f32;
+        let content = (row_count * 41 + row_count.saturating_sub(1) + loading_rows * 28) as f32;
+        // A list taller than the window keeps its top inside the window and scrolls.
+        let window = ui.ctx().content_rect().height() - 2.0 * super::popover::EDGE;
+        let height = content.min(window).max(0.0);
+        let max_scroll = (content - height).max(0.0);
+        self.scroll = self.scroll.clamp(0.0, max_scroll);
         let options = self.options.clone();
         let active = self.shown();
+        let width = self.list_width(ui, &rows, anchor.width());
         let shown = Popover::new(
             ui.scope_id().with("model-select-list"),
             Placement::Above { anchor, gap: 4.0 },
-            egui::vec2(anchor.width(), height),
+            egui::vec2(width, height),
             Surface::Panel {
                 fill: crate::theme::palette::LIST_FILL,
                 radius: 8.0,
@@ -491,6 +501,26 @@ impl ModelSelect {
         .trigger(Trigger::new(anchor, Some(focus)))
         .show(ui, |ui, list_rect| {
             ui.set_clip_rect(list_rect);
+            if ui.rect_contains_pointer(list_rect) {
+                let delta = ui.input(|input| input.smooth_scroll_delta.y);
+                self.scroll = (self.scroll - delta).clamp(0.0, max_scroll);
+            }
+            // A row that keyboard focus moved to comes into view, so that Tab reaches every
+            // model in a window too short to show the whole list.
+            let scope = ui.scope_id();
+            let focused = rows.clone().find(|index| {
+                options.get(*index).is_some_and(|option| {
+                    ui.memory(|memory| memory.has_focus(scope.with(("model-option", option.id.0))))
+                })
+            });
+            if let Some(index) = focused {
+                let top = (index - rows.start) as f32 * 42.0;
+                if top < self.scroll {
+                    self.scroll = top;
+                } else if top + 41.0 > self.scroll + height {
+                    self.scroll = (top + 41.0 - height).min(max_scroll);
+                }
+            }
             let painter = ui.painter_at(list_rect);
             let mut selected = None;
             for (row, index) in rows.enumerate() {
@@ -498,9 +528,11 @@ impl ModelSelect {
                     continue;
                 };
                 let row_rect = Rect::from_min_size(
-                    list_rect.min + egui::vec2(0.0, row as f32 * 42.0),
+                    list_rect.min + egui::vec2(0.0, row as f32 * 42.0 - self.scroll),
                     egui::vec2(list_rect.width(), 41.0),
                 );
+                // Every row stays in the widget tree, so that Tab and a screen reader can reach
+                // the rows that the short window hides. The panel clips the input to itself.
                 let response = ui.interact(
                     row_rect,
                     ui.scope_id().with(("model-option", option.id.0)),
@@ -509,33 +541,36 @@ impl ModelSelect {
                 response.widget_info(|| {
                     egui::WidgetInfo::labeled(egui::Role::Button, true, option.name.clone())
                 });
-                if active == Some(option.id) || response.hovered() {
-                    painter.rect_filled(row_rect, 0.0, Color32::from_white_alpha(25));
-                }
-                painter.text(
-                    row_rect.left_center() + egui::vec2(16.0, 0.0),
-                    egui::Align2::LEFT_CENTER,
-                    &option.name,
-                    egui::FontId::proportional(14.0),
-                    Color32::WHITE,
-                );
-                if row + 1 < row_count {
-                    let y = row_rect.bottom();
-                    painter.line_segment(
-                        [
-                            egui::pos2(list_rect.left(), y),
-                            egui::pos2(list_rect.right(), y),
-                        ],
-                        egui::Stroke::new(1.0, crate::theme::palette::HAIRLINE),
+                if row_rect.bottom() > list_rect.top() && row_rect.top() < list_rect.bottom() {
+                    if active == Some(option.id) || response.hovered() {
+                        painter.rect_filled(row_rect, 0.0, Color32::from_white_alpha(25));
+                    }
+                    painter.text(
+                        row_rect.left_center() + egui::vec2(16.0, 0.0),
+                        egui::Align2::LEFT_CENTER,
+                        &option.name,
+                        egui::FontId::proportional(14.0),
+                        Color32::WHITE,
                     );
+                    if row + 1 < row_count {
+                        let y = row_rect.bottom();
+                        painter.line_segment(
+                            [
+                                egui::pos2(list_rect.left(), y),
+                                egui::pos2(list_rect.right(), y),
+                            ],
+                            egui::Stroke::new(1.0, crate::theme::palette::HAIRLINE),
+                        );
+                    }
                 }
                 if response.clicked() {
                     selected = self.select(option.id, session);
                 }
             }
             if self.loading {
+                let y = list_rect.top() + content - 14.0 - self.scroll;
                 painter.text(
-                    list_rect.left_bottom() + egui::vec2(16.0, -14.0),
+                    egui::pos2(list_rect.left() + 16.0, y),
                     egui::Align2::LEFT_CENTER,
                     "Loading…",
                     egui::FontId::proportional(14.0),
@@ -548,6 +583,26 @@ impl ModelSelect {
             self.close();
         }
         shown.pick
+    }
+
+    /// Width of the list: the widest visible name and its padding, but at least the trigger
+    /// width, and never wider than the window.
+    fn list_width(&self, ui: &egui::Ui, rows: &Range<usize>, anchor: f32) -> f32 {
+        let font = egui::FontId::proportional(14.0);
+        let widest = rows
+            .clone()
+            .filter_map(|index| self.options.get(index))
+            .map(|option| {
+                ui.ctx().fonts_mut(|fonts| {
+                    fonts
+                        .layout_no_wrap(option.name.clone(), font.clone(), Color32::WHITE)
+                        .size()
+                        .x
+                })
+            })
+            .fold(0.0, f32::max);
+        let window = ui.ctx().content_rect().width() - 2.0 * super::popover::EDGE;
+        (widest + 32.0).clamp(anchor, window.max(anchor))
     }
 
     fn choose(&mut self, id: ModelId) {
@@ -650,5 +705,83 @@ impl PickerColors {
                 folder: Color32::from_white_alpha(153),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui::{Pos2, Rect, vec2};
+
+    /// Shows the picker for one frame on a 1024 by 200 point screen.
+    fn frame(
+        context: &egui::Context,
+        events: Vec<egui::Event>,
+        select: &mut ModelSelect,
+    ) -> Option<ModelId> {
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1024.0, 200.0))),
+            events,
+            ..Default::default()
+        };
+        let mut picked = None;
+        let mut output = context.run_ui(input, |ui| {
+            picked = select.show(ui, SessionStatus::SignedOut);
+        });
+        output.textures_delta.clear();
+        picked
+    }
+
+    #[test]
+    fn a_list_taller_than_the_window_is_capped_and_scrolls() {
+        let context = egui::Context::default();
+        let mut select = ModelSelect::new(true);
+        select.set_options(
+            (11..=15)
+                .map(|id| ModelOption {
+                    id: ModelId(id),
+                    name: format!("Model {id}"),
+                })
+                .collect(),
+            5,
+        );
+        select.open(SessionStatus::SignedOut);
+        let _ = frame(&context, Vec::new(), &mut select);
+
+        let list = super::super::popover::open_rects(&context)[0];
+        assert!(
+            list.height() < 209.0,
+            "the list takes less than its five rows: {list:?}"
+        );
+        assert!(list.top() >= super::super::popover::EDGE - 0.5);
+        assert!(list.bottom() <= 200.0 - super::super::popover::EDGE + 0.5);
+        assert_eq!(select.scroll, 0.0);
+
+        // A wheel over the list moves it, and the rows stay in the widget tree.
+        let center = list.center();
+        let _ = frame(
+            &context,
+            vec![egui::Event::PointerMoved(center)],
+            &mut select,
+        );
+        for _ in 0..4 {
+            let _ = frame(
+                &context,
+                vec![egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: vec2(0.0, -120.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+                &mut select,
+            );
+        }
+        assert!(select.scroll > 0.0, "the wheel scrolls the list");
+        assert!(
+            select.scroll <= 209.0 - list.height(),
+            "the list stops at its last row: {}",
+            select.scroll
+        );
     }
 }

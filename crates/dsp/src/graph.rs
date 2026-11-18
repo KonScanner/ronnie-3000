@@ -1,4 +1,4 @@
-use ronie_core::InputMode;
+use ronnie_core::InputMode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -52,7 +52,7 @@ pub enum ChainError {
 }
 
 mod input_mode_serde {
-    use ronie_core::InputMode;
+    use ronnie_core::InputMode;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub(super) fn serialize<S>(mode: &InputMode, serializer: S) -> Result<S::Ok, S::Error>

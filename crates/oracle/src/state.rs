@@ -99,7 +99,7 @@ impl StateOracle {
     ) -> Result<Self, OracleError> {
         let (_, build) = reference_paths_from(get)?.ok_or(OracleError::NotConfigured)?;
         Ok(Self::from_executable(
-            build.join("ronie-reference-state"),
+            build.join("ronnie-reference-state"),
             DEFAULT_MAX_OUTPUT_BYTES,
         ))
     }
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn state_incomplete_private_configuration_is_rejected() {
         let result = StateOracle::with_environment(|name| {
-            (name == "RONIE_REFERENCE_ROOT").then_some(PathBuf::from("/private/reference").into())
+            (name == "RONNIE_REFERENCE_ROOT").then_some(PathBuf::from("/private/reference").into())
         });
 
         assert!(matches!(

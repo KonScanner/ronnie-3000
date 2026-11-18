@@ -2,12 +2,12 @@
 
 use std::path::Path;
 
-use ronie_app::auth::configured_community_with_values;
-use ronie_core::{
+use ronnie_app::auth::configured_community_with_values;
+use ronnie_core::{
     OAuthConfig, OAuthFlow, OAuthTokens, RecordedTransport, SecretString, SessionStore,
     SettingsStore, UI_PREFERENCES_SETTINGS,
 };
-use ronie_ui::services::session::{AuthFlowAdapter, AuthPhase};
+use ronnie_ui::services::session::{AuthFlowAdapter, AuthPhase};
 use url::Url;
 
 const ORIGIN: Option<&str> = Some("https://api.example");
@@ -144,7 +144,7 @@ fn an_invalid_model_origin_stops_the_start_with_a_redacted_error() {
         (",https://models.example", 1),
     ] {
         let text = error_text(root, invalid);
-        assert!(text.contains("RONIE_MODEL_ORIGINS"), "{text}");
+        assert!(text.contains("RONNIE_MODEL_ORIGINS"), "{text}");
         assert!(text.contains(&format!("entry {position}")), "{text}");
         assert!(!text.contains("models.example"), "{text}");
         for word in PRIVATE_WORDS {
@@ -172,18 +172,18 @@ fn an_invalid_model_origin_stops_the_start_without_oauth_configuration() {
 fn the_application_reports_an_invalid_model_origin_and_exits() {
     let directory = tempfile::tempdir().expect("temporary configuration root");
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronie"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_ronnie"))
         .args(["--ui", "--dummy"])
         // Each operating system finds its settings folder in another variable.
         .env("XDG_CONFIG_HOME", directory.path())
         .env("HOME", directory.path())
         .env("APPDATA", directory.path())
         .env(
-            "RONIE_MODEL_ORIGINS",
+            "RONNIE_MODEL_ORIGINS",
             "https://private-user:private-word@models.example/private-path?private-query",
         )
-        .env_remove("RONIE_OAUTH_ORIGIN")
-        .env_remove("RONIE_OAUTH_CLIENT_ID")
+        .env_remove("RONNIE_OAUTH_ORIGIN")
+        .env_remove("RONNIE_OAUTH_CLIENT_ID")
         .env_remove("DISPLAY")
         .env_remove("WAYLAND_DISPLAY")
         .output()
@@ -195,7 +195,7 @@ fn the_application_reports_an_invalid_model_origin_and_exits() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(text.contains("RONIE_MODEL_ORIGINS"), "{text}");
+    assert!(text.contains("RONNIE_MODEL_ORIGINS"), "{text}");
     assert!(!text.contains("models.example"), "{text}");
     for word in PRIVATE_WORDS {
         assert!(!text.contains(word), "{text}");

@@ -16,8 +16,8 @@ use std::sync::{
 
 use base64::Engine as _;
 use nice_plug::{context::gui::GuiContext, params::persist::PersistentField, prelude::*};
-use ronie_core::params::{ParameterCatalog, ParameterSpec, ParameterValue};
-use ronie_ui::UiBackend;
+use ronnie_core::params::{ParameterCatalog, ParameterSpec, ParameterValue};
+use ronnie_ui::UiBackend;
 
 /// The smallest host value change that counts. The session rounds some values to a step, and a
 /// rounding must not look like an edit.
@@ -155,7 +155,7 @@ pub struct RonnieParams {
 /// The session as a field of the host project: the session bytes, with the model bytes that its
 /// blocks use, as base64 text.
 pub struct SessionField {
-    backend: Arc<ronie_plugin::ProcessorBackend>,
+    backend: Arc<ronnie_plugin::ProcessorBackend>,
     /// The bytes of the last save, with their text. An unchanged session gives the same bytes.
     ///
     /// The processor keeps the bytes, so this field keeps only a weak link to them. A weak link
@@ -196,7 +196,7 @@ impl PersistentField<'_, String> for SessionField {
 impl SessionField {
     /// Gives `f` the text of `bytes`. When the encode failed, `f` gets the text of the last save,
     /// so that the host does not replace the last good session with an empty one.
-    fn map_bytes<F, R>(&self, bytes: Result<Arc<[u8]>, ronie_ui::backend::UiError>, f: F) -> R
+    fn map_bytes<F, R>(&self, bytes: Result<Arc<[u8]>, ronnie_ui::backend::UiError>, f: F) -> R
     where
         F: Fn(&String) -> R,
     {
@@ -253,7 +253,7 @@ pub(crate) fn publish_session_changes(
 /// A value that the session refuses is given again at the next pass.
 ///
 /// Call this on a control thread, never on the audio thread, because it locks the session.
-pub(crate) fn take_host_changes(backend: &ronie_plugin::ProcessorBackend, params: &RonnieParams) {
+pub(crate) fn take_host_changes(backend: &ronnie_plugin::ProcessorBackend, params: &RonnieParams) {
     for (param, binding) in params.values.iter().zip(&params.bindings) {
         let host = param.value();
         if binding.host_changed(host)
@@ -275,7 +275,7 @@ pub(crate) fn is_host_parameter(spec: &ParameterSpec) -> bool {
 impl RonnieParams {
     /// The parameters of the session that `backend` holds.
     #[must_use]
-    pub fn new(backend: Arc<ronie_plugin::ProcessorBackend>) -> Self {
+    pub fn new(backend: Arc<ronnie_plugin::ProcessorBackend>) -> Self {
         let specs = ParameterCatalog::v1()
             .iter()
             .filter(|spec| is_host_parameter(spec));
@@ -295,7 +295,7 @@ impl RonnieParams {
     /// gives 1.
     #[must_use]
     pub(crate) fn editor_zoom(&self) -> f32 {
-        ronie_ui::shell_view::ShellView::clamp_zoom(*lock(&self.editor_zoom))
+        ronnie_ui::shell_view::ShellView::clamp_zoom(*lock(&self.editor_zoom))
     }
 
     /// Records the editor zoom for the next save of the project.
@@ -310,11 +310,11 @@ impl RonnieParams {
     /// the editor asks for it at its next pass. Returns whether the write occurred.
     pub(crate) fn replace_editor_zoom(&self, known: f32, zoom: f32) -> bool {
         let mut saved = lock(&self.editor_zoom);
-        let current = ronie_ui::shell_view::ShellView::clamp_zoom(*saved);
+        let current = ronnie_ui::shell_view::ShellView::clamp_zoom(*saved);
         if current.to_bits() != known.to_bits() {
             return false;
         }
-        *saved = ronie_ui::shell_view::ShellView::clamp_zoom(zoom);
+        *saved = ronnie_ui::shell_view::ShellView::clamp_zoom(zoom);
         true
     }
 }
@@ -573,7 +573,7 @@ mod tests {
 
     #[test]
     fn a_failed_save_keeps_the_last_saved_session() {
-        use ronie_ui::backend::UiError;
+        use ronnie_ui::backend::UiError;
 
         let params = test_params();
         let failed = || Err(UiError::Control("test".to_owned()));
@@ -598,8 +598,8 @@ mod tests {
 
     #[test]
     fn a_saved_session_comes_back_in_a_new_plugin() {
-        use ronie_core::params::ParameterId;
-        use ronie_ui::backend::GesturePhase;
+        use ronnie_core::params::ParameterId;
+        use ronnie_ui::backend::GesturePhase;
 
         let saved = test_params();
         saved
@@ -628,8 +628,8 @@ mod tests {
 
     #[test]
     fn a_project_restore_leaves_the_compile_to_the_engine() {
-        use ronie_core::params::ParameterId;
-        use ronie_plugin::SessionRestore;
+        use ronnie_core::params::ParameterId;
+        use ronnie_plugin::SessionRestore;
 
         let saved = test_params();
         saved
@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn an_unchanged_session_is_encoded_only_once() {
-        use ronie_core::params::ParameterId;
+        use ronnie_core::params::ParameterId;
 
         let params = test_params();
         let backend = &params.session.backend;
@@ -694,7 +694,7 @@ mod tests {
 
     #[test]
     fn a_damaged_session_leaves_the_session_as_it_is() {
-        use ronie_core::params::ParameterId;
+        use ronnie_core::params::ParameterId;
 
         let params = test_params();
         params.session.set("not base64 !".to_owned());
@@ -705,12 +705,12 @@ mod tests {
     }
 
     fn test_params() -> RonnieParams {
-        RonnieParams::new(Arc::new(ronie_plugin::ProcessorBackend::new(
-            ronie_plugin::RonieProcessor::new(ronie_dsp::PrepareSpec {
+        RonnieParams::new(Arc::new(ronnie_plugin::ProcessorBackend::new(
+            ronnie_plugin::RonnieProcessor::new(ronnie_dsp::PrepareSpec {
                 host_sample_rate: 48_000.0,
                 max_host_frames: 256,
                 oversampling: 1,
-                input_mode: ronie_core::InputMode::Left,
+                input_mode: ronnie_core::InputMode::Left,
                 stereo_input: false,
                 stereo_output: true,
             }),

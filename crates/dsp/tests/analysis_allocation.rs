@@ -1,7 +1,7 @@
 //! Prepared tuner and automatic measurement allocation tests.
 #![allow(unsafe_code)]
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     analysis::{AutoBalance, AutoOffset, AutoOffsetState, TunerDetector},
 };

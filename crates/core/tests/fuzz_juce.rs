@@ -1,7 +1,7 @@
 //! Adversarial JUCE binary truncation and mutation tests.
 
 use proptest::prelude::*;
-use ronie_core::{JuceCodec, JuceTree, JuceValue};
+use ronnie_core::{JuceCodec, JuceTree, JuceValue};
 
 fn codec() -> JuceCodec {
     JuceCodec {

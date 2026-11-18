@@ -15,4 +15,4 @@ pub use audio_session::{
     chain_controls_from,
 };
 pub use backend::{ProcessorBackend, UiBackend};
-pub use processor::{RonieProcessor, SessionChainPlan};
+pub use processor::{RonnieProcessor, SessionChainPlan};

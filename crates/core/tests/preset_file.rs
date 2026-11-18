@@ -1,6 +1,6 @@
 //! Preset framing, filename, collision, and atomic-write tests.
 
-use ronie_core::{
+use ronnie_core::{
     JuceTree, JuceValue, PresetError, PresetFraming, read_preset, read_preset_header,
     sanitize_stem, unique_preset_path, write_preset_v2, write_preset_v2_file,
 };
@@ -13,7 +13,7 @@ fn preset_file_reads_reject_excessive_aggregate_bytes_before_allocation() {
     let file = std::fs::File::create(&path).expect("sparse file");
     file.set_len(512 * 1024 * 1024 + 1).expect("sparse length");
 
-    let result = ronie_core::read_preset_file(&path);
+    let result = ronnie_core::read_preset_file(&path);
 
     assert!(matches!(result, Err(PresetError::InputTooLarge)));
 }
@@ -107,7 +107,7 @@ fn v2_round_trip_preserves_header_body_and_unknown_fields() {
 fn legacy_v1_uses_a_full_body_parse() {
     let mut encoded = b"T3KB".to_vec();
     encoded.extend_from_slice(
-        &ronie_core::JuceCodec::default()
+        &ronnie_core::JuceCodec::default()
             .write_tree(&preset())
             .expect("body"),
     );

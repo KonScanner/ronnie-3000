@@ -6,9 +6,9 @@ use std::{
     sync::{Mutex, MutexGuard, PoisonError},
 };
 
-use ronie_core::InputMode;
-use ronie_dsp::{ChainError, PlanarBuffer, rate::ChainBoundaryResampler};
-use ronie_oracle::{ChainOracle, ChainScenario, OracleError};
+use ronnie_core::InputMode;
+use ronnie_dsp::{ChainError, PlanarBuffer, rate::ChainBoundaryResampler};
+use ronnie_oracle::{ChainOracle, ChainScenario, OracleError};
 use serde_json::json;
 
 static TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -170,7 +170,7 @@ fn scenario(host_rate: f64, callbacks: Vec<usize>) -> ChainScenario {
     let frames: usize = callbacks.iter().sum();
     ChainScenario {
         schema_version: 1,
-        spec: ronie_dsp::PrepareSpec {
+        spec: ronnie_dsp::PrepareSpec {
             host_sample_rate: host_rate,
             max_host_frames: 64,
             oversampling: 1,

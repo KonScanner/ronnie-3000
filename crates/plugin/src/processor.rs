@@ -1,18 +1,18 @@
 //! Control-side processor state, presets, model bytes, and restore preparation.
 //!
-//! The session edit rules are in [`ronie_ui::session_edit`]. This module keeps the storage that
+//! The session edit rules are in [`ronnie_ui::session_edit`]. This module keeps the storage that
 //! those rules need: the preset store, the model byte cache, the local stash, and the prepared
 //! restore for the audio side.
 
 use std::{collections::BTreeMap, path::Path, sync::Arc};
 
-use ronie_core::{
+use ronnie_core::{
     BlockId, ByteCacheKey, ChainBlock, JuceTree, LocalStash, ModelByteCache, ModelBytes, ModelId,
     ModelNamespace, PresetInfo, PresetStore, Tone,
     params::{ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_ui::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_ui::{
     backend::{ChainViewState, GesturePhase, MeterSnapshot, UiAction, UiEffect, UiError},
     session_edit::{SessionEditor, SessionFrame, SessionStorage, move_in_order},
 };
@@ -33,7 +33,7 @@ struct PresetEntry {
 /// wait for it. Its chain always reproduces [`Self::state`], also when an edit and its undo come
 /// during the compile.
 pub struct SessionChainPlan {
-    session: ronie_core::SessionSnapshot,
+    session: ronnie_core::SessionSnapshot,
     preparation: PrepareSpec,
     generation: u64,
     stash: Option<Arc<LocalStash>>,
@@ -120,14 +120,14 @@ struct EncodedSession {
 
 /// Owns control-side processor state and off-thread restore candidates, not the active graph.
 #[derive(Debug)]
-pub struct RonieProcessor {
+pub struct RonnieProcessor {
     editor: SessionEditor,
     storage: ProcessorStorage,
     /// A host can save its project often, and an encode copies each model of the session.
     encoded: Option<EncodedSession>,
 }
 
-impl RonieProcessor {
+impl RonnieProcessor {
     /// Creates an empty processor with all catalog defaults and an immutable preparation contract.
     #[must_use]
     pub fn new(preparation: PrepareSpec) -> Self {
@@ -142,7 +142,7 @@ impl RonieProcessor {
                 bytes_generation: 0,
                 pending_restore: None,
                 prepare_generation: 1,
-                stash: LocalStash::new(std::env::temp_dir().join("ronie-stash"))
+                stash: LocalStash::new(std::env::temp_dir().join("ronnie-stash"))
                     .ok()
                     .map(Arc::new),
             },
@@ -224,7 +224,7 @@ impl RonieProcessor {
 
     /// Returns shared MIDI mapping and learn state.
     #[must_use]
-    pub fn midi_map(&self) -> ronie_ui::default::MidiMapSnapshot {
+    pub fn midi_map(&self) -> ronnie_ui::default::MidiMapSnapshot {
         self.editor.midi_map()
     }
 
@@ -438,7 +438,7 @@ impl SessionStorage for ProcessorStorage {
             return;
         };
         for model in &tone.models {
-            let namespace = ronie_core::model_namespace(source, model.id);
+            let namespace = ronnie_core::model_namespace(source, model.id);
             let key = |block_id: &BlockId| ByteCacheKey {
                 block_id: block_id.clone(),
                 model_id: model.id,
@@ -457,7 +457,7 @@ impl SessionStorage for ProcessorStorage {
             .stash
             .as_ref()
             .ok_or_else(|| UiError::Control("local stash is unavailable".to_owned()))?;
-        ronie_core::load_local_path(path, stash, &ronie_dsp::validate_a2_document)
+        ronnie_core::load_local_path(path, stash, &ronnie_dsp::validate_a2_document)
             .map(|loaded| loaded.tone)
             .map_err(|error| UiError::Control(error.to_string()))
     }
@@ -619,12 +619,12 @@ fn control(error: impl std::fmt::Display) -> UiError {
 mod tests {
     use super::*;
 
-    fn processor() -> RonieProcessor {
-        RonieProcessor::new(PrepareSpec {
+    fn processor() -> RonnieProcessor {
+        RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 256,
             oversampling: 1,
-            input_mode: ronie_core::InputMode::Left,
+            input_mode: ronnie_core::InputMode::Left,
             stereo_input: false,
             stereo_output: true,
         })
@@ -650,7 +650,7 @@ mod tests {
     }
 
     fn embedded(bytes: &[u8]) -> Vec<Vec<u8>> {
-        ronie_core::StateCodec::new()
+        ronnie_core::StateCodec::new()
             .decode_session(bytes)
             .expect("session")
             .model_cache

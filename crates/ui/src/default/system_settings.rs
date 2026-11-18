@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui;
-use ronie_core::InputMode;
+use ronnie_core::InputMode;
 
 use crate::backend::{AudioDeviceConfig, DeviceAction, HostControl, UiAction, UiBackend, UiError};
 

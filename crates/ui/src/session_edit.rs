@@ -12,13 +12,13 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use ronie_core::{
+use ronnie_core::{
     ActivePreset, BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot,
     EqParams, InputMode, IrB, MidiMapping, ModelBytes, ModelId, ModelKind, ModelSource, PresetInfo,
-    SessionSnapshot, Tone, ToneModel,
+    SessionSnapshot, Tone, ToneId, ToneModel,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
+use ronnie_dsp::PrepareSpec;
 
 use crate::{
     backend::{
@@ -498,8 +498,9 @@ impl SessionEditor {
                 target_block_id,
                 tone,
                 model_id,
+                replaces,
                 bytes,
-            } => self.replace_tone(&target_block_id, tone, model_id, bytes, storage),
+            } => self.replace_tone(&target_block_id, tone, model_id, replaces, bytes, storage),
             UiAction::ReplaceWithFile {
                 target_block_id,
                 path,
@@ -687,17 +688,27 @@ impl SessionEditor {
         Ok(self.chain_changed())
     }
 
-    /// Replaces the tone of tone block `target` in place, as one undo step: the block keeps its
-    /// id, its place, and its params, and loses the second IR and the skin of the old tone.
+    /// Replaces the tone of tone block `target` in place with the tone that a background worker
+    /// downloaded, as one undo step. The block keeps its id, its place, and its params, and loses
+    /// the second IR and the skin of the old tone.
+    ///
+    /// The replace lands only while the block still holds `replaces` as its tone. A newer change
+    /// of the block wins, and this action refuses it.
     fn replace_tone(
         &mut self,
         target: &BlockId,
         tone: Tone,
         model_id: ModelId,
+        replaces: ToneId,
         bytes: Option<ModelBytes>,
         storage: &mut impl SessionStorage,
     ) -> Result<UiEffect, UiError> {
-        self.tone_block(target)?;
+        let held = self.tone_block(target)?;
+        if held.tone.as_ref().map(|tone| tone.id) != Some(replaces) {
+            return Err(UiError::InvalidAction(
+                "the block no longer holds this tone".to_owned(),
+            ));
+        }
         if let Some(bytes) = bytes {
             check_downloaded_model(&tone, model_id, &bytes)?;
             storage.keep_model_bytes(target, model_id, bytes)?;
@@ -1563,7 +1574,7 @@ impl SessionEditor {
     }
 
     /// The catalog entry of `id`.
-    fn spec_of(id: ParameterId) -> Result<&'static ronie_core::params::ParameterSpec, UiError> {
+    fn spec_of(id: ParameterId) -> Result<&'static ronnie_core::params::ParameterSpec, UiError> {
         ParameterCatalog::v1()
             .iter()
             .find(|spec| spec.id == id)
@@ -1819,7 +1830,7 @@ fn lane_mut(chain: &mut ChainSnapshot, side: ChainSide) -> &mut Vec<ChainBlock> 
 
 #[cfg(test)]
 mod tests {
-    use ronie_core::MidiSource;
+    use ronnie_core::MidiSource;
 
     use super::*;
 
@@ -2023,6 +2034,7 @@ mod tests {
                 target_block_id: slot.clone(),
                 tone: tone(2),
                 model_id: ModelId(20),
+                replaces: ToneId(1),
                 bytes: None,
             })
             .expect("replace");
@@ -2056,12 +2068,39 @@ mod tests {
                     target_block_id: slot,
                     tone: tone(2),
                     model_id: ModelId(20),
+                    replaces: ToneId(1),
                     bytes: None,
                 })
                 .is_err(),
             "an insert has no tone to replace"
         );
         assert_eq!(editor.view(0).revision, before.revision);
+    }
+
+    #[test]
+    fn a_replace_of_a_tone_that_the_block_no_longer_holds_is_refused() {
+        let mut editor = editor();
+        let slot = load(&mut editor);
+        let before = editor.view(0);
+
+        let result = editor.apply_alone(UiAction::ReplaceTone {
+            target_block_id: slot,
+            tone: tone(2),
+            model_id: ModelId(20),
+            replaces: ToneId(2),
+            bytes: None,
+        });
+
+        assert!(result.is_err(), "the block holds tone 1, not tone 2");
+        assert_eq!(editor.view(0).revision, before.revision);
+        assert_eq!(
+            editor.view(0).chain.left[0]
+                .tone
+                .as_ref()
+                .map(|tone| tone.id),
+            Some(ToneId(1)),
+            "a refused replace keeps the newer tone"
+        );
     }
 
     #[test]
@@ -3456,7 +3495,7 @@ mod tests {
             .expect("add B");
         assert_eq!(
             cab_block(&editor, &block).ir_b,
-            Some(ronie_core::IrB {
+            Some(ronnie_core::IrB {
                 model_id: ModelId(72)
             })
         );
@@ -3620,7 +3659,7 @@ mod tests {
                     .for_storage(ModelId(71), &[ModelId(72), ModelId(73)])
                     .expect("tone"),
             );
-            block.ir_b = Some(ronie_core::IrB {
+            block.ir_b = Some(ronnie_core::IrB {
                 model_id: ModelId(72),
             });
             block.ir_b_missing = true;
@@ -3782,7 +3821,7 @@ mod tests {
                     .for_storage(ModelId(71), &[ModelId(72)])
                     .expect("tone"),
             );
-            block.ir_b = Some(ronie_core::IrB {
+            block.ir_b = Some(ronnie_core::IrB {
                 model_id: ModelId(72),
             });
             block.ir_b_missing = true;

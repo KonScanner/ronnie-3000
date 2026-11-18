@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use eframe::egui::{Color32, ColorImage};
-use ronie_ui::{
+use ronnie_ui::{
     accessibility::{AccessibleRole, Announcer},
     backend::{ChainFault, ChainFaultKind},
     default::{
@@ -167,7 +167,7 @@ fn feedback_mute_precedes_risk_and_cannot_be_dismissed() {
 #[test]
 fn dismissible_banner_snooze_persists_for_twenty_four_hours() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let state = device("banner-buffer");
     let mut store = BannerStore::with_settings(settings.clone());
     store.evaluate(Some(&state), 1_000);
@@ -186,7 +186,7 @@ fn dismissible_banner_snooze_persists_for_twenty_four_hours() {
 #[test]
 fn a_dismissal_in_another_process_reaches_a_visible_banner() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let state = device("banner-buffer");
     let mut store = BannerStore::with_settings(settings.clone());
     store.evaluate(Some(&state), 1_000);
@@ -209,10 +209,10 @@ fn a_dismissal_in_another_process_reaches_a_visible_banner() {
 
 #[test]
 fn initial_window_banner_height_requires_an_active_rule() {
-    assert!(!ronie_ui::shell::initial_banner_visible(&device(
+    assert!(!ronnie_ui::shell::initial_banner_visible(&device(
         "settings-system"
     )));
-    assert!(ronie_ui::shell::initial_banner_visible(&device(
+    assert!(ronnie_ui::shell::initial_banner_visible(&device(
         "banner-buffer"
     )));
 }
@@ -297,16 +297,16 @@ fn update_and_connection_modals_stack_and_block_background_keys() {
 #[test]
 fn a_device_fault_after_startup_reaches_the_banner_and_only_a_change_does_work() {
     let fixture = scenario("banner-no-input");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&fixture));
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&fixture));
     let mut chrome =
-        ronie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
     let mut healthy = device("banner-no-input");
     healthy.device_open = true;
     healthy.input_device = "Guitar".to_owned();
     healthy.output_device = "Monitors".to_owned();
     healthy.has_active_input = true;
     let mut settings =
-        ronie_ui::default::SystemDeviceState::from_ui_value(&fixture.state["device"])
+        ronnie_ui::default::SystemDeviceState::from_ui_value(&fixture.state["device"])
             .expect("device settings");
     settings.banner = healthy.clone();
     backend.set_device_settings(Some(settings.clone()));
@@ -315,13 +315,13 @@ fn a_device_fault_after_startup_reaches_the_banner_and_only_a_change_does_work()
     let _ = chrome.take_window_steps(2.0);
     assert!(chrome.banners().active().is_none());
 
-    ronie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut shown, 10);
+    ronnie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut shown, 10);
     assert!(chrome.take_window_steps(2.0).is_empty());
     assert!(chrome.banners().active().is_none());
 
     settings.banner.device_open = false;
     backend.set_device_settings(Some(settings));
-    ronie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut shown, 20);
+    ronnie_ui::shell::sync_device_banner(backend.as_ref(), &mut chrome, &mut shown, 20);
     assert_eq!(chrome.banners().active().expect("banner").id, "no-input");
     assert!(shown.as_ref().is_some_and(|device| !device.device_open));
 }
@@ -464,16 +464,16 @@ fn a_tone_title_from_a_server_cannot_reshape_the_banner() {
 
 #[test]
 fn the_banner_id_holds_only_the_fault_identity() {
-    let block = ronie_core::ChainBlock::tone(
+    let block = ronnie_core::ChainBlock::tone(
         "block-3",
-        ronie_core::Tone::from_value(serde_json::json!({
+        ronnie_core::Tone::from_value(serde_json::json!({
             "id": 42,
             "title": "Green Muff",
             "format": "nam",
             "models": [{"id": 7, "name": "A"}, {"id": 8, "name": "B"}],
         }))
         .expect("tone"),
-        ronie_core::ModelId(7),
+        ronnie_core::ModelId(7),
     );
     let first = ChainFault::for_block(ChainFaultKind::ModelRejected, &block);
     assert_eq!(first.title.as_deref(), Some("Green Muff"));
@@ -482,7 +482,7 @@ fn the_banner_id_holds_only_the_fault_identity() {
     assert!(!id.contains("Green"), "{id}");
 
     let mut other_model = block.clone();
-    other_model.active_model_id = Some(ronie_core::ModelId(8));
+    other_model.active_model_id = Some(ronnie_core::ModelId(8));
     assert_ne!(
         first.identity,
         ChainFault::for_block(ChainFaultKind::ModelRejected, &other_model).identity,
@@ -558,7 +558,7 @@ fn a_dismissed_fault_stays_hidden_and_the_device_note_behind_it_returns() {
 #[test]
 fn a_dismissal_covers_one_fault_only_and_ends_after_one_day() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let first = tone_fault(ChainFaultKind::ModelRejected, "a", "Green Muff");
     let second = tone_fault(ChainFaultKind::MissingModel, "b", "Red Fuzz");
 
@@ -594,7 +594,7 @@ fn a_dismissal_covers_one_fault_only_and_ends_after_one_day() {
 #[test]
 fn old_fault_dismissals_do_not_collect_in_the_preferences() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let mut store = BannerStore::with_settings(settings.clone());
     for (index, now) in [(1, 0), (2, 1_000), (3, 90_000_000)] {
         store.set_chain_faults(vec![tone_fault(
@@ -613,10 +613,10 @@ fn old_fault_dismissals_do_not_collect_in_the_preferences() {
     assert!(saved.keys().all(|id| id.contains("block-3")), "{saved:?}");
 }
 
-fn fault_driver(faults: Vec<ChainFault>) -> (UiDriver, ronie_ui::backend::MockBackend) {
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
+fn fault_driver(faults: Vec<ChainFault>) -> (UiDriver, ronnie_ui::backend::MockBackend) {
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
     backend.set_chain_faults(faults.clone());
-    let mut chrome = ronie_ui::default::ChromeController::new(
+    let mut chrome = ronnie_ui::default::ChromeController::new(
         std::sync::Arc::new(backend.clone()),
         Vec::new(),
         false,
@@ -639,7 +639,7 @@ fn painted_text(driver: &mut UiDriver) -> String {
     let mut output = context.run_ui(input, |ui| {
         eframe::egui::CentralPanel::default()
             .frame(eframe::egui::Frame::NONE)
-            .show(ui, |ui| ronie_ui::default::show(ui, chrome));
+            .show(ui, |ui| ronnie_ui::default::show(ui, chrome));
     });
     output.textures_delta.clear();
     format!("{:?}", output.shapes)
@@ -667,7 +667,7 @@ fn the_fault_banner_paints_in_the_banner_area_and_offers_only_ignore() {
     assert!(painted.contains("Green Muff cannot run."), "{painted}");
     assert!(painted.contains(" Ronnie bypasses this block."));
 
-    let accessibility = ronie_ui::shell::audit_chrome_accessibility(driver.chrome_mut());
+    let accessibility = ronnie_ui::shell::audit_chrome_accessibility(driver.chrome_mut());
     assert_eq!(accessibility["unnamed_focusable"], 0, "{accessibility}");
 }
 
@@ -689,13 +689,13 @@ fn ignore_hides_the_fault_through_real_input_and_a_new_fault_shows_again() {
     assert!(!painted_text(&mut driver).contains("Green Muff"));
 
     // The same fault is still in the engine, and it stays hidden.
-    ronie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 10);
+    ronnie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 10);
     driver.frame();
     assert!(driver.chrome().banners().active().is_none());
 
     let second = tone_fault(ChainFaultKind::MissingModel, "b", "Red Fuzz");
     backend.set_chain_faults(vec![first, second]);
-    ronie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 20);
+    ronnie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 20);
     driver.settle();
     assert!(painted_text(&mut driver).contains("Red Fuzz has no model data."));
     assert_eq!(
@@ -712,7 +712,7 @@ fn a_cleared_fault_removes_the_banner_and_gives_back_the_window_height() {
     let mut shown = vec![fault];
 
     backend.set_chain_faults(Vec::new());
-    ronie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 10);
+    ronnie_ui::shell::sync_chain_faults(&backend, driver.chrome_mut(), &mut shown, 10);
 
     assert!(driver.chrome().banners().active().is_none());
     assert!(shown.is_empty());
@@ -725,19 +725,19 @@ fn a_cleared_fault_removes_the_banner_and_gives_back_the_window_height() {
 #[test]
 fn a_sync_with_no_change_in_the_faults_does_no_work() {
     let fault = tone_fault(ChainFaultKind::ModelRejected, "a", "Green Muff");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "chrome-toast-saved",
     )));
     let mut chrome =
-        ronie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
     let mut shown = Vec::new();
 
-    ronie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
+    ronnie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
     assert!(chrome.banners().active().is_none());
     assert!(chrome.take_window_steps(1.0).is_empty());
 
     backend.set_chain_faults(vec![fault.clone()]);
-    ronie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
+    ronnie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
     assert_eq!(shown, [fault]);
     assert!(chrome.banners().active().is_some());
     assert_eq!(
@@ -746,7 +746,7 @@ fn a_sync_with_no_change_in_the_faults_does_no_work() {
     );
     assert_eq!(chrome.drain_announcements().len(), 1, "one announcement");
 
-    ronie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
+    ronnie_ui::shell::sync_chain_faults(backend.as_ref(), &mut chrome, &mut shown, 0);
     assert!(chrome.take_window_steps(1.0).is_empty());
     assert!(chrome.drain_announcements().is_empty());
 }
@@ -765,8 +765,8 @@ fn no_fault_leaves_the_banner_store_and_the_screen_as_they_were() {
 
     let painted = |set_empty: bool| {
         let backend =
-            ronie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
-        let mut chrome = ronie_ui::default::ChromeController::new(
+            ronnie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
+        let mut chrome = ronnie_ui::default::ChromeController::new(
             std::sync::Arc::new(backend.clone()),
             Vec::new(),
             false,
@@ -784,8 +784,8 @@ fn no_fault_leaves_the_banner_store_and_the_screen_as_they_were() {
 
 #[test]
 fn a_device_banner_with_an_action_keeps_its_button() {
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario("banner-buffer"));
-    let mut chrome = ronie_ui::default::ChromeController::new(
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario("banner-buffer"));
+    let mut chrome = ronnie_ui::default::ChromeController::new(
         std::sync::Arc::new(backend.clone()),
         Vec::new(),
         false,
@@ -799,25 +799,26 @@ fn a_device_banner_with_an_action_keeps_its_button() {
 
 #[test]
 fn the_first_window_has_room_for_a_fault_banner_only_when_it_will_show() {
-    let options =
-        |backend: &ronie_ui::backend::MockBackend, settings| ronie_ui::shell::NativeShellOptions {
+    let options = |backend: &ronnie_ui::backend::MockBackend, settings| {
+        ronnie_ui::shell::NativeShellOptions {
             backend: Some(std::sync::Arc::new(backend.clone())),
             update_settings: settings,
             ..Default::default()
-        };
-    let backend = ronie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
-    assert!(!ronie_ui::shell::initial_window_has_banner(&options(
+        }
+    };
+    let backend = ronnie_ui::backend::MockBackend::from_scenario(&scenario("chrome-toast-saved"));
+    assert!(!ronnie_ui::shell::initial_window_has_banner(&options(
         &backend, None
     )));
 
     let fault = tone_fault(ChainFaultKind::ModelRejected, "a", "Green Muff");
     backend.set_chain_faults(vec![fault.clone()]);
-    assert!(ronie_ui::shell::initial_window_has_banner(&options(
+    assert!(ronnie_ui::shell::initial_window_has_banner(&options(
         &backend, None
     )));
 
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let mut store = BannerStore::with_settings(settings.clone());
     store.set_chain_faults(vec![fault]);
     let now = std::time::SystemTime::now()
@@ -827,7 +828,7 @@ fn the_first_window_has_room_for_a_fault_banner_only_when_it_will_show() {
     store.evaluate(None, now);
     let id = store.active().expect("fault").id.clone();
     assert!(store.dismiss(&id, now).expect("dismiss"));
-    assert!(!ronie_ui::shell::initial_window_has_banner(&options(
+    assert!(!ronnie_ui::shell::initial_window_has_banner(&options(
         &backend,
         Some(settings)
     )));
@@ -836,7 +837,7 @@ fn the_first_window_has_room_for_a_fault_banner_only_when_it_will_show() {
 #[test]
 #[ignore = "native window capture"]
 fn capture_chain_fault_banner_at_two_times_scale() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "main-mono",
     )));
     backend.set_chain_faults(vec![tone_fault(
@@ -846,7 +847,7 @@ fn capture_chain_fault_banner_at_two_times_scale() {
     )]);
     let directory = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"));
     let capture = directory.join("chain-fault-banner.png");
-    let options = ronie_ui::shell::NativeShellOptions {
+    let options = ronnie_ui::shell::NativeShellOptions {
         selftest: true,
         capture: Some(capture.clone()),
         report: Some(directory.join("chain-fault-banner.json")),
@@ -855,7 +856,7 @@ fn capture_chain_fault_banner_at_two_times_scale() {
         authenticated: true,
         ..Default::default()
     };
-    ronie_ui::shell::run_scripted(options, ScenarioScript::new(Vec::new()))
+    ronnie_ui::shell::run_scripted(options, ScenarioScript::new(Vec::new()))
         .expect("native banner capture");
     assert_eq!(
         image::image_dimensions(capture).expect("capture dimensions"),
@@ -866,9 +867,9 @@ fn capture_chain_fault_banner_at_two_times_scale() {
 #[test]
 fn chrome_banner_drives_resize_steps_and_backend_settings_actions() {
     let fixture = scenario("banner-no-input");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&fixture));
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&fixture));
     let mut chrome =
-        ronie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(backend.clone(), Vec::new(), false, true);
     chrome.set_device_state(Some(device("banner-no-input")), 0);
     assert_eq!(chrome.banners().active().expect("banner").id, "no-input");
     assert_eq!(
@@ -877,50 +878,50 @@ fn chrome_banner_drives_resize_steps_and_backend_settings_actions() {
     );
     chrome
         .handle_banner_view_action(
-            ronie_ui::default::BannerViewAction::Action(BannerAction::OpenSettings),
+            ronnie_ui::default::BannerViewAction::Action(BannerAction::OpenSettings),
             0,
         )
         .expect("open settings");
     assert_eq!(
         chrome.settings().expect("settings page").tab(),
-        ronie_ui::default::SettingsTab::System
+        ronnie_ui::default::SettingsTab::System
     );
 
-    let asio_backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(
+    let asio_backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(
         &scenario("banner-asio"),
     ));
     let mut asio_chrome =
-        ronie_ui::default::ChromeController::new(asio_backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(asio_backend.clone(), Vec::new(), false, true);
     asio_chrome
         .handle_banner_view_action(
-            ronie_ui::default::BannerViewAction::Action(BannerAction::SwitchToAsio),
+            ronnie_ui::default::BannerViewAction::Action(BannerAction::SwitchToAsio),
             0,
         )
         .expect("switch backend");
     assert!(
         asio_backend
             .actions()
-            .contains(&ronie_ui::backend::UiAction::Device(
-                ronie_ui::backend::DeviceAction::SelectBackend("ASIO".to_owned()),
+            .contains(&ronnie_ui::backend::UiAction::Device(
+                ronnie_ui::backend::DeviceAction::SelectBackend("ASIO".to_owned()),
             ),)
     );
 
-    let mic_backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(
+    let mic_backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(
         &scenario("banner-mic-denied"),
     ));
     let mut mic_chrome =
-        ronie_ui::default::ChromeController::new(mic_backend.clone(), Vec::new(), false, true);
+        ronnie_ui::default::ChromeController::new(mic_backend.clone(), Vec::new(), false, true);
     mic_chrome
         .handle_banner_view_action(
-            ronie_ui::default::BannerViewAction::Action(BannerAction::OpenMicSettings),
+            ronnie_ui::default::BannerViewAction::Action(BannerAction::OpenMicSettings),
             0,
         )
         .expect("microphone privacy");
     assert!(
         mic_backend
             .actions()
-            .contains(&ronie_ui::backend::UiAction::Navigate(
-                ronie_ui::backend::NavigationAction::OpenMicrophonePrivacy,
+            .contains(&ronnie_ui::backend::UiAction::Navigate(
+                ronnie_ui::backend::NavigationAction::OpenMicrophonePrivacy,
             ),)
     );
 }
@@ -928,8 +929,8 @@ fn chrome_banner_drives_resize_steps_and_backend_settings_actions() {
 #[test]
 fn chrome_toast_expires_through_the_shared_clock_path() {
     let scenario = scenario("chrome-toast-saved");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario));
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     chrome.open_save();
     chrome.set_draft("Stadium Lead");
     chrome.save().expect("save");
@@ -944,7 +945,7 @@ fn chrome_toast_expires_through_the_shared_clock_path() {
 
 #[test]
 fn modal_capture_discards_dialog_frames_and_paces_clean_snapshots() {
-    let mut capture = ronie_ui::default::ModalCapture::default();
+    let mut capture = ronnie_ui::default::ModalCapture::default();
     assert!(capture.request_due(0, false));
     assert!(!capture.request_due(125, false));
     assert!(!capture.request_due(125, true));
@@ -958,9 +959,9 @@ fn modal_capture_discards_dialog_frames_and_paces_clean_snapshots() {
 
 #[test]
 fn modal_capture_takes_one_snapshot_for_each_surface_that_opens() {
-    use ronie_ui::default::BackdropUser;
+    use ronnie_ui::default::BackdropUser;
 
-    let mut capture = ronie_ui::default::ModalCapture::default();
+    let mut capture = ronnie_ui::default::ModalCapture::default();
     assert!(!capture.request_for(None, 0), "no surface needs an image");
 
     assert!(capture.request_for(Some(BackdropUser::Dialog), 0));
@@ -985,17 +986,17 @@ fn modal_capture_takes_one_snapshot_for_each_surface_that_opens() {
 
 #[cfg(test)]
 fn native_options(
-    backend: std::sync::Arc<ronie_ui::backend::MockBackend>,
+    backend: std::sync::Arc<ronnie_ui::backend::MockBackend>,
     name: &str,
-) -> ronie_ui::shell::NativeShellOptions {
+) -> ronnie_ui::shell::NativeShellOptions {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    ronie_ui::shell::NativeShellOptions {
+    ronnie_ui::shell::NativeShellOptions {
         selftest: true,
         capture: Some(root.join(format!(
-            ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-11-{name}.png"
+            ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-11-{name}.png"
         ))),
         report: Some(root.join(format!(
-            ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-11-{name}.json"
+            ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-11-{name}.json"
         ))),
         scale: Some(2.0),
         backend: Some(backend),
@@ -1007,12 +1008,12 @@ fn native_options(
 #[test]
 #[ignore = "native window capture"]
 fn capture_banner_at_two_times_scale() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "banner-buffer",
     )));
     let options = native_options(backend, "banner");
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(options, ScenarioScript::new(Vec::new()))
+    ronnie_ui::shell::run_scripted(options, ScenarioScript::new(Vec::new()))
         .expect("native banner capture");
     assert_eq!(
         image::image_dimensions(capture.expect("capture path")).expect("capture dimensions"),
@@ -1023,12 +1024,12 @@ fn capture_banner_at_two_times_scale() {
 #[test]
 #[ignore = "native window capture"]
 fn capture_toast_at_two_times_scale() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "chrome-toast-saved",
     )));
     let options = native_options(backend, "toast");
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::Toast("Preset Saved".to_owned())]),
     )
@@ -1042,12 +1043,12 @@ fn capture_toast_at_two_times_scale() {
 #[test]
 #[ignore = "native window capture"]
 fn capture_connection_modal_at_two_times_scale() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "load-offline-modal",
     )));
     let options = native_options(backend, "connection-modal");
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::RevealInsert, Step::Offline]),
     )
@@ -1061,7 +1062,7 @@ fn capture_connection_modal_at_two_times_scale() {
 #[test]
 #[ignore = "native window capture"]
 fn capture_update_modal_at_two_times_scale() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "load-update-notice",
     )));
     let options = native_options(backend, "update-modal");
@@ -1071,7 +1072,7 @@ fn capture_update_modal_at_two_times_scale() {
         "url": "https://fixtures.invalid/plugin"
     });
     let capture = options.capture.clone();
-    ronie_ui::shell::run_scripted(
+    ronnie_ui::shell::run_scripted(
         options,
         ScenarioScript::new(vec![Step::UpdateOffer(payload)]),
     )
@@ -1084,14 +1085,14 @@ fn capture_update_modal_at_two_times_scale() {
 
 #[test]
 fn system_modal_paints_scrim_after_background_and_before_dialog() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "load-offline-modal",
     )));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     chrome.set_online(false);
     assert!(!chrome.require_connection("browse"));
     let context = eframe::egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let input = eframe::egui::RawInput {
         screen_rect: Some(eframe::egui::Rect::from_min_size(
             eframe::egui::Pos2::ZERO,
@@ -1102,13 +1103,13 @@ fn system_modal_paints_scrim_after_background_and_before_dialog() {
     let mut first = context.run_ui(input.clone(), |ui| {
         eframe::egui::CentralPanel::default()
             .frame(eframe::egui::Frame::NONE)
-            .show(ui, |ui| ronie_ui::default::show(ui, &mut chrome));
+            .show(ui, |ui| ronnie_ui::default::show(ui, &mut chrome));
     });
     first.textures_delta.clear();
     let mut output = context.run_ui(input, |ui| {
         eframe::egui::CentralPanel::default()
             .frame(eframe::egui::Frame::NONE)
-            .show(ui, |ui| ronie_ui::default::show(ui, &mut chrome));
+            .show(ui, |ui| ronnie_ui::default::show(ui, &mut chrome));
     });
     output.textures_delta.clear();
     let gallery = output
@@ -1140,15 +1141,15 @@ fn system_modal_paints_scrim_after_background_and_before_dialog() {
 
 #[test]
 fn system_modal_blocks_background_keyboard_input() {
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario(
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario(
         "load-offline-modal",
     )));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     chrome.set_tuner(true);
     chrome.set_online(false);
     assert!(!chrome.require_connection("browse"));
     let context = eframe::egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let input = |events| eframe::egui::RawInput {
         screen_rect: Some(eframe::egui::Rect::from_min_size(
             eframe::egui::Pos2::ZERO,
@@ -1160,7 +1161,7 @@ fn system_modal_blocks_background_keyboard_input() {
     let mut first = context.run_ui(input(Vec::new()), |ui| {
         eframe::egui::CentralPanel::default()
             .frame(eframe::egui::Frame::NONE)
-            .show(ui, |ui| ronie_ui::default::show(ui, &mut chrome));
+            .show(ui, |ui| ronnie_ui::default::show(ui, &mut chrome));
     });
     first.textures_delta.clear();
     let mut output = context.run_ui(
@@ -1174,7 +1175,7 @@ fn system_modal_blocks_background_keyboard_input() {
         |ui| {
             eframe::egui::CentralPanel::default()
                 .frame(eframe::egui::Frame::NONE)
-                .show(ui, |ui| ronie_ui::default::show(ui, &mut chrome));
+                .show(ui, |ui| ronnie_ui::default::show(ui, &mut chrome));
         },
     );
     output.textures_delta.clear();

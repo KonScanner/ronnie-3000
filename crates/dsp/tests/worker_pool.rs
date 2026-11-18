@@ -3,7 +3,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ronie_dsp::rt::{Job, JobError, RtWorkerPool};
+use ronnie_dsp::rt::{Job, JobError, RtWorkerPool};
 
 fn increment(context: *mut ()) -> bool {
     // SAFETY: each job points to a live AtomicUsize for the duration of the join.

@@ -12,11 +12,11 @@ use std::{
 };
 
 use eframe::egui;
-use ronie_app::standalone_backend::{FolderOpener, StandaloneBackend};
-use ronie_core::{InputMode, PREFERENCES_SETTINGS, params::ParameterId};
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_app::standalone_backend::{FolderOpener, StandaloneBackend};
+use ronnie_core::{InputMode, PREFERENCES_SETTINGS, params::ParameterId};
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     backend::{DeviceAction, HostControl, MockBackend, UiAction, UiBackend, UiError},
     default::ChromeController,
     driver::UiDriver,
@@ -35,7 +35,7 @@ impl Rig {
 
     fn with_opener(opener: Option<FolderOpener>) -> Self {
         let root = tempfile::tempdir().expect("temporary root");
-        let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+        let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
             oversampling: 1,
@@ -138,8 +138,8 @@ fn a_drag_that_ends_where_it_started_at_the_range_end_is_no_undo_step() {
     rig.backend
         .set_parameter(
             id,
-            ronie_core::params::ParameterValue(1.0),
-            ronie_ui::backend::GesturePhase::End,
+            ronnie_core::params::ParameterValue(1.0),
+            ronnie_ui::backend::GesturePhase::End,
         )
         .expect("top of the range");
     rig.driver.settle();
@@ -226,15 +226,15 @@ fn an_alt_click_reset_of_a_linked_pan_is_one_undo_step() {
     rig.backend
         .set_parameter(
             ParameterId("chainPanLeft"),
-            ronie_core::params::ParameterValue(0.3),
-            ronie_ui::backend::GesturePhase::End,
+            ronnie_core::params::ParameterValue(0.3),
+            ronnie_ui::backend::GesturePhase::End,
         )
         .expect("pan");
     rig.backend
         .set_parameter(
             ParameterId("chainPanRight"),
-            ronie_core::params::ParameterValue(0.7),
-            ronie_ui::backend::GesturePhase::End,
+            ronnie_core::params::ParameterValue(0.7),
+            ronnie_ui::backend::GesturePhase::End,
         )
         .expect("pan");
     rig.driver.settle();
@@ -271,14 +271,14 @@ fn a_block_trim_knob_drag_is_one_undo_step() {
     rig.backend
         .dispatch(UiAction::LoadTone {
             target_insert_id: target.clone(),
-            tone: ronie_core::Tone::from_value(serde_json::json!({
+            tone: ronnie_core::Tone::from_value(serde_json::json!({
                 "id": 6,
                 "title": "Cab",
                 "format": "ir",
                 "models": [{"id": 8, "name": "Cab", "model_url": "https://models.example/8.wav"}],
             }))
             .expect("tone"),
-            model_id: ronie_core::ModelId(8),
+            model_id: ronnie_core::ModelId(8),
         })
         .expect("load");
     rig.driver
@@ -403,7 +403,7 @@ fn the_real_app_shows_no_auto_balance() {
 #[test]
 fn the_mock_keeps_each_control_for_the_visual_scenarios() {
     let scenario =
-        ronie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
+        ronnie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
             .expect("scenarios")
             .into_iter()
             .find(|scenario| scenario.id == "chrome-auto-balance")
@@ -492,8 +492,8 @@ impl Rig {
 #[test]
 fn the_log_records_what_happens_to_the_stream() {
     let root = tempfile::tempdir().expect("temporary root");
-    let device = ronie_app::audio::DummyBackend::connected();
-    let processor = ProcessorBackend::new(RonieProcessor::new(PrepareSpec {
+    let device = ronnie_app::audio::DummyBackend::connected();
+    let processor = ProcessorBackend::new(RonnieProcessor::new(PrepareSpec {
         host_sample_rate: 48_000.0,
         max_host_frames: 128,
         oversampling: 1,
@@ -584,14 +584,14 @@ fn the_eq_page_shows_the_spectrum_of_the_real_block() {
     rig.backend
         .dispatch(UiAction::LoadToneWithBytes {
             target_insert_id: target.clone(),
-            tone: ronie_core::Tone::from_value(serde_json::json!({
+            tone: ronnie_core::Tone::from_value(serde_json::json!({
                 "id": 6,
                 "title": "Cab",
                 "format": "ir",
                 "models": [{"id": 8, "name": "Cab", "model_url": "https://models.example/8.wav"}],
             }))
             .expect("tone"),
-            model_id: ronie_core::ModelId(8),
+            model_id: ronnie_core::ModelId(8),
             bytes: bytes.into(),
         })
         .expect("load");
@@ -604,7 +604,7 @@ fn the_eq_page_shows_the_spectrum_of_the_real_block() {
         .chrome_mut()
         .detail_mut()
         .expect("detail")
-        .set_view(ronie_ui::default::BlockView::Eq);
+        .set_view(ronnie_ui::default::BlockView::Eq);
     rig.driver.settle();
 
     let mut phase = 0.0;
@@ -625,7 +625,7 @@ fn the_eq_page_shows_the_spectrum_of_the_real_block() {
 }
 
 /// Loads one real impulse response in the first slot and returns the id of the block.
-fn load_block(rig: &mut Rig) -> ronie_core::BlockId {
+fn load_block(rig: &mut Rig) -> ronnie_core::BlockId {
     let target = rig
         .backend
         .chain_state(0)
@@ -654,14 +654,14 @@ fn load_block(rig: &mut Rig) -> ronie_core::BlockId {
     rig.backend
         .dispatch(UiAction::LoadToneWithBytes {
             target_insert_id: target.clone(),
-            tone: ronie_core::Tone::from_value(serde_json::json!({
+            tone: ronnie_core::Tone::from_value(serde_json::json!({
                 "id": 6,
                 "title": "Cab",
                 "format": "ir",
                 "models": [{"id": 8, "name": "Cab", "model_url": "https://models.example/8.wav"}],
             }))
             .expect("tone"),
-            model_id: ronie_core::ModelId(8),
+            model_id: ronnie_core::ModelId(8),
             bytes: bytes.into(),
         })
         .expect("load");
@@ -801,7 +801,7 @@ fn the_power_and_swap_buttons_of_a_tile_take_a_real_pointer() {
     let swap = rig.center_of("Swap tone");
     rig.pointer_click(swap, egui::PointerButton::Primary);
     assert!(
-        rig.driver.chrome().gallery().selection() != &ronie_ui::default::GallerySelection::None,
+        rig.driver.chrome().gallery().selection() != &ronnie_ui::default::GallerySelection::None,
         "the swap button asks for a tone"
     );
 }
@@ -895,7 +895,7 @@ fn the_undo_button_takes_a_real_pointer_after_a_remove() {
 }
 
 impl Rig {
-    fn input_gain(&self, block: &ronie_core::BlockId) -> f64 {
+    fn input_gain(&self, block: &ronnie_core::BlockId) -> f64 {
         self.backend
             .chain_state(0)
             .chain
@@ -963,7 +963,7 @@ fn a_drag_on_the_tile_gain_knob_is_one_undo_step_and_moves_no_tile() {
 
 impl Rig {
     /// Sets the input gain of a block outside of the UI, and shows it.
-    fn set_input_gain(&mut self, block: &ronie_core::BlockId, gain: f64) {
+    fn set_input_gain(&mut self, block: &ronnie_core::BlockId, gain: f64) {
         let mut params = self
             .backend
             .chain_state(0)
@@ -1132,7 +1132,7 @@ struct ShownLoad {
 }
 
 impl UiBackend for ShownLoad {
-    fn chain_state(&self, known_revision: u64) -> ronie_ui::backend::ChainViewState {
+    fn chain_state(&self, known_revision: u64) -> ronnie_ui::backend::ChainViewState {
         let mut state = self.real.chain_state(known_revision);
         let shown = self.shown.load(Ordering::Relaxed);
         if shown == SHOWN_REAL {
@@ -1155,7 +1155,7 @@ impl UiBackend for ShownLoad {
         state
     }
 
-    fn meter_levels(&self) -> ronie_ui::backend::MeterSnapshot {
+    fn meter_levels(&self) -> ronnie_ui::backend::MeterSnapshot {
         self.real.meter_levels()
     }
 
@@ -1167,7 +1167,7 @@ impl UiBackend for ShownLoad {
         self.real.diagnostic_log()
     }
 
-    fn device_settings(&self) -> Option<ronie_ui::default::SystemDeviceState> {
+    fn device_settings(&self) -> Option<ronnie_ui::default::SystemDeviceState> {
         self.real.device_settings()
     }
 
@@ -1175,7 +1175,7 @@ impl UiBackend for ShownLoad {
         self.real.preference(key)
     }
 
-    fn dispatch(&self, action: UiAction) -> Result<ronie_ui::backend::UiReceipt, UiError> {
+    fn dispatch(&self, action: UiAction) -> Result<ronnie_ui::backend::UiReceipt, UiError> {
         self.real.dispatch(action)
     }
 
@@ -1187,15 +1187,15 @@ impl UiBackend for ShownLoad {
         self.real.can_paste_block()
     }
 
-    fn parameter(&self, id: ParameterId) -> Option<ronie_core::params::ParameterValue> {
+    fn parameter(&self, id: ParameterId) -> Option<ronnie_core::params::ParameterValue> {
         self.real.parameter(id)
     }
 
     fn set_parameter(
         &self,
         id: ParameterId,
-        value: ronie_core::params::ParameterValue,
-        gesture: ronie_ui::backend::GesturePhase,
+        value: ronnie_core::params::ParameterValue,
+        gesture: ronnie_ui::backend::GesturePhase,
     ) -> Result<(), UiError> {
         self.real.set_parameter(id, value, gesture)
     }
@@ -1315,8 +1315,8 @@ impl Rig {
         self.backend
             .set_parameter(
                 ParameterId("inputLevel"),
-                ronie_core::params::ParameterValue(self.value("inputLevel")),
-                ronie_ui::backend::GesturePhase::Cancel,
+                ronnie_core::params::ParameterValue(self.value("inputLevel")),
+                ronnie_ui::backend::GesturePhase::Cancel,
             )
             .is_ok()
     }
@@ -1342,7 +1342,7 @@ impl Rig {
     }
 
     /// Loads one tone and shows its detail page.
-    fn open_detail_of_new_block(&mut self) -> ronie_core::BlockId {
+    fn open_detail_of_new_block(&mut self) -> ronnie_core::BlockId {
         let block = load_block(self);
         self.driver
             .chrome_mut()
@@ -1425,7 +1425,7 @@ fn a_trim_knob_that_hides_during_its_drag_closes_its_gesture() {
     assert!(moved > 0.5, "the drag moved the gain");
 
     let detail = rig.driver.chrome_mut().detail_mut().expect("detail");
-    detail.set_view(ronie_ui::default::BlockView::Eq);
+    detail.set_view(ronnie_ui::default::BlockView::Eq);
     rig.pointer_travel(end, end - egui::vec2(0.0, 20.0), 2);
     rig.press(end - egui::vec2(0.0, 20.0), false);
     rig.driver.settle();
@@ -1465,8 +1465,8 @@ impl Rig {
         self.backend
             .set_parameter(
                 ParameterId("outputLevel"),
-                ronie_core::params::ParameterValue(0.25),
-                ronie_ui::backend::GesturePhase::End,
+                ronnie_core::params::ParameterValue(0.25),
+                ronnie_ui::backend::GesturePhase::End,
             )
             .expect("output level");
     }
@@ -1486,7 +1486,7 @@ fn a_browser_that_covers_the_faceplate_during_a_knob_drag_closes_its_gesture_at_
     rig.driver
         .chrome_mut()
         .gallery_mut()
-        .select_tone(ronie_core::ChainSide::Left, insert);
+        .select_tone(ronnie_core::ChainSide::Left, insert);
     rig.pointer_travel(end, end - egui::vec2(0.0, 20.0), 1);
     assert!(
         rig.driver.chrome().browser().is_some(),

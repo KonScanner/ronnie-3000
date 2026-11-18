@@ -1,7 +1,7 @@
 //! Input routing, dual mono, and mono-output fold tests.
 
-use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
-use ronie_dsp::{
+use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::BlockModel,
     ir::compile_ir,

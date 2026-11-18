@@ -1,4 +1,4 @@
-use ronie_core::ChainSide;
+use ronnie_core::ChainSide;
 
 use crate::{
     ChainError, LatencyReport, PlanarBuffer,
@@ -419,7 +419,7 @@ fn sanitize_non_finite(samples: &mut [f32]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use ronie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
+    use ronnie_core::{AudioDocument, ChainBlock, InputMode, ModelId, Tone};
     use serde_json::json;
 
     use super::*;

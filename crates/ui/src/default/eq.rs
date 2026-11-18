@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use eframe::egui::{self, Color32, Rect, Sense, Stroke};
-use ronie_core::{BlockId, EqBand, EqBandType, EqParams};
-use ronie_dsp::block::eq::{EqControls, EqEngine};
+use ronnie_core::{BlockId, EqBand, EqBandType, EqParams};
+use ronnie_dsp::block::eq::{EqControls, EqEngine};
 
 use crate::{
     backend::{GesturePhase, UiAction, UiBackend, UiError},

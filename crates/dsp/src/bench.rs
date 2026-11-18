@@ -1,4 +1,4 @@
-use ronie_core::{DspError, DspResult, NamDocument};
+use ronnie_core::{DspError, DspResult, NamDocument};
 use serde::Serialize;
 use std::{
     num::{NonZeroU8, NonZeroUsize},
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn bench_rejects_callback_size_overflow() {
-        let document = ronie_oracle::synthetic::synthetic_a2_document(8).expect("synthetic model");
+        let document = ronnie_oracle::synthetic::synthetic_a2_document(8).expect("synthetic model");
         let mut config = BenchmarkConfig::primary();
         config.channels = 2;
         config.block_size = usize::MAX;

@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use ronie_core::{DspError, DspResult};
+use ronnie_core::{DspError, DspResult};
 use std::num::{NonZeroU8, NonZeroUsize};
 
 use crate::{
@@ -131,7 +131,7 @@ impl PhaseEngine {
 
     /// Metadata for the current primary model.
     #[must_use]
-    pub fn metadata(&self) -> &ronie_core::NamMetadata {
+    pub fn metadata(&self) -> &ronnie_core::NamMetadata {
         self.engines[0].metadata()
     }
 
@@ -336,7 +336,7 @@ mod tests {
     #[test]
     fn failed_reprepare_invalidates_every_slot() {
         let document =
-            ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+            ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
         let compiled = CompiledModel::Single(Arc::new(
             crate::compile_a2(&document).expect("compiled model"),
         ));

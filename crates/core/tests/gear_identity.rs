@@ -1,7 +1,10 @@
 //! Gear identification: which family (and so which skin and icon) a block shows.
 
-use ronie_core::Tone;
-use ronie_core::gear::{GearCategory, GearFamily, GearHints, MatchSource, ToneType, identify};
+use ronnie_core::Tone;
+use ronnie_core::gear::{
+    GearCategory, GearFamily, GearHints, MatchSource, ToneType, block_identity, identify,
+};
+use ronnie_core::{ChainBlock, ModelId};
 use serde_json::json;
 
 /// A file URL of an absolute path on this system. A Windows path needs a drive.
@@ -210,6 +213,37 @@ fn tone_types_parse_nam_spellings() {
     assert_eq!(ToneType::from_nam("overdrive"), ToneType::Crunch);
     assert_eq!(ToneType::from_nam("fuzz"), ToneType::Fuzz);
     assert_eq!(ToneType::from_nam("whatever"), ToneType::Unknown);
+}
+
+#[test]
+fn drawn_families_are_the_seventeen_with_a_glyph_and_all_have_skins() {
+    assert_eq!(GearFamily::DRAWN.len(), 17);
+    for family in GearFamily::DRAWN {
+        assert!(family.skin_id().is_some(), "{family:?} has no skin");
+    }
+}
+
+#[test]
+fn a_block_identity_uses_its_active_model() {
+    let tone = Tone::from_value(json!({
+        "id": 0,
+        "local": true,
+        "title": "two amps",
+        "format": "nam",
+        "models": [
+            {"id": 1, "name": "clean", "model_url": file_url("/tmp/stash/a-1.nam"),
+             "gear": "amp", "gear_make": "Fender", "gear_model": "Twin Reverb"},
+            {"id": 2, "name": "lead", "model_url": file_url("/tmp/stash/b-1.nam"),
+             "gear": "amp", "gear_make": "Peavey", "gear_model": "6505+"}
+        ]
+    }))
+    .expect("tone parses");
+    let block = ChainBlock::tone("block-1", tone, ModelId(2));
+    let (hints, identity) = block_identity(&block).expect("a block with a tone");
+    assert_eq!(hints.nam_model.as_deref(), Some("6505+"));
+    assert_eq!(identity.family, GearFamily::HeadHighGain);
+    assert_eq!(identity.source, MatchSource::NamMetadata);
+    assert!(block_identity(&ChainBlock::insert("slot")).is_none());
 }
 
 #[test]

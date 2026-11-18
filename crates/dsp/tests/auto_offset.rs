@@ -1,6 +1,6 @@
 //! Deterministic auto-align probe, estimator, and lifecycle tests.
 
-use ronie_dsp::{
+use ronnie_dsp::{
     PlanarBuffer,
     analysis::{AutoOffset, AutoOffsetResult, AutoOffsetState},
     image::{Align, AlignParams},

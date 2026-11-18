@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use eyre::{Result, WrapErr};
-use ronie_oracle::synthetic::synthetic_a2_json;
+use ronnie_oracle::synthetic::synthetic_a2_json;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]

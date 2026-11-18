@@ -3,8 +3,8 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering},
 };
 
-use ronie_core::ChainSide;
-use ronie_dsp::rt_chain::FailedBlocks;
+use ronnie_core::ChainSide;
+use ronnie_dsp::rt_chain::FailedBlocks;
 
 use super::MAX_DEVICE_CHANNELS;
 

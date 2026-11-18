@@ -11,7 +11,7 @@
 
 use std::sync::Arc;
 
-use ronie_core::{
+use ronnie_core::{
     ApiConfig, CatalogClient, DownloadClient, HttpTransport, OAuthConfig, OAuthFlow, OriginPolicy,
     SessionStore, SettingsStore,
 };

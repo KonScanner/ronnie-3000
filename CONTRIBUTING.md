@@ -32,14 +32,14 @@ make run      # builds and opens Ronnie
 ```
 
 On macOS and Windows, install Rust with rustup and run
-`cargo run --release -p ronie-app --bin ronie`.
+`cargo run --release -p ronnie-app --bin ronnie`.
 
-The `ronie` binary opens the window when it gets no arguments. Other modes:
+The `ronnie` binary opens the window when it gets no arguments. Other modes:
 
 ```bash
-ronie --help                                  # all options
-ronie --dummy                                 # the window with a silent dummy audio device
-ronie --smoke --dummy --seconds 2             # a headless audio run, then exit
+ronnie --help                                  # all options
+ronnie --dummy                                 # the window with a silent dummy audio device
+ronnie --smoke --dummy --seconds 2             # a headless audio run, then exit
 ```
 
 ## Project layout
@@ -50,7 +50,7 @@ ronie --smoke --dummy --seconds 2             # a headless audio run, then exit
 | `crates/core` | Presets, settings, files, and the community API client |
 | `crates/plugin` | The processor and the session state that the UI edits |
 | `crates/ui` | The egui interface |
-| `crates/app` | The standalone app: audio devices, MIDI, sign-in, and the `ronie` binary |
+| `crates/app` | The standalone app: audio devices, MIDI, sign-in, and the `ronnie` binary |
 | `crates/oracle` | Test helpers: fixture generators and optional comparison tools |
 
 ## Check your change
@@ -85,8 +85,8 @@ it in your settings folder. For a development build, you can also put your own k
 a `.env` file at the repository root. Git ignores this file:
 
 ```bash
-RONIE_OAUTH_ORIGIN=https://www.tone3000.com
-RONIE_OAUTH_CLIENT_ID=t3k_pub_your_key
+RONNIE_OAUTH_ORIGIN=https://www.tone3000.com
+RONNIE_OAUTH_CLIENT_ID=t3k_pub_your_key
 ```
 
 `make build` and `make run` read `.env`. Never commit a key, and never put a secret key in

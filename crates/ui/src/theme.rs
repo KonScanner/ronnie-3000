@@ -444,7 +444,7 @@ impl Look {
     }
 
     fn id() -> egui::Id {
-        egui::Id::unique("ronie-look")
+        egui::Id::unique("ronnie-look")
     }
 
     /// Makes `look` the active look for this context.

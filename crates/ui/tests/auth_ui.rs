@@ -1,7 +1,7 @@
 //! OAuth, session recovery, and sensitive-value redaction tests.
 
-use ronie_core::{HttpResponse, OAuthConfig, OAuthError, OAuthFlow, RecordedTransport};
-use ronie_ui::{
+use ronnie_core::{HttpResponse, OAuthConfig, OAuthError, OAuthFlow, RecordedTransport};
+use ronnie_ui::{
     default::{AuthPhase, AuthService},
     services::session::{AuthFlowAdapter, FlowEvent},
 };
@@ -10,7 +10,7 @@ use tokio::runtime::Handle;
 use url::Url;
 
 fn flow(
-    responses: Vec<Result<HttpResponse, ronie_core::HttpError>>,
+    responses: Vec<Result<HttpResponse, ronnie_core::HttpError>>,
 ) -> OAuthFlow<RecordedTransport> {
     OAuthFlow::new(
         OAuthConfig::new(
@@ -223,8 +223,8 @@ async fn browser_completion_can_be_polled_without_blocking() {
 #[test]
 fn cached_user_survives_signed_out_offline_state() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
-    let session = ronie_core::SessionStore::new(settings, flow(vec![]));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let session = ronnie_core::SessionStore::new(settings, flow(vec![]));
     session
         .set_cached_user(serde_json::json!({"username": "offline-user"}))
         .expect("cached user");
@@ -239,18 +239,18 @@ fn cached_user_survives_signed_out_offline_state() {
 #[test]
 fn another_process_rotation_is_adopted_before_refresh_failure() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
-    let session = ronie_core::SessionStore::new(settings.clone(), flow(vec![]));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let session = ronnie_core::SessionStore::new(settings.clone(), flow(vec![]));
     session
-        .set_tokens(ronie_core::OAuthTokens {
+        .set_tokens(ronnie_core::OAuthTokens {
             access: secrecy::SecretString::from("old-access"),
             refresh: secrecy::SecretString::from("old-refresh"),
             expires_at_ms: 0,
         })
         .expect("seed");
-    let other = ronie_core::SessionStore::new(settings, flow(vec![]));
+    let other = ronnie_core::SessionStore::new(settings, flow(vec![]));
     other
-        .set_tokens(ronie_core::OAuthTokens {
+        .set_tokens(ronnie_core::OAuthTokens {
             access: secrecy::SecretString::from("new-access"),
             refresh: secrecy::SecretString::from("new-refresh"),
             expires_at_ms: 100_000,
@@ -340,13 +340,13 @@ async fn dropping_auth_cancels_the_loopback_listener() {
 #[test]
 fn unconfigured_chrome_rejects_sign_in_instead_of_faking_success() {
     let scenario =
-        ronie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
+        ronnie_ui::testbed::load_scenarios(include_str!("../../../fixtures/ui-scenarios.json"))
             .expect("scenarios")
             .into_iter()
             .find(|scenario| scenario.id == "main-empty")
             .expect("main-empty");
-    let backend = std::sync::Arc::new(ronie_ui::backend::MockBackend::from_scenario(&scenario));
-    let mut chrome = ronie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
+    let backend = std::sync::Arc::new(ronnie_ui::backend::MockBackend::from_scenario(&scenario));
+    let mut chrome = ronnie_ui::default::ChromeController::new(backend, Vec::new(), false, true);
     assert!(chrome.sign_in().is_err());
     assert!(!chrome.session().signed_in());
 }
@@ -403,7 +403,7 @@ async fn device_request_is_nonblocking_and_pending_polls_continue() {
 #[tokio::test]
 async fn session_tokens_are_saved_restored_and_removed_on_logout() {
     let temp = tempfile::tempdir().expect("temp");
-    let settings = ronie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
+    let settings = ronnie_core::SettingsStore::new(temp.path().join("ui-preferences.settings"));
     let mut auth = AuthService::with_session(
         flow(vec![
             Ok(HttpResponse::json(
@@ -428,6 +428,6 @@ async fn session_tokens_are_saved_restored_and_removed_on_logout() {
     assert_eq!(restored.snapshot().phase, AuthPhase::Authenticated);
     restored.sign_out().expect("logout");
     assert!(!restored.authenticated());
-    let session = ronie_core::SessionStore::new(settings, flow(vec![]));
+    let session = ronnie_core::SessionStore::new(settings, flow(vec![]));
     assert!(session.read_tokens().expect("tokens").is_none());
 }

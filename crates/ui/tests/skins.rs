@@ -1,8 +1,8 @@
 //! The embedded gear skins: one per rendered family, clean edges, knobs where the manifest says.
 
 use eframe::egui::{Rect, pos2, vec2};
-use ronie_core::gear::{GearCategory, GearFamily};
-use ronie_ui::default::skins::{self, KnobControl, SkinLcd, SkinManifest};
+use ronnie_core::gear::{GearCategory, GearFamily};
+use ronnie_ui::default::skins::{self, KnobControl, SkinLcd, SkinManifest};
 
 const FAMILIES: [GearFamily; 23] = [
     GearFamily::OdGreen,
@@ -365,7 +365,7 @@ fn painted_texts(paint: impl FnOnce(&eframe::egui::Painter)) -> Vec<String> {
     use eframe::egui;
 
     let context = egui::Context::default();
-    ronie_ui::fonts::Fonts::install(&context);
+    ronnie_ui::fonts::Fonts::install(&context);
     let mut texts = Vec::new();
     let mut paint = Some(paint);
     let mut output = context.run_ui(egui::RawInput::default(), |ui| {

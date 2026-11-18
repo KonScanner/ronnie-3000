@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui;
-use ronie_core::{PropertiesError, SettingsStore};
+use ronnie_core::{PropertiesError, SettingsStore};
 
 use crate::{
     backend::{ChainFault, ChainFaultKind},
@@ -226,7 +226,7 @@ impl DismissalFile {
         let (answer, pending) = mpsc::sync_channel(1);
         let read = Arc::clone(&self.read);
         let started = std::thread::Builder::new()
-            .name("ronie-banner-read".to_owned())
+            .name("ronnie-banner-read".to_owned())
             .spawn(move || {
                 let _ = answer.send(read());
             });

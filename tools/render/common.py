@@ -1,5 +1,5 @@
-"""Helpers shared by the Ronnie 3000 skin scripts: live knobs, alpha cleanup, knob filmstrips
-and the skin manifest.
+"""Helpers shared by the Ronnie 3000 skin scripts: live knobs, the label font, alpha cleanup,
+knob filmstrips and the skin manifest.
 
 A skin script builds its gear, calls `knob_rig.add(...)` for each knob (and
 `lcd_rig.set_glass(...)` for an LCD), and ends with
@@ -45,6 +45,56 @@ TRIM_ALPHA = 8.0 / 255.0
 TRIM_PAD = 24
 
 LABEL_CONTROL = {"GAIN IN": "gain", "OUTPUT": "output", "MIX": "mix"}
+
+FONT_ENV = "RONNIE_RENDER_FONT"
+MACOS_FONT_PATHS = (
+    "/System/Library/Fonts/Supplemental/Futura.ttc",
+    "/System/Library/Fonts/Avenir Next.ttc",
+)
+
+
+def load_font():
+    """Loads the label font, or stops the render when it is unavailable.
+
+    `RONNIE_RENDER_FONT` names the font file to use; a font that is set, but empty or that
+    cannot load, is an error, because Blender would otherwise fall back to its built-in font
+    without a warning. On macOS, without the variable, the two fonts of the committed skins are
+    tried in order. A font that exists but that Blender cannot load is an error too: a silent
+    fall-through would change the labels of the committed skins. A missing font is also an
+    error, so a render on another system cannot silently produce different labels.
+    """
+    chosen = os.environ.get(FONT_ENV)
+    if chosen is not None:
+        if not chosen.strip():
+            raise RuntimeError(
+                f"{FONT_ENV} is set but empty; unset it, or name a readable font file"
+            )
+        try:
+            return bpy.data.fonts.load(chosen)
+        except Exception as exc:
+            raise RuntimeError(
+                f"{FONT_ENV}={chosen!r}: Blender cannot load this font ({exc}); "
+                f"set {FONT_ENV} to a readable font file"
+            ) from exc
+    failures = []
+    for path in MACOS_FONT_PATHS:
+        if not os.path.exists(path):
+            continue
+        try:
+            return bpy.data.fonts.load(path)
+        except Exception as exc:
+            failures.append(f"{path}: {exc}")
+    if failures:
+        raise RuntimeError(
+            "a macOS label font exists but Blender cannot load it: "
+            + "; ".join(failures)
+            + f". Set {FONT_ENV} to a readable font file"
+        )
+    expected = ", ".join(MACOS_FONT_PATHS)
+    raise RuntimeError(
+        f"no label font: set {FONT_ENV} to a font file, or run on macOS where one of "
+        f"{expected} exists"
+    )
 
 
 class Knob:

@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use ronie_core::PresetInfo;
-use ronie_core::params::{ParameterId, ParameterValue};
-use ronie_ui::{
+use ronnie_core::PresetInfo;
+use ronnie_core::params::{ParameterId, ParameterValue};
+use ronnie_ui::{
     backend::{
         ChainViewState, GesturePhase, MeterSnapshot, MockBackend, UiAction, UiBackend, UiError,
         UiReceipt,

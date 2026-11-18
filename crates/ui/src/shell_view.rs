@@ -372,7 +372,7 @@ impl ShellView {
         let context = context.clone();
         // With no thread, a held dialog stops its wait and paints on the plain scrim.
         let _ = std::thread::Builder::new()
-            .name("ronie-backdrop-blur".to_owned())
+            .name("ronnie-backdrop-blur".to_owned())
             .spawn(move || {
                 let _ = sender.send(ModalScrim::blur_snapshot(&image));
                 context.request_repaint();

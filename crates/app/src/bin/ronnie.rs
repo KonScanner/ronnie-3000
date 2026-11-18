@@ -6,14 +6,14 @@
 use std::{ffi::OsString, path::PathBuf, sync::Arc, time::Duration};
 
 use eyre::{WrapErr, eyre};
-use ronie_app::{
+use ronnie_app::{
     audio::{AudioBackendKind, AudioWorker, CpalBackend, DeviceConfig, DummyBackend},
     auth::configured_community,
     diagnostics::DiagnosticLog,
     standalone_backend::{StandaloneBackend, standalone_processor},
 };
-use ronie_core::{PREFERENCES_SETTINGS, PresetStore, SettingsStore, UI_PREFERENCES_SETTINGS};
-use ronie_ui::{
+use ronnie_core::{PREFERENCES_SETTINGS, PresetStore, SettingsStore, UI_PREFERENCES_SETTINGS};
+use ronnie_ui::{
     services::{GithubReleaseFeed, ReleaseFeed},
     shell::NativeShellOptions,
 };
@@ -34,12 +34,13 @@ fn help_text() -> String {
     let drivers = format!("  B is {}.", AudioBackendKind::flag_values());
     [
         "Ronnie standalone",
-        "  ronie [--ui] [--dummy | --backend B] [--selftest] [--capture PATH] [--report PATH] [--scale N]",
+        "  ronnie [--ui] [--dummy | --backend B] [--selftest] [--capture PATH] [--report PATH] [--scale N]",
         "        [--layout stage | reference]",
-        "      Opens the window. This is the default. --layout stage opens the Stage layout.",
-        "  ronie --smoke [--dummy | --backend B] [--seconds N]",
+        "      Opens the window. This is the default. The window opens the Stage layout;",
+        "      --layout reference opens the classic layout.",
+        "  ronnie --smoke [--dummy | --backend B] [--seconds N]",
         "      Runs the audio with no window for N seconds (default 1), then stops.",
-        "  ronie --help",
+        "  ronnie --help",
         &drivers,
     ]
     .join("\n")
@@ -56,7 +57,7 @@ fn run_ui(options: Options) -> eyre::Result<()> {
     let community = configured_community(&root).map_err(|error| eyre!(error.to_string()))?;
     let backend = if options.backend == Some(AudioBackendKind::Dummy) {
         StandaloneBackend::dummy(processor, &root.join(PREFERENCES_SETTINGS)).map(|backend| {
-            backend.with_folder_opener(Arc::new(ronie_app::file_manager::open_in_file_manager))
+            backend.with_folder_opener(Arc::new(ronnie_app::file_manager::open_in_file_manager))
         })
     } else {
         StandaloneBackend::real(processor, &root.join(PREFERENCES_SETTINGS), options.backend)
@@ -66,7 +67,7 @@ fn run_ui(options: Options) -> eyre::Result<()> {
     let release_feed = (!options.selftest && options.capture.is_none())
         .then(|| release_feed(backend.log_handle()))
         .flatten();
-    let shell = ronie_ui::shell::run_native(NativeShellOptions {
+    let shell = ronnie_ui::shell::run_native(NativeShellOptions {
         selftest: options.selftest,
         capture: options.capture,
         report: options.report,
@@ -75,7 +76,7 @@ fn run_ui(options: Options) -> eyre::Result<()> {
         backend: Some(Arc::new(backend)),
         presets,
         community,
-        key_setup: Some(Box::new(ronie_app::auth::UserKeySetup::new(&root))),
+        key_setup: Some(Box::new(ronnie_app::auth::UserKeySetup::new(&root))),
         update_settings: Some(SettingsStore::standalone(&root, UI_PREFERENCES_SETTINGS)),
         release_feed,
         ..NativeShellOptions::default()
@@ -106,7 +107,7 @@ fn run_smoke(options: &Options) -> eyre::Result<()> {
     let config = DeviceConfig {
         backend: kind,
         sample_rate: Some(48_000),
-        buffer_frames: Some(ronie_app::audio::DEFAULT_BUFFER_FRAMES),
+        buffer_frames: Some(ronnie_app::audio::DEFAULT_BUFFER_FRAMES),
         ..DeviceConfig::default()
     };
     match kind {
@@ -123,7 +124,7 @@ fn run_smoke(options: &Options) -> eyre::Result<()> {
         AudioBackendKind::System | AudioBackendKind::Alsa | AudioBackendKind::Jack => {
             let worker = AudioWorker::new(&config).wrap_err("preparing audio worker")?;
             let mut backend = CpalBackend::new(kind);
-            let _ = ronie_app::audio::AudioBackend::connect(&mut backend);
+            let _ = ronnie_app::audio::AudioBackend::connect(&mut backend);
             let mut stream = backend
                 .open(&config, worker)
                 .wrap_err("opening audio device")?;
@@ -157,7 +158,7 @@ struct Options {
     capture: Option<PathBuf>,
     report: Option<PathBuf>,
     scale: Option<f32>,
-    view_mode: ronie_ui::shell::ViewMode,
+    view_mode: ronnie_ui::shell::ViewMode,
 }
 
 impl Options {
@@ -173,7 +174,7 @@ impl Options {
         let mut capture = None;
         let mut report = None;
         let mut scale = None;
-        let mut view_mode = ronie_ui::shell::ViewMode::ReferenceDefault;
+        let mut view_mode = ronnie_ui::shell::ViewMode::RonnieFlow;
         let mut arguments = arguments.into_iter();
         while let Some(argument) = arguments.next() {
             match argument.as_str() {
@@ -235,8 +236,8 @@ impl Options {
                         .ok_or_else(|| eyre!("--layout needs stage or reference"))?
                         .as_str()
                     {
-                        "stage" => ronie_ui::shell::ViewMode::RonieFlow,
-                        "reference" => ronie_ui::shell::ViewMode::ReferenceDefault,
+                        "stage" => ronnie_ui::shell::ViewMode::RonnieFlow,
+                        "reference" => ronnie_ui::shell::ViewMode::ReferenceDefault,
                         other => {
                             return Err(eyre!("unknown layout {other}: use stage or reference"));
                         }
@@ -277,28 +278,55 @@ impl Options {
 
 /// The settings directory of the standalone app on this operating system.
 fn standalone_config_root() -> PathBuf {
-    config_root(std::env::consts::OS, |name| std::env::var_os(name))
-        .unwrap_or_else(|| std::env::temp_dir().join("ronie"))
+    let root = config_root(std::env::consts::OS, |name| std::env::var_os(name))
+        .unwrap_or_else(|| std::env::temp_dir().join("ronnie"));
+    adopt_legacy_root(root)
+}
+
+/// The name of the settings directory before the app was renamed to Ronnie.
+const LEGACY_FOLDER: &str = "Ronie";
+
+/// Moves the settings directory of an old version, `Ronie`, to `root` when `root` does not
+/// exist yet. The presets and the settings then stay with the user. If the move fails, the
+/// old directory stays the settings directory, so that no data is lost.
+fn adopt_legacy_root(root: PathBuf) -> PathBuf {
+    let Some(legacy) = root.parent().map(|parent| parent.join(LEGACY_FOLDER)) else {
+        return root;
+    };
+    if root.exists() || !legacy.is_dir() {
+        return root;
+    }
+    match std::fs::rename(&legacy, &root) {
+        Ok(()) => root,
+        Err(error) => {
+            eprintln!(
+                "Ronnie could not move {} to {}: {error}. Ronnie uses the old folder.",
+                legacy.display(),
+                root.display()
+            );
+            legacy
+        }
+    }
 }
 
 /// The settings directory on `os`, as [`std::env::consts::OS`] names it, from the environment
 /// that `var` reads. `None` means that the environment does not tell.
 ///
-/// - Linux and other Unix systems: `$XDG_CONFIG_HOME/Ronie`, else `$HOME/.config/Ronie`.
-/// - macOS: `$HOME/Library/Application Support/Ronie`.
-/// - Windows: `%APPDATA%\Ronie`.
+/// - Linux and other Unix systems: `$XDG_CONFIG_HOME/Ronnie`, else `$HOME/.config/Ronnie`.
+/// - macOS: `$HOME/Library/Application Support/Ronnie`.
+/// - Windows: `%APPDATA%\Ronnie`.
 fn config_root(os: &str, var: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
     match os {
         "macos" => var("HOME").map(|home| {
             PathBuf::from(home)
                 .join("Library")
                 .join("Application Support")
-                .join("Ronie")
+                .join("Ronnie")
         }),
-        "windows" => var("APPDATA").map(|folder| PathBuf::from(folder).join("Ronie")),
+        "windows" => var("APPDATA").map(|folder| PathBuf::from(folder).join("Ronnie")),
         _ => var("XDG_CONFIG_HOME")
-            .map(|folder| PathBuf::from(folder).join("Ronie"))
-            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".config").join("Ronie"))),
+            .map(|folder| PathBuf::from(folder).join("Ronnie"))
+            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".config").join("Ronnie"))),
     }
 }
 
@@ -306,7 +334,7 @@ fn config_root(os: &str, var: impl Fn(&str) -> Option<OsString>) -> Option<PathB
 mod tests {
     use std::{ffi::OsString, path::PathBuf};
 
-    use super::{AudioBackendKind, Mode, Options, config_root, help_text};
+    use super::{AudioBackendKind, Mode, Options, adopt_legacy_root, config_root, help_text};
 
     fn parse(arguments: &[&str]) -> eyre::Result<Options> {
         Options::parse(arguments.iter().map(|argument| (*argument).to_owned()))
@@ -338,13 +366,10 @@ mod tests {
 
     #[test]
     fn the_layout_flag_chooses_the_view_mode() {
-        use ronie_ui::shell::ViewMode;
-        assert_eq!(
-            parse(&[]).expect("options").view_mode,
-            ViewMode::ReferenceDefault
-        );
+        use ronnie_ui::shell::ViewMode;
+        assert_eq!(parse(&[]).expect("options").view_mode, ViewMode::RonnieFlow);
         let stage = parse(&["--layout", "stage"]).expect("options");
-        assert_eq!(stage.view_mode, ViewMode::RonieFlow);
+        assert_eq!(stage.view_mode, ViewMode::RonnieFlow);
         let reference = parse(&["--layout", "reference"]).expect("options");
         assert_eq!(reference.view_mode, ViewMode::ReferenceDefault);
         assert!(parse(&["--layout", "nope"]).is_err());
@@ -401,12 +426,12 @@ mod tests {
         let both = environment(&[("XDG_CONFIG_HOME", "/xdg"), ("HOME", "/home/a")]);
         assert_eq!(
             config_root("linux", both),
-            Some(PathBuf::from("/xdg/Ronie"))
+            Some(PathBuf::from("/xdg/Ronnie"))
         );
         let home = environment(&[("HOME", "/home/a")]);
         assert_eq!(
             config_root("linux", home),
-            Some(PathBuf::from("/home/a/.config/Ronie"))
+            Some(PathBuf::from("/home/a/.config/Ronnie"))
         );
         assert_eq!(config_root("linux", environment(&[])), None);
     }
@@ -420,7 +445,7 @@ mod tests {
                 PathBuf::from("/Users/a")
                     .join("Library")
                     .join("Application Support")
-                    .join("Ronie")
+                    .join("Ronnie")
             )
         );
         assert_eq!(config_root("macos", environment(&[])), None);
@@ -434,9 +459,39 @@ mod tests {
         ]);
         assert_eq!(
             config_root("windows", variables),
-            Some(PathBuf::from(r"C:\Users\a\AppData\Roaming").join("Ronie"))
+            Some(PathBuf::from(r"C:\Users\a\AppData\Roaming").join("Ronnie"))
         );
         let no_app_data = environment(&[("HOME", "/home/a")]);
         assert_eq!(config_root("windows", no_app_data), None);
+    }
+
+    #[test]
+    fn the_settings_of_an_old_version_move_to_the_new_folder() {
+        let parent = std::env::temp_dir().join(format!("ronnie-legacy-{}", std::process::id()));
+        let legacy = parent.join("Ronie");
+        let root = parent.join("Ronnie");
+        std::fs::create_dir_all(legacy.join("presets")).expect("legacy folder");
+        std::fs::write(legacy.join("preferences.settings"), "{}").expect("legacy settings");
+
+        assert_eq!(adopt_legacy_root(root.clone()), root);
+        assert!(root.join("presets").is_dir());
+        assert!(root.join("preferences.settings").is_file());
+        assert!(!legacy.exists());
+
+        // A second start finds the new folder and does not touch a new old folder.
+        std::fs::create_dir_all(&legacy).expect("second legacy folder");
+        assert_eq!(adopt_legacy_root(root.clone()), root);
+        assert!(legacy.is_dir());
+
+        std::fs::remove_dir_all(&parent).expect("cleanup");
+    }
+
+    #[test]
+    fn no_old_folder_keeps_the_new_folder() {
+        let root = std::env::temp_dir()
+            .join(format!("ronnie-no-legacy-{}", std::process::id()))
+            .join("Ronnie");
+        assert_eq!(adopt_legacy_root(root.clone()), root);
+        assert!(!root.exists());
     }
 }

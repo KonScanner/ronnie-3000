@@ -1,6 +1,6 @@
 //! Dummy and hardware-gated standalone smoke tests.
 
-use ronie_app::audio::{AudioBackendKind, DeviceConfig, DummyBackend};
+use ronnie_app::audio::{AudioBackendKind, DeviceConfig, DummyBackend};
 
 fn config(rate: u32, frames: u32) -> DeviceConfig {
     DeviceConfig {
@@ -45,7 +45,7 @@ fn dummy_large_buffer_close_uses_bounded_timeout() {
 #[test]
 #[ignore = "requires a real ALSA device and nonexclusive access"]
 fn real_alsa_open_start_close() {
-    let mut backend = ronie_app::audio::CpalBackend::new(AudioBackendKind::Alsa);
+    let mut backend = ronnie_app::audio::CpalBackend::new(AudioBackendKind::Alsa);
     let config = DeviceConfig {
         backend: AudioBackendKind::Alsa,
         input_device: None,
@@ -56,7 +56,7 @@ fn real_alsa_open_start_close() {
         output_channels: 2,
         ..DeviceConfig::default()
     };
-    let worker = ronie_app::audio::AudioWorker::new(&config).expect("worker");
+    let worker = ronnie_app::audio::AudioWorker::new(&config).expect("worker");
     let mut stream = backend.open(&config, worker).expect("ALSA open");
     stream.start().expect("ALSA start");
     stream.close().expect("ALSA close");
@@ -66,7 +66,7 @@ fn real_alsa_open_start_close() {
 #[test]
 #[ignore = "requires a running JACK server"]
 fn real_jack_open_start_close() {
-    let mut backend = ronie_app::audio::CpalBackend::new(AudioBackendKind::Jack);
+    let mut backend = ronnie_app::audio::CpalBackend::new(AudioBackendKind::Jack);
     let config = DeviceConfig {
         backend: AudioBackendKind::Jack,
         input_device: None,
@@ -77,7 +77,7 @@ fn real_jack_open_start_close() {
         output_channels: 2,
         ..DeviceConfig::default()
     };
-    let worker = ronie_app::audio::AudioWorker::new(&config).expect("worker");
+    let worker = ronnie_app::audio::AudioWorker::new(&config).expect("worker");
     let mut stream = backend.open(&config, worker).expect("JACK open");
     stream.start().expect("JACK start");
     stream.close().expect("JACK close");

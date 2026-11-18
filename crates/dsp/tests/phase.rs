@@ -1,9 +1,9 @@
 //! Phase-interleaved and dual-mono processing tests.
 #![allow(unsafe_code)]
 
-use ronie_core::DspError;
-use ronie_dsp::{CompiledModel, ModelEngine, PhaseEngine, compile_model};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_core::DspError;
+use ronnie_dsp::{CompiledModel, ModelEngine, PhaseEngine, compile_model};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 use serde_json as _;
 use std::{
     alloc::{GlobalAlloc, Layout, System},

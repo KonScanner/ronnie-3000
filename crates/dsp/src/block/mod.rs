@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use ronie_core::BlockParams;
+use ronnie_core::BlockParams;
 use spectrum::Spectrum;
 pub use spectrum::{SpectrumAnalyzer, SpectrumTap};
 

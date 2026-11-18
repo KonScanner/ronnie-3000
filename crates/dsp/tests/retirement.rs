@@ -1,8 +1,8 @@
 //! Retirement capacity, deferred destruction, and stopped-audio tests.
 #![allow(unsafe_code)]
 
-use ronie_core::InputMode;
-use ronie_dsp::{
+use ronnie_core::InputMode;
+use ronnie_dsp::{
     LatencyReport, PrepareSpec,
     lane::LaneSnapshot,
     prepare::PreparedChainChange,

@@ -11,7 +11,7 @@ use super::{
     DEFAULT_BUFFER_FRAMES, DeviceConfig, SYSTEM_DEFAULT_DEVICE,
 };
 use crate::audio_settings::StandaloneAudioSettings;
-use ronie_dsp::rt_chain::ChainCommandSender;
+use ronnie_dsp::rt_chain::ChainCommandSender;
 
 /// One device of a host, discovered with no stream and with no open of the device.
 #[derive(Debug, Clone, PartialEq, Eq)]

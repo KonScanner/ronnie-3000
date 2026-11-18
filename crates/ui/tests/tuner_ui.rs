@@ -1,7 +1,7 @@
 //! Chromatic tuner readings, transitions, accessibility, and backend effects.
 
-use ronie_dsp::analysis::TunerReading;
-use ronie_ui::{
+use ronnie_dsp::analysis::TunerReading;
+use ronnie_ui::{
     backend::MockBackend,
     default::{ChromeController, TunerFeed, TunerStatus, lit_count, pitch_from_frequency},
     native_scenario::{ScenarioScript, Step},
@@ -140,21 +140,21 @@ fn chrome_reads_the_backend_only_while_the_tuner_takeover_is_open() {
 fn capture_tuner_at_two_times_scale() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let capture =
-        root.join(".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-11-tuner.png");
+        root.join(".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-11-tuner.png");
     let backend = std::sync::Arc::new(MockBackend::from_scenario(&scenario("main-tuner-intune")));
     let options =
-        ronie_ui::shell::NativeShellOptions {
+        ronnie_ui::shell::NativeShellOptions {
             selftest: true,
             capture: Some(capture.clone()),
             report: Some(root.join(
-                ".superpowers/sdd/2026-10-31-ronie-linux-standalone-and-ui/task-11-tuner.json",
+                ".superpowers/sdd/2026-10-31-ronnie-linux-standalone-and-ui/task-11-tuner.json",
             )),
             scale: Some(2.0),
             backend: Some(backend),
             authenticated: true,
             ..Default::default()
         };
-    ronie_ui::shell::run_scripted(options, ScenarioScript::new(vec![Step::Tuner]))
+    ronnie_ui::shell::run_scripted(options, ScenarioScript::new(vec![Step::Tuner]))
         .expect("native tuner capture");
     assert_eq!(
         image::image_dimensions(capture).expect("capture dimensions"),

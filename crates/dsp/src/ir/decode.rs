@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ronie_core::AudioDocument;
+use ronnie_core::AudioDocument;
 
 use super::{CompiledIr, IrEngineKind, IrKind};
 use crate::ChainError;

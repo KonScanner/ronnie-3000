@@ -37,12 +37,18 @@ impl From<&egui::Response> for Trigger {
     }
 }
 
+/// Space kept between a panel and the edge of the area that holds it.
+pub const EDGE: f32 = 8.0;
+
 /// Where the panel goes, in the coordinates of the parent layer.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Placement {
-    /// The panel's top-left corner is at this position.
+    /// The panel's top-left corner is at this position, moved inside the bounds like the other
+    /// placements.
     At(egui::Pos2),
     /// The panel's bottom-left corner is `gap` above the anchor's top-left corner.
+    ///
+    /// A panel with no room above moves below the anchor.
     Above {
         /// Rectangle that the panel follows.
         anchor: Rect,
@@ -50,6 +56,8 @@ pub enum Placement {
         gap: f32,
     },
     /// The panel's top-left corner is `gap` below the anchor's bottom-left corner.
+    ///
+    /// A panel with no room below moves above the anchor.
     Below {
         /// Rectangle that the panel follows.
         anchor: Rect,
@@ -59,13 +67,46 @@ pub enum Placement {
 }
 
 impl Placement {
-    fn top_left(self, size: Vec2) -> egui::Pos2 {
-        match self {
-            Self::At(position) => position,
-            Self::Above { anchor, gap } => anchor.left_top() - egui::vec2(0.0, size.y + gap),
-            Self::Below { anchor, gap } => anchor.left_bottom() + egui::vec2(0.0, gap),
-        }
+    /// The panel's top-left corner, flipped to the side that fits and moved inside `bounds`.
+    ///
+    /// A panel that fits on neither side keeps the preferred side and is clamped, so that its
+    /// top-left corner stays inside `bounds`. A bounds smaller than the panel keeps the top-left
+    /// corner, and the panel overflows the far edge.
+    fn resolve(self, size: Vec2, bounds: Rect) -> egui::Pos2 {
+        let (preferred, opposite) = match self {
+            Self::At(position) => (position, position),
+            Self::Above { anchor, gap } => (
+                anchor.left_top() - egui::vec2(0.0, size.y + gap),
+                anchor.left_bottom() + egui::vec2(0.0, gap),
+            ),
+            Self::Below { anchor, gap } => (
+                anchor.left_bottom() + egui::vec2(0.0, gap),
+                anchor.left_top() - egui::vec2(0.0, size.y + gap),
+            ),
+        };
+        let top = if fits(preferred.y, size.y, bounds.y_range()) {
+            preferred.y
+        } else if fits(opposite.y, size.y, bounds.y_range()) {
+            opposite.y
+        } else {
+            preferred.y
+        };
+        egui::pos2(
+            clamp(preferred.x, size.x, bounds.x_range()),
+            clamp(top, size.y, bounds.y_range()),
+        )
     }
+}
+
+/// Whether a panel of `size` at `at` stays inside `range` with the edge margin.
+fn fits(at: f32, size: f32, range: egui::Rangef) -> bool {
+    at >= range.min + EDGE && at + size <= range.max - EDGE
+}
+
+/// Moves a panel of `size` at `at` into `range`, keeping its top-left corner when it is larger.
+fn clamp(at: f32, size: f32, range: egui::Rangef) -> f32 {
+    let last = (range.max - EDGE - size).max(range.min + EDGE);
+    at.clamp(range.min + EDGE, last)
 }
 
 /// How the panel background paints.
@@ -147,10 +188,11 @@ impl Popover {
         self
     }
 
-    /// Bounds the layer by `rect` instead of the window.
+    /// Bounds the popover by `rect`, in the coordinates of the parent layer, instead of the
+    /// window.
     ///
-    /// A frame surface moves to stay inside `rect`. A panel surface stays at its placement, and
-    /// `rect` only clips it.
+    /// The panel flips and moves to stay inside `rect`, and a frame surface is also confined by
+    /// the area of the layer. Without this call the panel stays inside the window.
     pub fn constrain_to(mut self, rect: Rect) -> Self {
         self.constrain_to = Some(rect);
         self
@@ -167,10 +209,15 @@ impl Popover {
         content: impl FnOnce(&mut egui::Ui, Rect) -> Option<P>,
     ) -> Shown<P> {
         let context = ui.ctx().clone();
-        let panel = Rect::from_min_size(self.placement.top_left(self.size), self.size);
         let to_global = context
             .layer_transform_to_global(ui.layer_id())
             .unwrap_or(egui::emath::TSTransform::IDENTITY);
+        // The window in the coordinates of the parent layer, so that a zoomed parent clamps
+        // in its own units.
+        let bounds = self
+            .constrain_to
+            .unwrap_or_else(|| to_global.inverse() * context.content_rect());
+        let panel = Rect::from_min_size(self.placement.resolve(self.size, bounds), self.size);
         let just_opened = Stack::enter(&context, self.id);
 
         let mut area = egui::Area::new(self.id)

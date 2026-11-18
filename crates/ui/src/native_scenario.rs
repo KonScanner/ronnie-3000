@@ -20,7 +20,7 @@ mod artwork;
 use std::{path::PathBuf, sync::Arc};
 
 use eframe::egui;
-use ronie_core::{Page, PresetInfo, Tone, ToneQuery, ToneSort};
+use ronnie_core::{Page, PresetInfo, Tone, ToneQuery, ToneSort};
 
 use self::artwork::FixtureArtwork;
 use crate::{
@@ -202,7 +202,7 @@ impl Step {
                     .ok_or_else(|| "the left lane has no tile".to_owned())?;
                 chrome
                     .gallery_mut()
-                    .select_tone(ronie_core::ChainSide::Left, target);
+                    .select_tone(ronnie_core::ChainSide::Left, target);
                 chrome.sync_browser();
             }
             Self::BrowserZoom(zoom) => browser(chrome)?.set_zoom(*zoom),
@@ -457,7 +457,7 @@ fn scenario_layout(scenario: &UiScenario) -> Result<crate::shell::ViewMode, Stri
             Ok(crate::shell::ViewMode::ReferenceDefault)
         }
         serde_json::Value::String(value) if value == "stage" => {
-            Ok(crate::shell::ViewMode::RonieFlow)
+            Ok(crate::shell::ViewMode::RonnieFlow)
         }
         other => Err(format!(
             "{}: unknown layout {other}; use \"reference\" or \"stage\"",
@@ -834,7 +834,7 @@ fn fixture_artwork(scenario: &UiScenario, backend: &MockBackend) -> Option<Fixtu
     if scenario.state["imagesOffline"].as_bool().unwrap_or(false) {
         return None;
     }
-    let root = std::env::var_os("RONIE_REFERENCE_IMAGE_DIR").map(PathBuf::from)?;
+    let root = std::env::var_os("RONNIE_REFERENCE_IMAGE_DIR").map(PathBuf::from)?;
     Some(FixtureArtwork {
         root,
         scale: scenario.viewport.scale.max(0.1),
@@ -877,7 +877,7 @@ pub fn compare_suite(
         }
         let mut reference = load_color_image(&reference_path)?;
         let mut candidate = load_color_image(&candidate_path)?;
-        let branding_exclusion = mask_ronie_wordmark(&mut reference, &mut candidate, scenario);
+        let branding_exclusion = mask_ronnie_wordmark(&mut reference, &mut candidate, scenario);
         let diff_path = candidate_directory.join(format!("{}.diff.png", scenario.id));
         let comparison = crate::visual::compare_images(&reference, &candidate, Some(&diff_path))?;
         let scenario_passed = comparison.mismatch_ratio <= crate::visual::GLOBAL_MISMATCH_MAX
@@ -890,7 +890,7 @@ pub fn compare_suite(
             "worst_tile_ratio": comparison.worst_tile_ratio,
             "worst_tile": comparison.worst_tile,
             "mismatched": comparison.mismatched,
-            "ronie_wordmark_exclusion": branding_exclusion,
+            "ronnie_wordmark_exclusion": branding_exclusion,
         }));
     }
     let report = serde_json::json!({
@@ -915,7 +915,7 @@ pub fn compare_suite(
     Ok(())
 }
 
-fn mask_ronie_wordmark(
+fn mask_ronnie_wordmark(
     reference: &mut eframe::egui::ColorImage,
     candidate: &mut eframe::egui::ColorImage,
     scenario: &UiScenario,
@@ -986,14 +986,14 @@ fn browser_query(id: &str) -> ToneQuery {
         "browser-calibrated-ir" => query.gear = "cab".to_owned(),
         "browser-tags-picked" => query.tags = vec!["rock".to_owned()],
         "browser-profile-recent" | "browser-profile-search" => {
-            query.profile = ronie_core::Profile::Downloaded;
+            query.profile = ronnie_core::Profile::Downloaded;
             query.text = if id == "browser-profile-search" {
                 "vox".to_owned()
             } else {
                 String::new()
             };
         }
-        "browser-profile-empty" => query.profile = ronie_core::Profile::Favorited,
+        "browser-profile-empty" => query.profile = ronnie_core::Profile::Favorited,
         _ => {}
     }
     query
@@ -1030,7 +1030,7 @@ fn filter_menu(id: &str) -> Option<FilterMenu> {
 fn catalog_page(scenario: &UiScenario) -> Option<Page<Tone>> {
     let authenticated = scenario.state["auth"].as_bool().unwrap_or(false);
     let query = browser_query(&scenario.id);
-    let profile = query.profile != ronie_core::Profile::None;
+    let profile = query.profile != ronnie_core::Profile::None;
     let payload = if profile {
         &scenario.state["api"]["gated"]
     } else if authenticated {
@@ -1230,7 +1230,7 @@ impl AuthFlowAdapter for ScenarioAuthFlow {
         Some("https://fixtures.invalid/authorize".to_owned())
     }
 
-    fn sign_out(&mut self) -> Result<(), ronie_core::OAuthError> {
+    fn sign_out(&mut self) -> Result<(), ronnie_core::OAuthError> {
         self.snapshot.phase = AuthPhase::Idle;
         Ok(())
     }

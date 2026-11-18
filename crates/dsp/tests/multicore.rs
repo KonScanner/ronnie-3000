@@ -2,8 +2,8 @@
 
 use std::num::{NonZeroU8, NonZeroUsize};
 
-use ronie_dsp::{PhaseEngine, compile_model, rt::RtWorkerPool};
-use ronie_oracle::synthetic::synthetic_a2_document;
+use ronnie_dsp::{PhaseEngine, compile_model, rt::RtWorkerPool};
+use ronnie_oracle::synthetic::synthetic_a2_document;
 
 fn input(frames: usize, channels: usize, offset: usize) -> Vec<f32> {
     (0..frames * channels)

@@ -80,12 +80,12 @@ jobs:
         run: make appimage VERSION="$VERSION" DIST_DIR=dist
       - name: Build the VST3 plugin
         if: hashFiles('packaging/vst3/bundle.sh') != ''
-        run: cargo build --release --locked -p ronie-plugin-nice
+        run: cargo build --release --locked -p ronnie-plugin-nice
       - name: Bundle the VST3 plugin
         if: hashFiles('packaging/vst3/bundle.sh') != ''
         env:
           PLATFORM: linux-${{ matrix.arch }}
-          LIBRARY: target/release/libronie_plugin_nice.so
+          LIBRARY: target/release/libronnie_plugin_nice.so
         run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -113,27 +113,27 @@ jobs:
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - name: Build both architectures
         run: |
-          cargo build --release --locked -p ronie-app --bin ronie --target aarch64-apple-darwin
-          cargo build --release --locked -p ronie-app --bin ronie --target x86_64-apple-darwin
+          cargo build --release --locked -p ronnie-app --bin ronnie --target aarch64-apple-darwin
+          cargo build --release --locked -p ronnie-app --bin ronnie --target x86_64-apple-darwin
           mkdir -p target/universal
-          lipo -create -output target/universal/ronie \
-            target/aarch64-apple-darwin/release/ronie \
-            target/x86_64-apple-darwin/release/ronie
+          lipo -create -output target/universal/ronnie \
+            target/aarch64-apple-darwin/release/ronnie \
+            target/x86_64-apple-darwin/release/ronnie
       - name: Build the app bundle
-        run: BINARY=target/universal/ronie DIST_DIR=dist bash packaging/macos/bundle.sh
+        run: BINARY=target/universal/ronnie DIST_DIR=dist bash packaging/macos/bundle.sh
       - name: Build the VST3 plugin for both architectures
         if: hashFiles('packaging/vst3/bundle.sh') != ''
         run: |
-          cargo build --release --locked -p ronie-plugin-nice --target aarch64-apple-darwin
-          cargo build --release --locked -p ronie-plugin-nice --target x86_64-apple-darwin
-          lipo -create -output target/universal/libronie_plugin_nice.dylib \
-            target/aarch64-apple-darwin/release/libronie_plugin_nice.dylib \
-            target/x86_64-apple-darwin/release/libronie_plugin_nice.dylib
+          cargo build --release --locked -p ronnie-plugin-nice --target aarch64-apple-darwin
+          cargo build --release --locked -p ronnie-plugin-nice --target x86_64-apple-darwin
+          lipo -create -output target/universal/libronnie_plugin_nice.dylib \
+            target/aarch64-apple-darwin/release/libronnie_plugin_nice.dylib \
+            target/x86_64-apple-darwin/release/libronnie_plugin_nice.dylib
       - name: Bundle the VST3 plugin
         if: hashFiles('packaging/vst3/bundle.sh') != ''
         env:
           PLATFORM: macos-universal
-          LIBRARY: target/universal/libronie_plugin_nice.dylib
+          LIBRARY: target/universal/libronnie_plugin_nice.dylib
         run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -155,25 +155,25 @@ jobs:
       - name: Install Rust from rust-toolchain.toml
         run: rustup toolchain install
       - name: Build
-        run: cargo build --release --locked -p ronie-app --bin ronie
+        run: cargo build --release --locked -p ronnie-app --bin ronnie
       - name: Build the zip
         shell: pwsh
         run: |
           $name = "ronnie-3000-$env:VERSION-windows-x86_64"
           $folder = "dist/$name"
           New-Item -ItemType Directory -Force -Path $folder | Out-Null
-          Copy-Item target/release/ronie.exe "$folder/Ronnie 3000.exe"
+          Copy-Item target/release/ronnie.exe "$folder/Ronnie 3000.exe"
           Copy-Item LICENSE "$folder/LICENSE.txt"
           Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
       - name: Build the VST3 plugin
         if: hashFiles('packaging/vst3/bundle.sh') != ''
-        run: cargo build --release --locked -p ronie-plugin-nice
+        run: cargo build --release --locked -p ronnie-plugin-nice
       - name: Bundle the VST3 plugin
         if: hashFiles('packaging/vst3/bundle.sh') != ''
         shell: bash
         env:
           PLATFORM: windows-x86_64
-          LIBRARY: target/release/ronie_plugin_nice.dll
+          LIBRARY: target/release/ronnie_plugin_nice.dll
         run: DIST_DIR=dist bash packaging/vst3/bundle.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

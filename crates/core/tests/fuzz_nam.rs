@@ -1,7 +1,7 @@
 //! Property-based malformed-input and parser-boundary tests.
 
 use proptest::prelude::*;
-use ronie_core::{NamError, parse_nam};
+use ronnie_core::{NamError, parse_nam};
 use serde_json::json;
 
 fn document_with_depth(arrays: usize) -> Vec<u8> {

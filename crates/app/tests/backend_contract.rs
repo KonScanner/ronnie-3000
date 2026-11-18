@@ -9,15 +9,15 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use ronie_app::standalone_backend::StandaloneBackend;
-use ronie_core::{
+use ronnie_app::standalone_backend::StandaloneBackend;
+use ronnie_core::{
     BlockId, BlockParams, ChainBranch, ChainSide, ChainSnapshot, EqParams, InputMode, LocalStash,
     MidiSource, ModelBytes, ModelId, PREFERENCES_SETTINGS, Tone,
     params::{ParameterCatalog, ParameterId, ParameterValue},
 };
-use ronie_dsp::PrepareSpec;
-use ronie_plugin::{ProcessorBackend, RonieProcessor};
-use ronie_ui::{
+use ronnie_dsp::PrepareSpec;
+use ronnie_plugin::{ProcessorBackend, RonnieProcessor};
+use ronnie_ui::{
     backend::{
         AudioDeviceConfig, ChainFaultKind, ChainViewState, DeviceAction, GesturePhase, HostControl,
         MidiAction, MockBackend, NavigationAction, UiAction, UiBackend, UiEffect, UiError,
@@ -197,7 +197,7 @@ impl Refusal {
 
 fn processor(root: &std::path::Path) -> ProcessorBackend {
     let stash = LocalStash::new(root.join("stash")).expect("stash");
-    ProcessorBackend::new(RonieProcessor::with_stash(
+    ProcessorBackend::new(RonnieProcessor::with_stash(
         PrepareSpec {
             host_sample_rate: 48_000.0,
             max_host_frames: 128,
@@ -243,7 +243,7 @@ fn unknown() -> BlockId {
     BlockId("no-such-block".to_owned())
 }
 
-fn position(lane: &[ronie_core::ChainBlock], id: &BlockId) -> Option<usize> {
+fn position(lane: &[ronnie_core::ChainBlock], id: &BlockId) -> Option<usize> {
     lane.iter().position(|block| &block.id == id)
 }
 
@@ -375,7 +375,7 @@ fn a_branch_after_a_removed_tone_moves_to_the_tone_before_it() {
         let first = adapter.load(0, 1);
         let second = adapter.load(1, 2);
         adapter.accept(UiAction::SetStereoMode(true));
-        adapter.accept(UiAction::SetBranch(Some(ronie_core::ChainBranch {
+        adapter.accept(UiAction::SetBranch(Some(ronnie_core::ChainBranch {
             side: ChainSide::Left,
             after_block_id: second.clone(),
         })));

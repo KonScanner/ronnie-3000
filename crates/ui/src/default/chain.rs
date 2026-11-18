@@ -8,7 +8,7 @@ use std::{
 };
 
 use eframe::egui::{self, Color32, Pos2, Rect, Sense};
-use ronie_core::{
+use ronnie_core::{
     BlockId, BlockParams, ChainBlock, ChainBranch, ChainSide, ChainSnapshot,
     params::{ParameterId, ParameterValue},
 };
@@ -1091,7 +1091,7 @@ impl ChainGallery {
     /// A load puts its tone where an open slot was, and the lane then closes its gaps, so the
     /// tone can land away from the slot that the user picked. The browser hides the chain while
     /// the load runs, so the reveal must come when the chain shows the tone again.
-    fn reveal_landed_tone(&mut self, chain: &ronie_core::ChainSnapshot) {
+    fn reveal_landed_tone(&mut self, chain: &ronnie_core::ChainSnapshot) {
         // Each change of the chain gets a new revision, so the same revision has the same tones.
         if self
             .known_tones
@@ -1150,7 +1150,7 @@ impl ChainGallery {
             };
             let painter = ui.painter_at(viewport);
             painter.rect_filled(rect, ARROW_SIZE / 2.0, fill);
-            super::header::draw_chevron(&painter, rect, toward_end, false);
+            super::header::draw_chevron(&painter, rect, toward_end, Color32::WHITE);
             if response.clicked() {
                 let delta = if toward_end { step } else { -step };
                 self.scroll_offset = (self.scroll_offset + delta).clamp(0.0, max_offset);
@@ -1169,7 +1169,7 @@ impl ChainGallery {
         let input_stereo = view.chain.stereo_input
             && matches!(
                 view.session.input_mode,
-                ronie_core::InputMode::Stereo | ronie_core::InputMode::DualMono
+                ronnie_core::InputMode::Stereo | ronnie_core::InputMode::DualMono
             );
         let chain = &view.chain;
         let meters = self.backend.meter_levels();
@@ -1883,7 +1883,7 @@ fn horizontal_gradient(rect: Rect, left: egui::Color32, right: egui::Color32) ->
 #[cfg(test)]
 mod tests {
     use eframe::egui::{Rect, pos2, vec2};
-    use ronie_core::BlockId;
+    use ronnie_core::BlockId;
 
     use super::{hidden_edges, landed_tone, reveal_margin, reveal_offset};
 

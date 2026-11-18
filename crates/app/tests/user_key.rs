@@ -1,9 +1,9 @@
 //! The key that the user saves in the app: storage, permissions, removal, and its place in the
 //! order of the service values. The tests use a fake key and contact no service.
 
-use ronie_app::auth::{UserKeySetup, UserKeyStore, configured_community_with_launch};
-use ronie_core::{SettingsStore, UI_PREFERENCES_SETTINGS};
-use ronie_ui::services::key_setup::{KeySetup, KeySetupError};
+use ronnie_app::auth::{UserKeySetup, UserKeyStore, configured_community_with_launch};
+use ronnie_core::{SettingsStore, UI_PREFERENCES_SETTINGS};
+use ronnie_ui::services::key_setup::{KeySetup, KeySetupError};
 
 const KEY: &str = "t3k_pub_test_fake";
 const OTHER_KEY: &str = "t3k_pub_other_fake";
@@ -141,7 +141,7 @@ fn a_launch_origin_wins_over_the_saved_key() {
             .expect("incomplete launch pair")
             .to_string();
 
-    assert!(error.contains("RONIE_OAUTH_CLIENT_ID"), "{error}");
+    assert!(error.contains("RONNIE_OAUTH_CLIENT_ID"), "{error}");
     assert!(!error.contains(KEY), "{error}");
 }
 
@@ -160,6 +160,6 @@ fn an_invalid_launch_model_origin_still_stops_a_saved_key() {
     .expect("invalid model origin")
     .to_string();
 
-    assert!(error.contains("RONIE_MODEL_ORIGINS"), "{error}");
+    assert!(error.contains("RONNIE_MODEL_ORIGINS"), "{error}");
     assert!(!error.contains(KEY), "{error}");
 }

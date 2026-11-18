@@ -1,6 +1,6 @@
 //! Tuner and auto-balance analysis workflow tests.
 
-use ronie_dsp::analysis::{AutoBalance, AutoBalanceState, TunerDetector};
+use ronnie_dsp::analysis::{AutoBalance, AutoBalanceState, TunerDetector};
 
 const FS: f64 = 48_000.0;
 
@@ -36,7 +36,7 @@ fn weak_fundamental(frequency: f64) -> Vec<f32> {
         .collect()
 }
 
-fn reading(tuner: &mut TunerDetector, samples: &[f32]) -> ronie_dsp::analysis::TunerReading {
+fn reading(tuner: &mut TunerDetector, samples: &[f32]) -> ronnie_dsp::analysis::TunerReading {
     tuner.push_samples(samples);
     tuner.get_reading(30)
 }

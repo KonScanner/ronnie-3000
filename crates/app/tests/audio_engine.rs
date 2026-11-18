@@ -5,16 +5,16 @@ use std::{
     sync::Arc,
 };
 
-use ronie_app::{
+use ronnie_app::{
     audio::{AudioBackendKind, DummyBackend, DummyLimits},
     audio_settings::StandaloneAudioSettings,
     standalone_backend::{StandaloneBackend, standalone_processor},
 };
-use ronie_core::{
+use ronnie_core::{
     BlockId, ChainBranch, ChainSide, LocalStash, PREFERENCES_SETTINGS,
     params::{ParameterId, ParameterValue},
 };
-use ronie_ui::{
+use ronnie_ui::{
     backend::{AudioDeviceConfig, ChainFault, DeviceAction, GesturePhase, UiAction, UiBackend},
     default::{AudioDeviceState, BannerViewAction, ChromeController, WindowStep},
     shell::{initial_banner_visible, sync_chain_faults, sync_device_banner},
@@ -267,7 +267,7 @@ fn every_chain_edit_reaches_the_running_chain() {
 
     let stash = LocalStash::new(rig.root.join("stash")).expect("stash");
     let loaded =
-        ronie_core::load_local_path(&rig.write_ir(), &stash, &ronie_dsp::validate_a2_document)
+        ronnie_core::load_local_path(&rig.write_ir(), &stash, &ronnie_dsp::validate_a2_document)
             .expect("local tone");
     let model_id = loaded.tone.models[0].id;
     let target = rig.insert_slot();
@@ -429,7 +429,7 @@ fn a_session_with_a_tone_without_bytes_starts_again_and_runs_it_as_bypass() {
             .expect("insert slot")
             .id
             .clone();
-        let tone = ronie_core::Tone::from_value(serde_json::json!({
+        let tone = ronnie_core::Tone::from_value(serde_json::json!({
             "id": 42,
             "title": "Catalog tone",
             "format": "ir",
@@ -440,7 +440,7 @@ fn a_session_with_a_tone_without_bytes_starts_again_and_runs_it_as_bypass() {
             .dispatch(UiAction::LoadTone {
                 target_insert_id: target.clone(),
                 tone,
-                model_id: ronie_core::ModelId(7),
+                model_id: ronnie_core::ModelId(7),
             })
             .expect("load tone");
         target
@@ -599,7 +599,7 @@ fn the_prepared_spec_comes_from_the_final_stream_configuration() {
 fn a_device_without_256_clamps_the_moved_buffer_and_the_file_keeps_the_request() {
     let directory = tempfile::tempdir().expect("tempdir");
     let root = directory.path();
-    ronie_core::SettingsStore::new(root.join(PREFERENCES_SETTINGS))
+    ronnie_core::SettingsStore::new(root.join(PREFERENCES_SETTINGS))
         .merge_key(
             "audioSetup",
             "<AUDIOSETUP deviceType=\"Dummy\" inputDeviceName=\"\" outputDeviceName=\"\" sampleRate=\"0\" bufferSize=\"1024\" inputChannels=\"1\" outputChannels=\"2\"></AUDIOSETUP>",
@@ -791,7 +791,7 @@ fn a_model_without_bytes_stays_listed_and_every_other_edit_still_reaches_audio()
     let mut rig = Rig::new();
     let unity = rig.level();
     let target = rig.insert_slot();
-    let tone = ronie_core::Tone::from_value(serde_json::json!({
+    let tone = ronnie_core::Tone::from_value(serde_json::json!({
         "id": 42,
         "title": "Catalog tone",
         "format": "ir",
@@ -802,7 +802,7 @@ fn a_model_without_bytes_stays_listed_and_every_other_edit_still_reaches_audio()
         .dispatch(UiAction::LoadTone {
             target_insert_id: target.clone(),
             tone,
-            model_id: ronie_core::ModelId(7),
+            model_id: ronnie_core::ModelId(7),
         })
         .expect("load tone");
     let status = rig.backend.audio_status().expect("status");
@@ -873,7 +873,7 @@ impl BannerRig {
             .collect()
     }
 
-    fn load_bytes(&self, target: &BlockId, tone: ronie_core::Tone, bytes: &[u8]) {
+    fn load_bytes(&self, target: &BlockId, tone: ronnie_core::Tone, bytes: &[u8]) {
         self.backend
             .dispatch(UiAction::LoadToneWithBytes {
                 target_insert_id: target.clone(),
@@ -939,10 +939,10 @@ impl BannerRig {
 
 const BAD_MODEL_BYTES: &[u8] = b"this is not a model";
 
-fn catalog_tone(title: &str, format: &str) -> ronie_core::Tone {
+fn catalog_tone(title: &str, format: &str) -> ronnie_core::Tone {
     // A title with new bytes must also be a new tone, as in the catalog.
     let id = title.bytes().map(i64::from).sum::<i64>();
-    ronie_core::Tone::from_value(serde_json::json!({
+    ronnie_core::Tone::from_value(serde_json::json!({
         "id": id,
         "title": title,
         "format": format,

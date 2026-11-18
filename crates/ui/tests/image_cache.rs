@@ -10,8 +10,8 @@ use std::{
 };
 
 use eframe::egui::{self, Color32};
-use ronie_core::{DownloadClient, HttpError, HttpResponse, OriginPolicy, RecordedTransport};
-use ronie_ui::{
+use ronnie_core::{DownloadClient, HttpError, HttpResponse, OriginPolicy, RecordedTransport};
+use ronnie_ui::{
     default::{ART_SIDE, AVATAR_SIDE, ImageCache, ImageFetcher},
     services::{HttpImageFetcher, RemoteImages},
 };
@@ -58,7 +58,7 @@ fn load(
     url: &str,
     side: u32,
 ) -> (
-    ronie_ui::default::ImageRequest,
+    ronnie_ui::default::ImageRequest,
     Arc<Mutex<Vec<Option<eframe::egui::ColorImage>>>>,
 ) {
     let results = Arc::new(Mutex::new(Vec::new()));

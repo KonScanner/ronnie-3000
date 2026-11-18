@@ -2,13 +2,15 @@
 
 use std::collections::BTreeMap;
 
-use ronie_core::{AudioDocument, BlockParams, EqBand, EqBandType, EqParams, InputMode, decode_wav};
-use ronie_dsp::{
+use ronnie_core::{
+    AudioDocument, BlockParams, EqBand, EqBandType, EqParams, InputMode, decode_wav,
+};
+use ronnie_dsp::{
     PlanarBuffer, PrepareSpec,
     block::{BlockControls, BlockModel, PreparedBlock, prepare_block},
     ir::compile_ir,
 };
-use ronie_oracle::{ChainOracle, ChainScenario, OracleError, reference_paths};
+use ronnie_oracle::{ChainOracle, ChainScenario, OracleError, reference_paths};
 use serde_json::json;
 
 fn spec() -> PrepareSpec {
@@ -126,9 +128,11 @@ fn post_eq_changes_only_wet_audio_and_flat_eq_is_transparent() {
 
 #[test]
 fn eq_coefficients_follow_rbj_and_every_band_role() {
-    let mut engine =
-        ronie_dsp::block::eq::EqEngine::new(48_000.0, &ronie_dsp::block::eq::EqControls::default());
-    let mut controls = ronie_dsp::block::eq::EqControls {
+    let mut engine = ronnie_dsp::block::eq::EqEngine::new(
+        48_000.0,
+        &ronnie_dsp::block::eq::EqControls::default(),
+    );
+    let mut controls = ronnie_dsp::block::eq::EqControls {
         enabled: true,
         pre: false,
         bands: [
@@ -198,11 +202,11 @@ fn eq_coefficients_follow_rbj_and_every_band_role() {
 
 #[test]
 fn normalization_uses_loudness_or_calibrated_handoff() {
-    let mut document = ronie_oracle::synthetic::synthetic_a2_document(3).expect("document");
+    let mut document = ronnie_oracle::synthetic::synthetic_a2_document(3).expect("document");
     document.metadata.loudness = Some(-30.0);
     document.metadata.input_level_dbu = Some(-12.0);
     document.metadata.output_level_dbu = Some(-6.0);
-    let compiled = ronie_dsp::compile_model(&document).expect("compiled model");
+    let compiled = ronnie_dsp::compile_model(&document).expect("compiled model");
     let mut block = prepare_block(BlockModel::Nam(compiled), spec(), BlockParams::default())
         .expect("NAM block");
     let mut controls = BlockControls {
@@ -444,7 +448,7 @@ fn private_eq_engine_matches_reference() {
     scenario.snapshot["probe"] = json!("eq");
     scenario.callback_frames = vec![4096];
     let reference = oracle.render(&scenario).expect("Reference EQ");
-    let controls = ronie_dsp::block::eq::EqControls::from(&EqParams {
+    let controls = ronnie_dsp::block::eq::EqControls::from(&EqParams {
         enabled: true,
         pre: false,
         bands: vec![EqBand {
@@ -454,7 +458,7 @@ fn private_eq_engine_matches_reference() {
             q: 1.2,
         }],
     });
-    let mut engine = ronie_dsp::block::eq::EqEngine::new(48_000.0, &controls);
+    let mut engine = ronnie_dsp::block::eq::EqEngine::new(48_000.0, &controls);
     let mut actual = scenario.input;
     engine.process(&mut actual, 2);
 

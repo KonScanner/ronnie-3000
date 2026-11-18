@@ -1,14 +1,14 @@
 use std::{env, ffi::OsString, path::PathBuf};
 use thiserror::Error;
 
-const REFERENCE_ROOT: &str = "RONIE_REFERENCE_ROOT";
-const REFERENCE_BUILD: &str = "RONIE_REFERENCE_BUILD";
+const REFERENCE_ROOT: &str = "RONNIE_REFERENCE_ROOT";
+const REFERENCE_BUILD: &str = "RONNIE_REFERENCE_BUILD";
 
 /// Error returned when private Reference configuration is incomplete.
 #[derive(Debug, Error)]
 pub enum FixtureError {
     /// Exactly one of the two required environment variables was set.
-    #[error("set both RONIE_REFERENCE_ROOT and RONIE_REFERENCE_BUILD, or neither")]
+    #[error("set both RONNIE_REFERENCE_ROOT and RONNIE_REFERENCE_BUILD, or neither")]
     IncompleteConfiguration,
 }
 
@@ -48,10 +48,10 @@ mod tests {
     #[test]
     fn reference_paths_incomplete_environment_is_an_error() {
         let root_only = reference_paths_from(|name| {
-            (name == "RONIE_REFERENCE_ROOT").then_some("/private/reference".into())
+            (name == "RONNIE_REFERENCE_ROOT").then_some("/private/reference".into())
         });
         let build_only = reference_paths_from(|name| {
-            (name == "RONIE_REFERENCE_BUILD").then_some("/private/build".into())
+            (name == "RONNIE_REFERENCE_BUILD").then_some("/private/build".into())
         });
 
         assert!(matches!(
@@ -67,8 +67,8 @@ mod tests {
     #[test]
     fn reference_paths_complete_environment_returns_both_paths() {
         let result = reference_paths_from(|name| match name {
-            "RONIE_REFERENCE_ROOT" => Some("/private/reference".into()),
-            "RONIE_REFERENCE_BUILD" => Some("/private/build".into()),
+            "RONNIE_REFERENCE_ROOT" => Some("/private/reference".into()),
+            "RONNIE_REFERENCE_BUILD" => Some("/private/build".into()),
             _ => None,
         });
 

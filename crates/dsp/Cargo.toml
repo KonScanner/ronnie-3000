@@ -1,5 +1,5 @@
 [package]
-name = "ronie-dsp"
+name = "ronnie-dsp"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,7 +15,7 @@ fault-injection = []
 [dependencies]
 clap.workspace = true
 eyre.workspace = true
-ronie-core.workspace = true
+ronnie-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -23,7 +23,7 @@ thiserror.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
-ronie-oracle.workspace = true
+ronnie-oracle.workspace = true
 tempfile.workspace = true
 
 [[bench]]

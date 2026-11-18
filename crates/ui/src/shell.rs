@@ -18,7 +18,7 @@ pub enum ViewMode {
     #[default]
     ReferenceDefault,
     /// Optional Ronnie-specific flow, used only after explicit selection.
-    RonieFlow,
+    RonnieFlow,
 }
 
 /// Whether the Stage layout draws light or dark.
@@ -35,7 +35,11 @@ pub enum Appearance {
 
 impl Appearance {
     /// The key of the explicit choice in the UI preferences of the machine.
-    pub const SETTINGS_KEY: &'static str = "ronie.appearance";
+    pub const SETTINGS_KEY: &'static str = "ronnie.appearance";
+
+    /// The key that versions before the rename to Ronnie wrote. It is read when
+    /// [`Self::SETTINGS_KEY`] is absent.
+    pub const LEGACY_SETTINGS_KEY: &'static str = "ronie.appearance";
 
     /// The stored value of an explicit choice; [`Appearance::System`] stores nothing.
     #[must_use]
@@ -315,7 +319,7 @@ pub struct NativeShellOptions {
     /// Whether the editor exposes standalone-only controls and settings tabs.
     pub standalone: bool,
     /// Preset metadata displayed by the preset browser.
-    pub presets: Vec<ronie_core::PresetInfo>,
+    pub presets: Vec<ronnie_core::PresetInfo>,
     /// Initial account state.
     pub authenticated: bool,
     /// Initial hint-strip state.
@@ -325,12 +329,12 @@ pub struct NativeShellOptions {
     pub auth: Option<Box<dyn crate::services::session::AuthFlowAdapter>>,
     /// Production community service, with its own sign-in flow. This replaces `auth`.
     pub community:
-        Option<crate::services::community::CommunityService<ronie_core::ReqwestTransport>>,
+        Option<crate::services::community::CommunityService<ronnie_core::ReqwestTransport>>,
     /// What the host does with a key that the user pastes. With no service, the sign-in
     /// controls then open the key page, and a saved key starts the service with no restart.
     pub key_setup: Option<Box<dyn crate::services::key_setup::KeySetup>>,
     /// UI preferences used to restore update snoozes and dismissed banners.
-    pub update_settings: Option<ronie_core::SettingsStore>,
+    pub update_settings: Option<ronnie_core::SettingsStore>,
     /// The daily release check. Only the standalone app gives one, so other builds stay offline.
     pub release_feed: Option<Arc<dyn crate::services::release_check::ReleaseFeed>>,
 }
@@ -1011,7 +1015,7 @@ mod tests {
             None
         }
 
-        fn sign_out(&mut self) -> Result<(), ronie_core::OAuthError> {
+        fn sign_out(&mut self) -> Result<(), ronnie_core::OAuthError> {
             Ok(())
         }
 
@@ -1572,14 +1576,14 @@ mod tests {
             .expect("main scenario");
         let directory = tempfile::tempdir().expect("settings root");
         let origin = url::Url::parse("https://api.example").expect("origin");
-        let policy = ronie_core::OriginPolicy::new(origin.clone(), Vec::new());
+        let policy = ronnie_core::OriginPolicy::new(origin.clone(), Vec::new());
         let community = crate::services::community::CommunityService::new(
-            ronie_core::OAuthConfig::new(origin, "public-client"),
+            ronnie_core::OAuthConfig::new(origin, "public-client"),
             policy.clone(),
-            ronie_core::ReqwestTransport::new(policy).expect("transport"),
-            ronie_core::SettingsStore::standalone(
+            ronnie_core::ReqwestTransport::new(policy).expect("transport"),
+            ronnie_core::SettingsStore::standalone(
                 directory.path(),
-                ronie_core::UI_PREFERENCES_SETTINGS,
+                ronnie_core::UI_PREFERENCES_SETTINGS,
             ),
         );
         let mut options = NativeShellOptions {

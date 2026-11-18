@@ -1,4 +1,4 @@
-use ronie_core::{DspError, DspResult, NamArchitecture, NamDocument, parse_nam};
+use ronnie_core::{DspError, DspResult, NamArchitecture, NamDocument, parse_nam};
 use std::{num::NonZeroUsize, sync::Arc};
 
 use crate::{A2Model, CompiledA2, compile_a2};
@@ -226,7 +226,7 @@ impl SlimmableContainer {
         self.submodels[self.active_index].model.prewarm_samples()
     }
 
-    fn active_metadata(&self) -> &ronie_core::NamMetadata {
+    fn active_metadata(&self) -> &ronnie_core::NamMetadata {
         self.submodels[self.active_index].model.metadata()
     }
 }
@@ -352,7 +352,7 @@ impl ModelEngine {
 
     /// Metadata for the active model.
     #[must_use]
-    pub fn metadata(&self) -> &ronie_core::NamMetadata {
+    pub fn metadata(&self) -> &ronnie_core::NamMetadata {
         match self {
             Self::Single(model) => model.metadata(),
             Self::Slimmable(container) => container.active_metadata(),
@@ -396,7 +396,7 @@ mod tests {
 
     fn container() -> SlimmableContainer {
         let document =
-            ronie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
+            ronnie_oracle::synthetic::synthetic_a2_document(3).expect("synthetic document");
         let model = Arc::new(compile_a2(&document).expect("compiled model"));
         let child = || A2Model::new(Arc::clone(&model)).expect("child engine");
         SlimmableContainer::new(
