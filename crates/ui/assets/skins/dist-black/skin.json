@@ -1,0 +1,50 @@
+{
+  "id": "dist-black",
+  "width": 587,
+  "height": 749,
+  "knobs": [
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        197.0,
+        98.0
+      ],
+      "side": 96,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        310.0,
+        98.0
+      ],
+      "side": 96,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        424.0,
+        98.0
+      ],
+      "side": 96,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      310.5,
+      185.4
+    ],
+    "size": [
+      77.6,
+      24.0
+    ]
+  }
+}

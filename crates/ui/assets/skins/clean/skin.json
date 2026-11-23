@@ -1,0 +1,40 @@
+{
+  "id": "clean",
+  "width": 912,
+  "height": 900,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        263.0,
+        276.0
+      ],
+      "side": 52,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        343.0,
+        276.0
+      ],
+      "side": 52,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        423.0,
+        276.0
+      ],
+      "side": 52,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

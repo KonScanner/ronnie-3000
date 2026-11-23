@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "decision": {
+    "status": "selected_for_linux_milestone",
+    "toolkit": "eframe/egui",
+    "version": "0.37.0",
+    "renderer": "glow",
+    "window_backend": "x11",
+    "windowing_version": "winit 0.30.13",
+    "raw_window_handle_version": "0.6.2",
+    "native_picker": "rfd 0.17.2 with XDG portal",
+    "accessibility": "AccessKit 0.25.2 with accesskit_winit 0.34.2 and accesskit_unix 0.24.1",
+    "reason": "The candidate passed native X11 rendering, input, scaling, handles, parented picker creation, embedded fonts, and synthetic accessibility-tree probes. OpenGL returned every capture in the selected matrix and used less memory than the tested wgpu path.",
+    "scope": "This selects the toolkit for the Linux standalone milestone. It does not lock Windows or macOS embedding and does not promote the spike into product architecture."
+  },
+  "dependency_gate": {
+    "rust_toolchain": "1.98.0",
+    "cargo_deny": "passed: advisories, bans, licenses, and sources",
+    "cargo_audit": "passed with three allowed maintenance warnings and no reported vulnerabilities",
+    "allowed_maintenance_notices": [
+      {
+        "id": "RUSTSEC-2026-0370",
+        "crate": "zvariant 5.15.1",
+        "reason": "Maintenance-only notice in AccessKit's atspi 0.29 dependency; no compatible patched release is available."
+      },
+      {
+        "id": "RUSTSEC-2026-0371",
+        "crate": "zbus_names 4.3.5",
+        "reason": "Maintenance-only notice in AccessKit's atspi 0.29 dependency; no compatible patched release is available."
+      },
+      {
+        "id": "RUSTSEC-2026-0372",
+        "crate": "zvariant_derive 5.15.1",
+        "reason": "Maintenance-only notice in AccessKit's atspi 0.29 dependency; no compatible patched release is available."
+      }
+    ],
+    "font_assets": {
+      "arimo": "Apache-2.0; license text embedded in the source assets",
+      "roboto_mono": "OFL-1.1; license text embedded in the source assets"
+    }
+  },
+  "rejected_candidates": [
+    {
+      "name": "floem",
+      "version": "0.2.0",
+      "license": "MIT",
+      "reason": "The published crate and feature inventory contained no AccessKit integration, so the required named accessibility-tree probe was not available. Its README also describes the API as maturing."
+    },
+    {
+      "name": "iced",
+      "version": "0.14.0",
+      "license": "MIT",
+      "reason": "The published crate and feature inventory contained no AccessKit integration, so the required named accessibility-tree probe was not available. Its README also labels the project experimental."
+    },
+    {
+      "name": "slint",
+      "version": "1.17.0",
+      "license": "GPL-3.0-only OR LicenseRef-Slint-Royalty-free-2.0 OR LicenseRef-Slint-Software-3.0",
+      "reason": "Rejected before a spike because the approved requirements exclude GPL/commercial licensing ambiguity and require a simple permissive dependency policy."
+    }
+  ],
+  "renderer_comparison": {
+    "selected": "glow",
+    "wgpu_observation": "The 1x capture completed, but the 1.5x and 2x screenshot callbacks did not return on this host. The delivered spike does not retain the unused wgpu dependency.",
+    "glow_observation": "All 1x, 1.5x, and 2x scenarios completed with native input, minimize/restore, resize, and saved captures.",
+    "wgpu_status": "unresolved renderer-specific evidence; not selected for the Linux milestone"
+  },
+  "capability_matrix": [
+    {
+      "scale": 1.0,
+      "native_pixels_per_point": 1.0,
+      "effective_pixels_per_point": 1.0,
+      "backend": "x11",
+      "raw_window_handle": true,
+      "raw_display_handle": true,
+      "embedded_parent_contract": true,
+      "logical_widths": [1024.0, 1280.0],
+      "screenshot_dimensions": [1280, 720],
+      "native_save_actions": 1,
+      "minimized_observed": true,
+      "update_cpu_us": {
+        "median": 1234.668,
+        "p99": 2647.201,
+        "max": 61155.29
+      },
+      "peak_rss_kib": 101768,
+      "hidden_scheduling": "250 ms lifecycle repaint requested; event-driven hidden intervals varied"
+    },
+    {
+      "scale": 1.5,
+      "native_pixels_per_point": 1.5,
+      "effective_pixels_per_point": 1.5,
+      "backend": "x11",
+      "raw_window_handle": true,
+      "raw_display_handle": true,
+      "embedded_parent_contract": true,
+      "logical_widths": [1024.0, 1280.0],
+      "screenshot_dimensions": [1920, 1080],
+      "native_save_actions": 1,
+      "minimized_observed": true,
+      "update_cpu_us": {
+        "median": 1377.547,
+        "p99": 3210.944,
+        "max": 69507.388
+      },
+      "peak_rss_kib": 110836,
+      "hidden_scheduling": "250 ms lifecycle repaint requested; event-driven hidden intervals varied"
+    },
+    {
+      "scale": 2.0,
+      "native_pixels_per_point": 2.0,
+      "effective_pixels_per_point": 2.0,
+      "backend": "x11",
+      "raw_window_handle": true,
+      "raw_display_handle": true,
+      "embedded_parent_contract": true,
+      "logical_widths": [1024.0, 1280.0],
+      "screenshot_dimensions": [2560, 1371],
+      "native_save_actions": 1,
+      "minimized_observed": true,
+      "update_cpu_us": {
+        "median": 1095.506,
+        "p99": 2308.353,
+        "max": 68307.827
+      },
+      "peak_rss_kib": 121400,
+      "hidden_scheduling": "250 ms lifecycle repaint requested; event-driven hidden intervals varied"
+    }
+  ],
+  "synthetic_input_and_accessibility": {
+    "keyboard_save_actions": 1,
+    "mouse_save_actions": 1,
+    "touch_save_actions": 1,
+    "file_drop_actions": 1,
+    "accesskit_tree_updates": 24,
+    "accesskit_max_nodes": 61,
+    "named_save_control": true,
+    "named_output_slider": true,
+    "note": "The same view code drove keyboard, pointer, touch-plus-pointer emulation, and dropped-file input. These are deterministic toolkit-level probes, not claims of physical-device coverage."
+  },
+  "native_picker": {
+    "parented_open": "passed",
+    "selection_and_cancel_completion": "unresolved",
+    "reason": "The XDG picker opened with the native parent contract. Its desktop portal is outside the X11 driver's control on this Wayland host, so unattended selection/cancel was not claimed."
+  },
+  "unresolved": [
+    {
+      "id": "at-spi-platform-activation",
+      "status": "unresolved",
+      "reason": "The synthetic AccessKit tree passed, but AT-SPI is disabled on this host. Platform activation and an actual screen-reader walkthrough remain unverified; no system setting was changed."
+    },
+    {
+      "id": "native-picker-completion",
+      "status": "unresolved",
+      "reason": "Parented picker creation passed, but selection and cancellation need a desktop-appropriate driver or an operator run."
+    },
+    {
+      "id": "linux-file-manager-drop",
+      "status": "unresolved",
+      "reason": "The deterministic dropped-file probe passed; an actual Linux file-manager drop is deferred to the signal-chain gallery task."
+    },
+    {
+      "id": "windows-child-window",
+      "status": "unresolved_resource_blocker",
+      "reason": "No Windows desktop, host, or child-window validation environment is available. The borrowed raw-window-handle parent contract is only a feasibility boundary."
+    },
+    {
+      "id": "macos-child-nsview",
+      "status": "unresolved_resource_blocker",
+      "reason": "No macOS desktop, host, or child-NSView validation environment is available. The borrowed raw-window-handle parent contract is only a feasibility boundary."
+    },
+    {
+      "id": "wgpu-high-dpi-capture",
+      "status": "unresolved_not_selected",
+      "reason": "The tested wgpu path did not return 1.5x or 2x captures. OpenGL is selected for this milestone instead of hiding that result."
+    }
+  ],
+  "verification": {
+    "workspace_gate": "script/check.sh",
+    "audit_gate": "cargo audit",
+    "generated_captures_tracked": false,
+    "private_paths_or_credentials_in_evidence": false
+  }
+}

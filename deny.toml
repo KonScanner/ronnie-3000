@@ -1,0 +1,34 @@
+[advisories]
+yanked = "deny"
+ignore = [
+    { id = "RUSTSEC-2026-0370", reason = "Maintenance-only notice in AccessKit's atspi 0.29 dependency; zvariant moved to the incompatible zbus 6 line. No vulnerability or compatible patched release; tracked in the UI toolkit evidence." },
+    { id = "RUSTSEC-2026-0371", reason = "Maintenance-only notice in AccessKit's atspi 0.29 dependency; zbus_names moved to the incompatible zbus 6 line. No vulnerability or compatible patched release; tracked in the UI toolkit evidence." },
+    { id = "RUSTSEC-2026-0372", reason = "Maintenance-only notice in AccessKit's atspi 0.29 dependency; zvariant_derive moved to the incompatible zbus 6 line. No vulnerability or compatible patched release; tracked in the UI toolkit evidence." },
+]
+
+[bans]
+multiple-versions = "warn"
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "Unicode-3.0",
+    "ISC",
+    "BSD-3-Clause",
+    "MIT-0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "Zlib",
+]
+confidence-threshold = 0.93
+# Windows-only clipboard crates, pulled in by the egui clipboard feature for "Copy Link".
+exceptions = [
+    { allow = ["BSL-1.0"], crate = "clipboard-win" },
+    { allow = ["BSL-1.0"], crate = "error-code" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: jack
+Description: JACK runtime discovered dynamically by the audio backend
+Version: 1.9.22
+Libs: -l:libjack.so.0
+Cflags:

@@ -1,0 +1,40 @@
+{
+  "id": "british",
+  "width": 1504,
+  "height": 897,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        400.0,
+        384.0
+      ],
+      "side": 78,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        515.0,
+        384.0
+      ],
+      "side": 78,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        630.0,
+        384.0
+      ],
+      "side": 78,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

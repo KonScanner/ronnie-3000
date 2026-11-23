@@ -1,0 +1,510 @@
+use crate::{
+    BlockId, ByteCacheKey, ModelByteCache, ModelBytes, ModelId, ModelNamespace, ModelSource,
+    ReferencedModelBytes, RestoreError, SessionSnapshot, StateError, StateTree, StateTreeCodec,
+    StateValue, ToneError, migrate_param_ids, references_model,
+};
+
+const STATE_MAGIC: &[u8; 4] = b"T3KB";
+const STATE_SCHEMA_VERSION: i64 = 1;
+
+/// Referenced embedded model bytes retained by a session document.
+pub type ModelCache = Vec<ReferencedModelBytes>;
+
+/// Complete session with raw and typed projections.
+#[derive(Debug, Clone)]
+pub struct SessionDocument {
+    /// Raw migrated root tree, including unknown fields.
+    pub raw: StateTree,
+    /// Typed session and chain snapshot.
+    pub snapshot: SessionSnapshot,
+    /// Parameter state after legacy migration.
+    pub parameters: StateTree,
+    /// MIDI state after legacy migration.
+    pub midi: StateTree,
+    /// Referenced embedded model bytes only.
+    pub model_cache: ModelCache,
+}
+
+/// Bounded `T3KB` schema-version-1 codec.
+#[derive(Debug, Clone)]
+pub struct StateCodec {
+    codec: StateTreeCodec,
+}
+
+impl Default for StateCodec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StateCodec {
+    /// Creates a codec with the default binary limits.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            codec: StateTreeCodec::default(),
+        }
+    }
+
+    /// Decodes magic, schema, raw trees, typed snapshots, migration, and referenced bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns magic, schema, binary codec, tone, or chain errors.
+    pub fn decode_session(&self, input: &[u8]) -> Result<SessionDocument, StateError> {
+        if input.len() < STATE_MAGIC.len() || &input[..STATE_MAGIC.len()] != STATE_MAGIC {
+            return Err(StateError::InvalidMagic);
+        }
+        let mut raw = self.codec.read_tree(&input[STATE_MAGIC.len()..])?;
+        let schema = int_property(&raw, "schemaVersion").unwrap_or(STATE_SCHEMA_VERSION);
+        if schema > STATE_SCHEMA_VERSION {
+            return Err(StateError::UnsupportedSchema(schema));
+        }
+        let snapshot = SessionSnapshot::from_state_tree(&raw)?;
+        let mut parameters = child(&raw, "PARAMETERS")
+            .cloned()
+            .unwrap_or_else(|| empty_tree("PARAMETERS"));
+        let mut midi = child(&raw, "MidiMappings")
+            .cloned()
+            .unwrap_or_else(|| empty_tree("MidiMappings"));
+        let _ = migrate_param_ids(&mut parameters, "id");
+        let _ = migrate_param_ids(&mut midi, "targetId");
+        replace_child(&mut raw, "PARAMETERS", &parameters);
+        replace_child(&mut raw, "MidiMappings", &midi);
+        let model_cache = collect_model_cache(&raw, &snapshot)?;
+        Ok(SessionDocument {
+            raw,
+            snapshot,
+            parameters,
+            midi,
+            model_cache,
+        })
+    }
+
+    /// Encodes a session with only model bytes still referenced by its typed chain.
+    ///
+    /// # Errors
+    ///
+    /// Returns binary codec, cache-selection, or tone errors.
+    pub fn encode_session(&self, document: &SessionDocument) -> Result<Vec<u8>, StateError> {
+        let mut raw = document.raw.clone();
+        set_property(
+            &mut raw,
+            "schemaVersion",
+            StateValue::Int(STATE_SCHEMA_VERSION as i32),
+        );
+        rewrite_model_caches(&mut raw, document)?;
+        let mut output = STATE_MAGIC.to_vec();
+        output.extend_from_slice(&self.codec.write_tree(&raw)?);
+        Ok(output)
+    }
+}
+
+/// Existing cache and current snapshot used for restoration reconciliation.
+#[derive(Debug, Clone, Copy)]
+pub struct RestoreCaches<'a> {
+    /// Authoritative per-block byte cache to re-seed.
+    pub bytes: &'a ModelByteCache,
+    /// Current snapshot whose matching block identities can retain prepared engines.
+    pub current: Option<&'a SessionSnapshot>,
+}
+
+/// One cache-first background preparation job.
+#[derive(Debug, Clone)]
+pub struct PreparationJob {
+    /// Unique generation within this restore plan.
+    pub generation: u64,
+    /// Destination block.
+    pub block_id: BlockId,
+    /// Model to prepare: the block's active model, or its IR B in a second job.
+    pub model_id: ModelId,
+    /// Retry source when embedded bytes are absent.
+    pub source: Option<ModelSource>,
+    /// Embedded bytes, present for offline preparation.
+    pub bytes: Option<ModelBytes>,
+}
+
+/// Reconciled snapshot and all work required to restore it.
+#[derive(Debug, Clone)]
+pub struct RestorePlan {
+    /// Restored typed snapshot.
+    pub snapshot: SessionSnapshot,
+    /// Preparation jobs, one per (block, model): the active model and any IR B.
+    pub jobs: Vec<PreparationJob>,
+    /// Blocks whose identities match the current snapshot and need no forced recompile.
+    pub reconciled_block_ids: Vec<BlockId>,
+}
+
+/// Builds a cache-first restoration plan without mutating the current snapshot or cache.
+/// Byte publication happens only after every active model has bytes or a retry source. An IR B
+/// with neither gets no job, and its block plays the active model alone.
+///
+/// # Errors
+///
+/// Returns [`RestoreError::MissingModel`] for an unrecoverable active model, or a cache error.
+pub fn restore_offline(
+    document: &SessionDocument,
+    caches: RestoreCaches<'_>,
+) -> Result<RestorePlan, RestoreError> {
+    let restore_generation = caches.bytes.begin_restore();
+    let mut jobs = Vec::new();
+    let mut pending = Vec::new();
+    for block in document
+        .snapshot
+        .chain
+        .left
+        .iter()
+        .chain(&document.snapshot.chain.right)
+        .filter(|block| !block.is_insert)
+    {
+        for model_id in prepared_models(block) {
+            let source = block.tone.as_ref().and_then(|tone| {
+                tone.models
+                    .iter()
+                    .find(|model| model.id == model_id)
+                    .and_then(|model| model.source.clone())
+            });
+            let namespace = crate::model_namespace(block, model_id);
+            let key = ByteCacheKey {
+                block_id: block.id.clone(),
+                model_id,
+                namespace,
+            };
+            let bytes = document
+                .model_cache
+                .iter()
+                .find(|entry| {
+                    entry.block_id == block.id
+                        && entry.model_id == model_id
+                        && entry.namespace == namespace
+                })
+                .map(|entry| entry.bytes.clone())
+                .or_else(|| caches.bytes.get(&key));
+            if bytes.is_none() && source.is_none() {
+                // A missing IR B must not stop the restore: the block plays A alone.
+                if Some(model_id) != block.active_model_id {
+                    continue;
+                }
+                return Err(RestoreError::MissingModel {
+                    block_id: block.id.clone(),
+                    model_id,
+                });
+            }
+            jobs.push(PreparationJob {
+                generation: jobs.len() as u64 + 1,
+                block_id: block.id.clone(),
+                model_id,
+                source,
+                bytes,
+            });
+        }
+    }
+    for block in document
+        .snapshot
+        .chain
+        .left
+        .iter()
+        .chain(&document.snapshot.chain.right)
+    {
+        for entry in &document.model_cache {
+            if entry.block_id == block.id
+                && entry.namespace == crate::model_namespace(block, entry.model_id)
+                && references_model(block, entry.model_id)
+            {
+                pending.push((
+                    ByteCacheKey {
+                        block_id: entry.block_id.clone(),
+                        model_id: entry.model_id,
+                        namespace: entry.namespace,
+                    },
+                    entry.bytes.clone(),
+                ));
+            }
+        }
+    }
+    let reconciled_block_ids = caches.current.map_or_else(Vec::new, |current| {
+        document
+            .snapshot
+            .chain
+            .left
+            .iter()
+            .chain(&document.snapshot.chain.right)
+            .filter(|block| {
+                current
+                    .chain
+                    .left
+                    .iter()
+                    .chain(&current.chain.right)
+                    .any(|existing| {
+                        if existing.id != block.id
+                            || existing.is_insert != block.is_insert
+                            || existing.active_model_id != block.active_model_id
+                            || existing.ir_b != block.ir_b
+                            || existing.tone != block.tone
+                            || existing.params != block.params
+                        {
+                            return false;
+                        }
+                        prepared_models(block).all(|model_id| {
+                            let key = ByteCacheKey {
+                                block_id: block.id.clone(),
+                                model_id,
+                                namespace: crate::model_namespace(block, model_id),
+                            };
+                            let Some(job) = jobs
+                                .iter()
+                                .find(|job| job.block_id == block.id && job.model_id == model_id)
+                            else {
+                                // Only an IR B is skipped, and it has no bytes to compare.
+                                return true;
+                            };
+                            match (job.bytes.as_ref(), caches.bytes.get(&key)) {
+                                (Some(restored), Some(current)) => {
+                                    restored.as_ref() == current.as_ref()
+                                }
+                                (Some(_), None) => true,
+                                (None, _) => false,
+                            }
+                        })
+                    })
+            })
+            .map(|block| block.id.clone())
+            .collect()
+    });
+    caches.bytes.publish_restore(restore_generation, pending)?;
+    Ok(RestorePlan {
+        snapshot: document.snapshot.clone(),
+        jobs,
+        reconciled_block_ids,
+    })
+}
+
+/// The models a restore prepares for one block: the active model, then IR B when it differs.
+/// A block without an active model prepares nothing, even with an IR B.
+fn prepared_models(block: &crate::ChainBlock) -> impl Iterator<Item = ModelId> + '_ {
+    let active = block.active_model_id;
+    let ir_b = block
+        .ir_b
+        .map(|ir_b| ir_b.model_id)
+        .filter(|id| active.is_some() && Some(*id) != active);
+    active.into_iter().chain(ir_b)
+}
+
+fn collect_model_cache(
+    raw: &StateTree,
+    snapshot: &SessionSnapshot,
+) -> Result<ModelCache, StateError> {
+    let mut entries = Vec::new();
+    for block in snapshot
+        .chain
+        .left
+        .iter()
+        .chain(&snapshot.chain.right)
+        .filter(|block| !block.is_insert)
+    {
+        let Some(raw_block) = find_raw_block(raw, &block.id) else {
+            continue;
+        };
+        let Some(cache) = child(raw_block, "ModelCache") else {
+            continue;
+        };
+        let namespace = if block.tone.as_ref().is_some_and(|tone| tone.local) {
+            ModelNamespace::Local
+        } else {
+            ModelNamespace::Catalog
+        };
+        for cached in &cache.children {
+            if cached.identifier != "CachedModel" {
+                continue;
+            }
+            let Some(model_id) = int_property(cached, "modelId").map(ModelId) else {
+                continue;
+            };
+            if !references_model(block, model_id) {
+                continue;
+            }
+            let Some(data) = property(cached, "data").and_then(|value| match value {
+                StateValue::Binary(data) => Some(data),
+                _ => None,
+            }) else {
+                continue;
+            };
+            entries.push(ReferencedModelBytes {
+                block_id: block.id.clone(),
+                model_id,
+                namespace,
+                bytes: ModelBytes::from(data.clone()),
+            });
+        }
+    }
+    Ok(entries)
+}
+
+fn rewrite_model_caches(raw: &mut StateTree, document: &SessionDocument) -> Result<(), StateError> {
+    for block in document
+        .snapshot
+        .chain
+        .left
+        .iter()
+        .chain(&document.snapshot.chain.right)
+        .filter(|block| !block.is_insert)
+    {
+        let Some(raw_block) = find_raw_block_mut(raw, &block.id) else {
+            continue;
+        };
+        if !raw_block
+            .children
+            .iter()
+            .any(|child| child.identifier == "ModelCache")
+        {
+            raw_block.children.push(StateTree {
+                identifier: "ModelCache".into(),
+                properties: Vec::new(),
+                children: Vec::new(),
+            });
+        }
+        let Some(cache) = raw_block
+            .children
+            .iter_mut()
+            .find(|child| child.identifier == "ModelCache")
+        else {
+            continue;
+        };
+        let previous = std::mem::take(&mut cache.children);
+        let mut matched = std::collections::HashSet::new();
+        for mut cached in previous {
+            if cached.identifier != "CachedModel" {
+                cache.children.push(cached);
+                continue;
+            }
+            let Some(model_id) = int_property(&cached, "modelId").map(ModelId) else {
+                continue;
+            };
+            if matched.contains(&model_id) {
+                continue;
+            }
+            let Some(entry) = document.model_cache.iter().find(|entry| {
+                entry.block_id == block.id
+                    && entry.model_id == model_id
+                    && entry.namespace == crate::model_namespace(block, model_id)
+                    && references_model(block, model_id)
+            }) else {
+                continue;
+            };
+            set_property(&mut cached, "modelId", StateValue::Int64(model_id.0));
+            set_property(
+                &mut cached,
+                "data",
+                StateValue::Binary(entry.bytes.to_vec()),
+            );
+            cache.children.push(cached);
+            matched.insert(model_id);
+        }
+        for entry in &document.model_cache {
+            if entry.block_id != block.id
+                || entry.namespace != crate::model_namespace(block, entry.model_id)
+                || !references_model(block, entry.model_id)
+                || matched.contains(&entry.model_id)
+            {
+                continue;
+            }
+            cache.children.push(StateTree {
+                identifier: "CachedModel".into(),
+                properties: vec![
+                    ("modelId".into(), StateValue::Int64(entry.model_id.0)),
+                    ("data".into(), StateValue::Binary(entry.bytes.to_vec())),
+                ],
+                children: Vec::new(),
+            });
+            matched.insert(entry.model_id);
+        }
+    }
+    Ok(())
+}
+
+fn find_raw_block<'a>(raw: &'a StateTree, id: &BlockId) -> Option<&'a StateTree> {
+    child(raw, "ChainSnapshot")?
+        .children
+        .iter()
+        .filter(|lane| lane.identifier == "ChainBlocks" || lane.identifier == "RightChainBlocks")
+        .flat_map(|lane| &lane.children)
+        .find(|block| string_property(block, "id") == Some(id.0.as_str()))
+}
+
+fn find_raw_block_mut<'a>(raw: &'a mut StateTree, id: &BlockId) -> Option<&'a mut StateTree> {
+    raw.children
+        .iter_mut()
+        .find(|child| child.identifier == "ChainSnapshot")?
+        .children
+        .iter_mut()
+        .filter(|lane| lane.identifier == "ChainBlocks" || lane.identifier == "RightChainBlocks")
+        .flat_map(|lane| &mut lane.children)
+        .find(|block| string_property(block, "id") == Some(id.0.as_str()))
+}
+
+fn replace_child(raw: &mut StateTree, name: &str, replacement: &StateTree) {
+    if let Some(child) = raw
+        .children
+        .iter_mut()
+        .find(|child| child.identifier == name)
+    {
+        *child = replacement.clone();
+    } else {
+        raw.children.push(replacement.clone());
+    }
+}
+
+fn child<'a>(tree: &'a StateTree, name: &str) -> Option<&'a StateTree> {
+    tree.children.iter().find(|child| child.identifier == name)
+}
+
+fn property<'a>(tree: &'a StateTree, name: &str) -> Option<&'a StateValue> {
+    tree.properties
+        .iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value)
+}
+
+fn string_property<'a>(tree: &'a StateTree, name: &str) -> Option<&'a str> {
+    match property(tree, name) {
+        Some(StateValue::String(value)) => Some(value),
+        _ => None,
+    }
+}
+
+fn int_property(tree: &StateTree, name: &str) -> Option<i64> {
+    match property(tree, name) {
+        Some(StateValue::Int(value)) => Some(i64::from(*value)),
+        Some(StateValue::Int64(value)) => Some(*value),
+        Some(StateValue::Double(value)) => Some(*value as i64),
+        Some(StateValue::String(value)) => value.parse().ok(),
+        _ => None,
+    }
+}
+
+fn set_property(tree: &mut StateTree, name: &str, value: StateValue) {
+    if let Some(existing) = tree
+        .properties
+        .iter_mut()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value)
+    {
+        *existing = value;
+    } else {
+        tree.properties.push((name.into(), value));
+    }
+}
+
+fn empty_tree(identifier: &str) -> StateTree {
+    StateTree {
+        identifier: identifier.into(),
+        properties: Vec::new(),
+        children: Vec::new(),
+    }
+}
+
+impl From<ToneError> for StateError {
+    fn from(value: ToneError) -> Self {
+        Self::Tone(value)
+    }
+}

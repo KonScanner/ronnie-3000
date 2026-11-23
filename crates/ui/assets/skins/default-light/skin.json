@@ -1,0 +1,50 @@
+{
+  "id": "default-light",
+  "width": 527,
+  "height": 721,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        164.0,
+        111.0
+      ],
+      "side": 108,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        367.0,
+        111.0
+      ],
+      "side": 108,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        265.0,
+        195.0
+      ],
+      "side": 76,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      265.5,
+      100.5
+    ],
+    "size": [
+      77.2,
+      23.7
+    ]
+  }
+}

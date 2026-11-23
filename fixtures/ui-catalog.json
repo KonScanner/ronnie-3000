@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "tones": [
+    {
+      "id": 101,
+      "title": "'02 Vox AC30/6 Top Boost",
+      "gear": "amp",
+      "format": "nam",
+      "models_count": 6,
+      "a2_models_count": 6,
+      "downloads_count": 5246,
+      "favorites_count": 320,
+      "published_at": "2026-06-01T12:00:00Z",
+      "images": ["https://fixtures.invalid/img/amp-vox"],
+      "user": {
+        "username": "signaltheoryaudio",
+        "display_name": "Signal Theory Audio",
+        "is_verified": true,
+        "avatar_url": "https://fixtures.invalid/img/avatar-signaltheory"
+      },
+      "models": [{"id": 1101, "name": "AC30-6 TB Brl 3"}],
+      "makes": [{"id": 11, "name": "Vox"}, {"id": 12, "name": "AC30/6 Top Boost"}],
+      "tags": [
+        {"id": 1, "name": "rock"},
+        {"id": 2, "name": "british"},
+        {"id": 3, "name": "chime"},
+        {"id": 4, "name": "top boost"},
+        {"id": 5, "name": "class a"}
+      ]
+    },
+    {
+      "id": 102,
+      "title": "Roland JC-40",
+      "gear": "amp",
+      "format": "nam",
+      "models_count": 48,
+      "a2_models_count": 48,
+      "downloads_count": 9200,
+      "favorites_count": 320,
+      "images": ["https://fixtures.invalid/img/amp-jc40"],
+      "user": {
+        "username": "saprumi",
+        "avatar_url": "https://fixtures.invalid/img/avatar-saprumi"
+      },
+      "models": [{"id": 1102, "name": "JC40_414_CLEAN"}],
+      "makes": [{"id": 13, "name": "Roland"}, {"id": 14, "name": "JC-40"}],
+      "tags": [
+        {"id": 1, "name": "rock"},
+        {"id": 6, "name": "clean"},
+        {"id": 7, "name": "jazz"}
+      ]
+    },
+    {
+      "id": 103,
+      "title": "UK Greenback - Marshall 1960TV 4x12 M201",
+      "gear": "cab",
+      "format": "ir",
+      "models_count": 24,
+      "a2_models_count": 0,
+      "downloads_count": 31000,
+      "favorites_count": 320,
+      "images": ["https://fixtures.invalid/img/cab-412"],
+      "user": {
+        "username": "outmodedelectronics",
+        "avatar_url": "https://fixtures.invalid/img/avatar-outmoded"
+      },
+      "models": [{"id": 1103, "name": "M201 Cap Edge"}],
+      "makes": [{"id": 15, "name": "Marshall"}, {"id": 16, "name": "1960TV"}],
+      "tags": [{"id": 2, "name": "british"}, {"id": 8, "name": "cab"}]
+    },
+    {
+      "id": 104,
+      "title": "Green Russian Big Muff + BD-2",
+      "gear": "pedal",
+      "format": "nam",
+      "models_count": 6,
+      "a2_models_count": 6,
+      "downloads_count": 4100,
+      "favorites_count": 320,
+      "images": ["https://fixtures.invalid/img/pedal-muff"],
+      "user": {
+        "username": "kosmicaudio",
+        "avatar_url": "https://fixtures.invalid/img/avatar-kosmic"
+      },
+      "models": [{"id": 1104, "name": "D-12_00 T-12_00 + BD-2 Boost"}],
+      "makes": [{"id": 17, "name": "Electro-Harmonix"}, {"id": 18, "name": "Boss"}],
+      "tags": [{"id": 9, "name": "fuzz"}, {"id": 10, "name": "high gain"}]
+    },
+    {
+      "id": 105,
+      "title": "Metal 00s - Dual Rectifier Direct",
+      "gear": "amp",
+      "format": "nam",
+      "models_count": 11,
+      "a2_models_count": 11,
+      "downloads_count": 7800,
+      "favorites_count": 320,
+      "images": ["https://fixtures.invalid/img/amp-recto"],
+      "user": {
+        "username": "kenjitonejp",
+        "is_verified": true,
+        "avatar_url": "https://fixtures.invalid/img/avatar-kenji"
+      },
+      "models": [{"id": 1105, "name": "Orange Ch - Tight"}],
+      "makes": [{"id": 19, "name": "Mesa/Boogie"}, {"id": 20, "name": "Dual Rectifier"}],
+      "tags": [{"id": 11, "name": "metal"}, {"id": 10, "name": "high gain"}]
+    },
+    {
+      "id": 106,
+      "title": "AMS Neve 88R LB",
+      "gear": "outboard",
+      "format": "ir",
+      "models_count": 3,
+      "a2_models_count": 0,
+      "downloads_count": 2600,
+      "favorites_count": 320,
+      "images": ["https://fixtures.invalid/img/outboard-neve"],
+      "user": {
+        "username": "rickwolf",
+        "avatar_url": "https://fixtures.invalid/img/avatar-rickwolf"
+      },
+      "models": [{"id": 1106, "name": "Line - Drive 3"}],
+      "makes": [{"id": 21, "name": "AMS Neve"}, {"id": 22, "name": "88R"}],
+      "tags": [{"id": 12, "name": "studio"}]
+    }
+  ]
+}

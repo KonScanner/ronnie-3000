@@ -1,0 +1,50 @@
+{
+  "id": "comp",
+  "width": 493,
+  "height": 675,
+  "knobs": [
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        186.0,
+        100.0
+      ],
+      "side": 98,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        329.0,
+        100.0
+      ],
+      "side": 98,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        258.0,
+        104.0
+      ],
+      "side": 46,
+      "frames": 32,
+      "columns": 8
+    }
+  ],
+  "lcd": {
+    "center": [
+      257.5,
+      184.7
+    ],
+    "size": [
+      72.9,
+      22.2
+    ]
+  }
+}

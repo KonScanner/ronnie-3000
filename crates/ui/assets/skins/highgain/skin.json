@@ -1,0 +1,40 @@
+{
+  "id": "highgain",
+  "width": 1408,
+  "height": 900,
+  "knobs": [
+    {
+      "control": "gain",
+      "label": "GAIN IN",
+      "center": [
+        330.0,
+        670.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "output",
+      "label": "OUTPUT",
+      "center": [
+        451.0,
+        670.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    },
+    {
+      "control": "mix",
+      "label": "MIX",
+      "center": [
+        572.0,
+        670.0
+      ],
+      "side": 82,
+      "frames": 32,
+      "columns": 8
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "public_fixtures": [],
+  "private_sources": [
+    {
+      "name": "baseline-linux-x64-executable",
+      "role": "development-only behavioral oracle",
+      "sha256": "cc6906ab27b97e2540e6720041036e3d71eca6be0491a5ffa78cf87606d97542"
+    }
+  ]
+}
